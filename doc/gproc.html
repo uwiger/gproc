@@ -1,0 +1,245 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>Module gproc</title>
+<link rel="stylesheet" type="text/css" href="stylesheet.css" title="EDoc">
+</head>
+<body bgcolor="white">
+<div class="navbar"><a name="#navbar_top"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<hr>
+
+<h1>Module gproc</h1>
+<ul class="index"><li><a href="#description">Description</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>Extended process registry.
+
+<p><b>Behaviours:</b> <a href="gen_leader.html"><tt>gen_leader</tt></a>.</p>
+<p><b>Authors:</b> Ulf Wiger (<a href="mailto:ulf.wiger@ericsson.com"><tt>ulf.wiger@ericsson.com</tt></a>).</p>
+
+<h2><a name="description">Description</a></h2>Extended process registry
+  <p>This module implements an extended process registry</p>
+  <p>For a detailed description, see gproc/doc/erlang07-wiger.pdf.</p>
+<h2><a name="index">Function Index</a></h2>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#code_change-4">code_change/4</a></td><td></td></tr>
+<tr><td valign="top"><a href="#elected-2">elected/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#first-1">first/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#from_leader-3">from_leader/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_value-1">get_value/1</a></td><td>Read the value stored with a key registered to the current process.</td></tr>
+<tr><td valign="top"><a href="#go_global-0">go_global/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#go_global-1">go_global/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#handle_DOWN-3">handle_DOWN/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#handle_call-3">handle_call/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#handle_cast-2">handle_cast/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#handle_info-2">handle_info/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#handle_leader_call-4">handle_leader_call/4</a></td><td></td></tr>
+<tr><td valign="top"><a href="#handle_leader_cast-3">handle_leader_cast/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#info-1">info/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#info-2">info/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#last-1">last/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mreg-3">mreg/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#next-2">next/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#prev-2">prev/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#reg-2">reg/2</a></td><td>
+      Class = n  - unique name
+            | p  - non-unique property
+            | c  - counter
+            | a  - aggregated counter
+      Scope = l | g (global or local).</td></tr>
+<tr><td valign="top"><a href="#select-1">select/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#select-2">select/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#send-2">send/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#start_link-1">start_link/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#start_local-0">start_local/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#surrendered-3">surrendered/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#table-1">table/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#table-2">table/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td></td></tr>
+</table>
+
+<h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="code_change-4">code_change/4</a></h3>
+<div class="spec">
+<p><tt>code_change(FromVsn, S, Extra, E) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="elected-2">elected/2</a></h3>
+<div class="spec">
+<p><tt>elected(S, E) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="first-1">first/1</a></h3>
+<div class="spec">
+<p><tt>first(Scope) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="from_leader-3">from_leader/3</a></h3>
+<div class="spec">
+<p><tt>from_leader(Ops, S, E) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_value-1">get_value/1</a></h3>
+<div class="spec">
+<p><tt>get_value(Key) -&gt; Value</tt></p>
+</div><p>Read the value stored with a key registered to the current process.
+  </p>
+
+<h3 class="function"><a name="go_global-0">go_global/0</a></h3>
+<div class="spec">
+<p><tt>go_global() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="go_global-1">go_global/1</a></h3>
+<div class="spec">
+<p><tt>go_global(Nodes) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="handle_DOWN-3">handle_DOWN/3</a></h3>
+<div class="spec">
+<p><tt>handle_DOWN(Node, S, E) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="handle_call-3">handle_call/3</a></h3>
+<div class="spec">
+<p><tt>handle_call(X1, X2, S) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="handle_cast-2">handle_cast/2</a></h3>
+<div class="spec">
+<p><tt>handle_cast(X1, S) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="handle_info-2">handle_info/2</a></h3>
+<div class="spec">
+<p><tt>handle_info(X1, S) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="handle_leader_call-4">handle_leader_call/4</a></h3>
+<div class="spec">
+<p><tt>handle_leader_call(X1, From, State, E) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="handle_leader_cast-3">handle_leader_cast/3</a></h3>
+<div class="spec">
+<p><tt>handle_leader_cast(X1, State, E) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="info-1">info/1</a></h3>
+<div class="spec">
+<p><tt>info(Pid) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="info-2">info/2</a></h3>
+<div class="spec">
+<p><tt>info(Pid, I) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="init-1">init/1</a></h3>
+<div class="spec">
+<p><tt>init(X1) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="last-1">last/1</a></h3>
+<div class="spec">
+<p><tt>last(Scope) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mreg-3">mreg/3</a></h3>
+<div class="spec">
+<p><tt>mreg(T, X2, KVL) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="next-2">next/2</a></h3>
+<div class="spec">
+<p><tt>next(Scope, K) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="prev-2">prev/2</a></h3>
+<div class="spec">
+<p><tt>prev(Scope, K) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="reg-2">reg/2</a></h3>
+<div class="spec">
+<p><tt>reg(Key, Value) -&gt; any()</tt></p>
+</div><p>
+      Class = n  - unique name
+            | p  - non-unique property
+            | c  - counter
+            | a  - aggregated counter
+      Scope = l | g (global or local)
+  </p>
+
+<h3 class="function"><a name="select-1">select/1</a></h3>
+<div class="spec">
+<p><tt>select(Pat) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="select-2">select/2</a></h3>
+<div class="spec">
+<p><tt>select(Scope, Pat) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="send-2">send/2</a></h3>
+<div class="spec">
+<p><tt>send(Key, Msg) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="set_value-2">set_value/2</a></h3>
+<div class="spec">
+<p><tt>set_value(Key, Value) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="start_link-0">start_link/0</a></h3>
+<div class="spec">
+<p><tt>start_link() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="start_link-1">start_link/1</a></h3>
+<div class="spec">
+<p><tt>start_link(Nodes) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="start_local-0">start_local/0</a></h3>
+<div class="spec">
+<p><tt>start_local() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="surrendered-3">surrendered/3</a></h3>
+<div class="spec">
+<p><tt>surrendered(S, X2, E) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="table-1">table/1</a></h3>
+<div class="spec">
+<p><tt>table(Scope) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="table-2">table/2</a></h3>
+<div class="spec">
+<p><tt>table(T, Opts) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="terminate-2">terminate/2</a></h3>
+<div class="spec">
+<p><tt>terminate(Reason, S) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="unreg-1">unreg/1</a></h3>
+<div class="spec">
+<p><tt>unreg(Key) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="update_counter-2">update_counter/2</a></h3>
+<div class="spec">
+<p><tt>update_counter(Key, Incr) -&gt; any()</tt></p>
+</div>
+<hr>
+
+<div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<p><i>Generated by EDoc, Sep 4 2008, 11:29:40.</i></p>
+</body>
+</html>
