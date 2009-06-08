@@ -27,6 +27,9 @@
 	 mreg/3,
 	 set_value/2,
 	 get_value/1,
+	 where/1,
+	 lookup_pid/1,
+	 lookup_pids/1,
 	 update_counter/2,
 	 send/2,
 	 info/1, info/2,
@@ -82,7 +85,7 @@ reg({T,l,_} = Key, Value) when T==n; T==a ->
 reg({c,l,_} = Key, Value) ->
     %% local counter
     if is_integer(Value) ->
-	    local_reg(Key, Value);
+	    call({reg, Key, Value});
        true ->
 	    erlang:error(badarg)
     end;
@@ -194,6 +197,36 @@ get_value(_, _) ->
     erlang:error(badarg).
 
 
+%%% @spec (Key) -> Pid
+%%% @doc Lookup the Pid stored with a key.
+%%%
+lookup_pid({T,_,_} = Key) ->
+    case where(Key) of
+	undefined -> erlang:error(badarg);
+	P -> P
+    end.
+
+
+where({T,_,_}=Key) ->
+    if T==n; T==a ->
+	    case ets:lookup(?TAB, {Key,T}) of
+		[] ->
+		    undefined;
+		[{_, P, _Value}] ->
+		    P
+	    end;
+       true ->
+	    erlang:error(badarg)
+    end.
+
+lookup_pids({T,_,_} = Key) ->
+    if T==n; T==a; T==c ->
+	    ets:select(?TAB, [{{{Key,T}, '$1', '_'},[],['$1']}]);
+       true ->
+	    erlang:error(badarg)
+    end.
+
+
 update_counter({c,l,_} = Key, Incr) when is_integer(Incr) ->
     gproc_lib:update_counter(Key, Incr);
 update_counter({c,g,_} = Key, Incr) when is_integer(Incr) ->
@@ -303,15 +336,15 @@ info(Pid, I) ->
 
 handle_cast({monitor_me, Pid}, S) ->
     erlang:monitor(process, Pid),
-    {ok, S}.
+    {noreply, S}.
 
-handle_call({reg, {_,l,_} = Key, Val}, {Pid,_}, S) ->
-    case gproc_lib:insert_reg(Key, Val, Pid, l) of
-	false ->
-	    {reply, badarg, S};
+handle_call({reg, {T,l,_} = Key, Val}, {Pid,_}, S) ->
+    case try_insert_reg(Key, Val, Pid) of
 	true ->
 	    ensure_monitor(Pid),
-	    {reply, true, S}
+	    {reply, true, S};
+	false ->
+	    {reply, badarg, S}
     end;
 handle_call({unreg, {_,l,_} = Key}, {Pid,_}, S) ->
     case ets:member(?TAB, {Pid,Key}) of
@@ -339,14 +372,10 @@ handle_call(_, _, S) ->
     {reply, badarg, S}.
 
 handle_info({'DOWN', _MRef, process, Pid, _}, S) ->
-    Keys = ets:select(?TAB, [{{{Pid,'$1'}},
-			      [{'==',{element,2,'$1'},l}], ['$1']}]),
-    ets:select_delete(?TAB, [{{{Pid,{'_',l,'_'}}}, [], [true]}]),
-    ets:delete(?TAB, Pid),
-    lists:foreach(fun(Key) -> gproc_lib:remove_reg_1(Key, Pid) end, Keys),
-    {ok, S};
+    process_is_down(Pid),
+    {noreply, S};
 handle_info(_, S) ->
-    {ok, S}.
+    {noreply, S}.
 
 
 
@@ -368,6 +397,30 @@ call(Req) ->
 cast(Msg) ->
     gen_server:cast(?MODULE, Msg).
 
+
+
+
+try_insert_reg({T,l,_} = Key, Val, Pid) ->
+    case gproc_lib:insert_reg(Key, Val, Pid, l) of
+	false ->
+	    [{_, OtherPid, _}] = ets:lookup(?TAB, {Key,T}),
+	    case is_process_alive(OtherPid) of
+		true ->
+		    false;
+		false ->
+		    process_is_down(Pid),
+		    true = gproc_lib:insert_reg(Key, Val, Pid, l)
+	    end;
+	true ->
+	    true
+    end.
+
+process_is_down(Pid) ->
+    Keys = ets:select(?TAB, [{{{Pid,'$1'}},
+			      [{'==',{element,2,'$1'},l}], ['$1']}]),
+    ets:select_delete(?TAB, [{{{Pid,{'_',l,'_'}}}, [], [true]}]),
+    ets:delete(?TAB, Pid),
+    lists:foreach(fun(Key) -> gproc_lib:remove_reg_1(Key, Pid) end, Keys).
 
 
 create_tabs() ->
