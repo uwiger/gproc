@@ -200,7 +200,7 @@ get_value(_, _) ->
 %%% @spec (Key) -> Pid
 %%% @doc Lookup the Pid stored with a key.
 %%%
-lookup_pid({T,_,_} = Key) ->
+lookup_pid({_T,_,_} = Key) ->
     case where(Key) of
 	undefined -> erlang:error(badarg);
 	P -> P
@@ -338,7 +338,7 @@ handle_cast({monitor_me, Pid}, S) ->
     erlang:monitor(process, Pid),
     {noreply, S}.
 
-handle_call({reg, {T,l,_} = Key, Val}, {Pid,_}, S) ->
+handle_call({reg, {_T,l,_} = Key, Val}, {Pid,_}, S) ->
     case try_insert_reg(Key, Val, Pid) of
 	true ->
 	    ensure_monitor(Pid),

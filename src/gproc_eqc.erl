@@ -1,7 +1,7 @@
 %%% File    : gproc_eqc.erl
-%%% Author  : <Ulf.Wiger@erlang-consulting.com>  
+%%% Author  : <Ulf.Wiger@erlang-consulting.com>
 %%%         : <John.Hughes@quviq.com>
-%%% Description : 
+%%% Description :
 %%% Created : 11 Dec 2008 by  <John Hughes@JTABLET2007>
 -module(gproc_eqc).
 
@@ -13,11 +13,12 @@
 
 -record(state,{pids=[],regs=[],killed=[]}).
 
+%% external API
+start_test() ->
+    eqc:module({numtests, 500}, ?MODULE).
 
 run() ->
-%%     eqc:quickcheck(prop_gproc()).
     run(200).
-
 
 run(Num) ->
     eqc:quickcheck(eqc:numtests(Num, prop_gproc())).
@@ -34,7 +35,7 @@ command(S) ->
       [{call,?MODULE,reg,[name(),elements(S#state.pids)]}
        || S#state.pids/=[]] ++
       [{call,?MODULE,unreg,[elements(S#state.regs)]} || S#state.regs/=[]] ++
-      [{call,gproc,where,[{n,l,name()}]}]			       
+      [{call,gproc,where,[{n,l,name()}]}]
      ).
 
 name() ->
@@ -43,17 +44,17 @@ name() ->
 %% Next state transformation, S is the current state
 next_state(S,V,{call,_,spawn,_}) ->
     S#state{pids=[V|S#state.pids]};
-next_state(S,V,{call,_,kill,[Pid]}) ->
+next_state(S,_V,{call,_,kill,[Pid]}) ->
     S#state{killed=[Pid|S#state.killed],
-	    pids=S#state.pids -- [Pid],
-	    regs = [{Name,Pid2} || {Name,Pid2} <- S#state.regs,
-				   Pid/=Pid2]};
+            pids=S#state.pids -- [Pid],
+            regs = [{Name,Pid2} || {Name,Pid2} <- S#state.regs,
+                                   Pid/=Pid2]};
 next_state(S,_V,{call,_,reg,[Name,Pid]}) ->
     case register_ok(S,Name,Pid) of
-	false ->
-	    S;
-	true ->
-	    S#state{regs=[{Name,Pid}|S#state.regs]}
+        false ->
+            S;
+        true ->
+            S#state{regs=[{Name,Pid}|S#state.regs]}
     end;
 next_state(S,_V,{call,_,unreg,[{Name,_}]}) ->
     S#state{regs=lists:keydelete(Name,1,S#state.regs)};
@@ -64,49 +65,49 @@ next_state(S,_V,{call,_,_,_}) ->
 %% precondition(S,{call,_,unreg,[Name]}) ->
 %%
 %% precondition(S,{call,_,reg,[Name,Pid]}) ->
-%%     
+%%
 precondition(_S,{call,_,_,_}) ->
     true.
 
 unregister_ok(S,Name) ->
     lists:keymember(Name,1,S#state.regs).
 
-register_ok(S,Name,Pid) ->
+register_ok(S,Name,_Pid) ->
     not lists:keymember(Name,1,S#state.regs).
 
 %% Postcondition, checked after command has been evaluated
-%% OBS: S is the state before next_state(S,_,<command>) 
+%% OBS: S is the state before next_state(S,_,<command>)
 postcondition(S,{call,_,where,[{_,_,Name}]},Res) ->
     Res == proplists:get_value(Name,S#state.regs);
 postcondition(S,{call,_,unreg,[{Name,_}]},Res) ->
     case Res of
-	true ->
-	    unregister_ok(S,Name);
-	{'EXIT',_} ->
-	    not unregister_ok(S,Name)
+        true ->
+            unregister_ok(S,Name);
+        {'EXIT',_} ->
+            not unregister_ok(S,Name)
     end;
 postcondition(S,{call,_,reg,[Name,Pid]},Res) ->
     case Res of
-	true ->
-	    register_ok(S,Name,Pid);
-	{'EXIT',_} ->
-	    not register_ok(S,Name,Pid)
+        true ->
+            register_ok(S,Name,Pid);
+        {'EXIT',_} ->
+            not register_ok(S,Name,Pid)
     end;
 postcondition(_S,{call,_,_,_},_Res) ->
     true.
 
 prop_gproc() ->
     ?FORALL(Cmds,commands(?MODULE),
-	    ?TRAPEXIT(
-	    begin
-		ok = start_app(),
-		{H,S,Res} = run_commands(?MODULE,Cmds),
-		kill_all_pids({H,S}),
-		ok = stop_app(),
-		?WHENFAIL(
-		   io:format("History: ~p\nState: ~p\nRes: ~p\n",[H,S,Res]),
-		   Res == ok)
-	    end)).
+            ?TRAPEXIT(
+               begin
+                   ok = start_app(),
+                   {H,S,Res} = run_commands(?MODULE,Cmds),
+                   kill_all_pids({H,S}),
+                   ok = stop_app(),
+                   ?WHENFAIL(
+                      io:format("History: ~p\nState: ~p\nRes: ~p\n",[H,S,Res]),
+                      Res == ok)
+               end)).
 
 
 seed() ->
@@ -124,11 +125,11 @@ cleanup(Tabs,Server) ->
 
 start_app() ->
     case application:start(gproc) of
-	{error, {already_started,_}} ->
-	    stop_app(),
-	    ok = application:start(gproc);
-	ok ->
-	    ok
+        {error, {already_started,_}} ->
+            stop_app(),
+            ok = application:start(gproc);
+        ok ->
+            ok
     end.
 
 stop_app() ->
@@ -140,28 +141,28 @@ delete_tables() ->
 
 spawn() ->
     spawn(fun() ->
-		  loop()
-	  end).
+                  loop()
+          end).
 
 loop() ->
     receive
-	{From, Ref, F} ->
-	    From ! {Ref, catch F()},
-	    loop();
-	stop -> ok
+        {From, Ref, F} ->
+            From ! {Ref, catch F()},
+            loop();
+        stop -> ok
     end.
 
 do(Pid, F) ->
     Ref = erlang:monitor(process, Pid),
     Pid ! {self(), Ref, F},
     receive
-	{'DOWN', Ref, process, Pid, Reason} ->
-	    {'EXIT', {'DOWN',Reason}};
-	{Ref, Result} ->
-	    erlang:demonitor(Ref),
-	    Result
+        {'DOWN', Ref, process, Pid, Reason} ->
+            {'EXIT', {'DOWN',Reason}};
+        {Ref, Result} ->
+            erlang:demonitor(Ref),
+            Result
     after 3000 ->
-	    {'EXIT', timeout}
+            {'EXIT', timeout}
     end.
 
 kill(Pid) ->
@@ -171,13 +172,13 @@ kill(Pid) ->
 unreg({Name,Pid}) ->
     do(Pid,
        fun() ->
-	       catch gproc:unreg({n,l,Name})
+               catch gproc:unreg({n,l,Name})
        end).
 
 reg(Name,Pid) ->
     do(Pid,
        fun() ->
-	       catch gproc:reg({n,l,Name},Pid)
+               catch gproc:reg({n,l,Name},Pid)
        end).
 
 
@@ -187,10 +188,10 @@ reg(Name,Pid) ->
 
 kill_all_pids(Pid) when is_pid(Pid) ->
     case is_process_alive(Pid) of
-	true ->
-	    exit(Pid,kill);
-	false ->
-	    ok
+        true ->
+            exit(Pid,kill);
+        false ->
+            ok
     end;
 kill_all_pids(Tup) when is_tuple(Tup) ->
     kill_all_pids(tuple_to_list(Tup));
@@ -199,4 +200,3 @@ kill_all_pids([H|T]) ->
     kill_all_pids(T);
 kill_all_pids(_) ->
     ok.
-
