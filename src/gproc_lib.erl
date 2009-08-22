@@ -24,7 +24,7 @@
 
 -include("gproc.hrl").
 
-insert_reg({T,_,Name} = K, Value, Pid, C) when T==a; T==c; T==n ->
+insert_reg({T,_,Name} = K, Value, Pid, C) when T==a; T==n ->
     %%% We want to store names and aggregated counters with the same
     %%% structure as properties, but at the same time, we must ensure
     %%% that the key is unique. We replace the Pid in the key part
@@ -37,8 +37,6 @@ insert_reg({T,_,Name} = K, Value, Pid, C) when T==a; T==c; T==n ->
             if T == a ->
                     Initial = scan_existing_counters(C, Name),
                     ets:insert(?TAB, {{K,a}, Pid, Initial});
-               T == c ->
-                    update_aggr_counter(l, Name, Value);
                true ->
                     true
             end,
