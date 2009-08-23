@@ -13,31 +13,47 @@
 
 -compile(export_all).
 
+%%
+%% QUESTIONS:
+%%
+%%  - does set_value for Class==a make sense?
+%%
+
+%%
+%% TODO Now:
+%%
+%%  - add non integer to value() generator
+%%  - implement mreg
+%%  - implement lookup_pid/lookup_pids
+%%
+
+%%
+%% TODO Later:
+%%
+%%  - implement send
+%%  - implement info
+%%  - implement select
+%%  - implement first/next/prev/last
+%%  - implement table
+%%
 
 %% records
--record(n_reg,
-        {key           %% atom() ... only in this model
-         , pid          %% pid()
+-record(key,
+        {class          %% class()
+         , scope        %% scope()
+         , name         %% name()
         }).
 
--record(c_reg,
-        {key           %% atom() ... only in this model
-         , pid          %% pid()
-         , value=0      %% int()
-        }).
-
--record(a_reg,
-        {key           %% atom() ... only in this model
-         , pid          %% pid()
-         , value=0      %% int()
+-record(reg,
+        {pid            %% pid()
+         , key          %% key()
+         , value        %% int()
         }).
 
 -record(state,
         {pids=[]        %% [pid()]
          , killed=[]    %% [pid()]
-         , n_regs=[]    %% [n_reg()]
-         , c_regs=[]    %% [c_reg()]
-         , a_regs=[]    %% [a_reg()]
+         , regs=[]      %% [reg()]
         }).
 
 
@@ -53,68 +69,77 @@ run(Num) ->
 
 
 %% Command generator, S is the state
-
-%% NOTE: These are the only use cases that make sense to me so far.
-%% Other APIs seem possible but I'm not sure why/how/when they can be
-%% useful.
-
 command(S) ->
     oneof(
       %% spawn
-      [ {call,?MODULE,spawn,[]} ]
+      [ {call,?MODULE,spawn, []} ]
+
+      %% where
+      ++ [ {call,?MODULE,where, [key()]} ]
+
       %% kill
-      ++ [ {call,?MODULE,kill,[elements(S#state.pids)]}
-           || S#state.pids/=[] ]
+      ++ [ oneof([
+                  %% kill
+                  {call,?MODULE,kill,             [elements(S#state.pids)]}
+                  %% register
+                  , {call,?MODULE,reg,            [elements(S#state.pids), key(), value()]}
+                  %% unregister
+                  , {call,?MODULE,unreg,          [elements(S#state.pids), key()]}
+                  %% many register
+                  %%, {call,?MODULE,mreg,         [elements(S#state.pids), class(), scope(), list({name(), value()})]}
 
-      %% name - register
-      ++ [ {call,?MODULE,n_reg,[name(),elements(S#state.pids)]}
-           || S#state.pids/=[] ]
-      %% name - unregister
-      ++ [ {call,?MODULE,n_unreg,[name(),elements(S#state.pids)]}
-           || S#state.pids/=[] ]
-      %% counter - register
-      ++ [ {call,?MODULE,c_reg,[counter(),elements(S#state.pids),int()]}
-           || S#state.pids/=[] ]
-      %% counter - unregister
-      ++ [ {call,?MODULE,c_unreg,[counter(),elements(S#state.pids)]}
-           || S#state.pids/=[] ]
-      %% aggr counter - register
-      ++ [ {call,?MODULE,a_reg,[aggr_counter(),elements(S#state.pids)]}
-           || S#state.pids/=[] ]
-      %% aggr counter - unregister
-      ++ [ {call,?MODULE,a_unreg,[aggr_counter(),elements(S#state.pids)]}
-           || S#state.pids/=[] ]
+                  %% set_value
+                  , {call,?MODULE,set_value,      [elements(S#state.pids), key(), value()]}
+                  %% update_counter
+                  , {call,?MODULE,update_counter, [elements(S#state.pids), key(), value()]}
 
-      %% counter - set_value
-      ++ [ {call,?MODULE,c_set_value,[counter(),elements(S#state.pids),int()]}
+                  %% get_value
+                  , {call,?MODULE,get_value,      [elements(S#state.pids), key()]}
+                  %% lookup_pid
+                  %%, {call,gproc,lookup_pid,     [key()]}
+                  %% lookup_pids
+                  %%, {call,gproc,lookup_pids,    [key()]}
+                 ])
            || S#state.pids/=[] ]
-
-      %% aggr counter - get_value
-      ++ [ {call,?MODULE,a_get_value,[aggr_counter(),elements(S#state.pids)]}
-           || S#state.pids/=[] ]
-
-      %% name - where
-      ++ [{call,gproc,where,[{n,l,name()}]}]
-      %% aggr counter - where
-      ++ [{call,gproc,where,[{a,l,aggr_counter()}]}]
-
-      %% TODO: postcondition fails ... need to investigate ?
-      %% %% counter - lookup_pids
-      %% ++ [ {call,gproc,lookup_pids,[{c,l,counter()}]} ]
-
      ).
 
-%% name generator
-name() ->
-    elements([n1,n2,n3,n4]).
+%% generator class
+class() -> elements([n,p,c,a]).
 
-%% counter generator
-counter() ->
-    elements([c1,c2,c3,c4]).
+%% generator scope
+scope() -> l.
 
-%% aggr counter generator
-aggr_counter() ->
-    elements([a1,a2,a3,a4]).
+%% generator name
+name() -> elements([x,y,z,w]).
+
+%% generator key
+key() -> #key{class=class(), scope=scope(), name=name()}.
+
+%% generator value
+value() -> int().
+
+
+%% helpers
+is_register_ok(S,Pid,Key,_Value) ->
+    [] == [ Pid1 || #reg{pid=Pid1,key=Key1}
+                        <- S#state.regs, is_register_eq(Pid,Key,Pid1,Key1) ].
+
+is_register_eq(_PidA,#key{class=Class}=KeyA,_PidB,KeyB)
+  when Class == n; Class ==a ->
+    KeyA==KeyB;
+is_register_eq(PidA,KeyA,PidB,KeyB) ->
+    PidA==PidB andalso KeyA==KeyB.
+
+is_unregister_ok(S,Pid,Key) ->
+    [] /= [ Pid1 || #reg{pid=Pid1,key=Key1}
+                        <- S#state.regs, is_unregister_eq(Pid,Key,Pid1,Key1) ].
+
+is_unregister_eq(PidA,KeyA,PidB,KeyB) ->
+    KeyA==KeyB andalso PidA==PidB.
+
+is_registered_and_alive(S,Pid,Key) ->
+    is_unregister_ok(S,Pid,Key)
+        andalso lists:member(Pid,S#state.pids).
 
 
 %% Initialize the state
@@ -123,111 +148,115 @@ initial_state() ->
 
 
 %% Next state transformation, S is the current state
-
 %% spawn
 next_state(S,V,{call,_,spawn,_}) ->
     S#state{pids=[V|S#state.pids]};
 %% kill
 next_state(S,_V,{call,_,kill,[Pid]}) ->
-    S#state{killed=[Pid|S#state.killed]
-            , pids=S#state.pids -- [Pid]
-            , n_regs=[ X || #n_reg{pid=Pid1}=X <- S#state.n_regs, Pid/=Pid1 ]
-            , c_regs=[ X || #c_reg{pid=Pid1}=X <- S#state.c_regs, Pid/=Pid1 ]
-            , a_regs=[ X || #a_reg{pid=Pid1}=X <- S#state.a_regs, Pid/=Pid1 ]
+    S#state{pids=S#state.pids -- [Pid]
+            , killed=[Pid|S#state.killed]
+            , regs=[ X || #reg{pid=Pid1}=X <- S#state.regs, Pid/=Pid1 ]
            };
-%% n_reg
-next_state(S,_V,{call,_,n_reg,[Key,Pid]}) ->
-    case is_n_register_ok(S,Key,Pid) of
+%% reg
+next_state(S,_V,{call,_,reg,[Pid,Key,Value]}) ->
+    case is_register_ok(S,Pid,Key,Value) of
         false ->
             S;
         true ->
-            S#state{n_regs=[#n_reg{key=Key,pid=Pid}|S#state.n_regs]}
-    end;
-%% n_unreg
-next_state(S,_V,{call,_,n_unreg,[Key,Pid]}) ->
-    case is_n_unregister_ok(S,Key,Pid) of
-        false ->
-            S;
-        true ->
-            FunN = fun(#n_reg{key=Key1,pid=Pid1}) -> (Key==Key1 andalso Pid==Pid1) end,
-            case lists:partition(FunN, S#state.n_regs) of
-                {[_], NOthers} ->
-                    S#state{n_regs=NOthers}
+            case Key of
+                #key{class=a,name=Name} ->
+                    %% initialize aggr counter
+                    FunC = fun(#reg{key=#key{class=Class1,name=Name1}}) -> (Class1 == c andalso Name==Name1) end,
+                    {Regs, _Others} = lists:partition(FunC, S#state.regs),
+                    InitialValue = lists:sum([ V || #reg{value=V} <- Regs ]),
+                    S#state{regs=[#reg{pid=Pid,key=Key,value=InitialValue}|S#state.regs]};
+                #key{class=c,name=Name} ->
+                    S1 = S#state{regs=[#reg{pid=Pid,key=Key,value=Value}|S#state.regs]},
+                    %% update aggr counter
+                    FunA = fun(#reg{key=#key{class=Class1,name=Name1}}) -> (Class1 == a andalso Name==Name1) end,
+                    case lists:partition(FunA, S1#state.regs) of
+                        {[Reg], Others} ->
+                            S1#state{regs=[Reg#reg{value=Reg#reg.value+Value}|Others]};
+                        {[], _Others} ->
+                            S1
+                    end;
+                _ ->
+                    S#state{regs=[#reg{pid=Pid,key=Key,value=Value}|S#state.regs]}
             end
     end;
-%% c_reg
-next_state(S,_V,{call,_,c_reg,[Key,Pid,Value]}) ->
-    case is_c_register_ok(S,Key,Pid) of
+%% unreg
+next_state(S,_V,{call,_,unreg,[Pid,Key]}) ->
+    case is_unregister_ok(S,Pid,Key) of
         false ->
             S;
         true ->
-            S1 = S#state{c_regs=[#c_reg{key=Key,pid=Pid,value=Value}|S#state.c_regs]},
-            %% aggr counter update
-            FunA = fun(#a_reg{key=Key1}) -> Key==Key1 end,
-            case lists:partition(FunA, S#state.a_regs) of
-                {[], _AOthers} ->
-                    S1;
-                {[AReg], AOthers} ->
-                    S1#state{a_regs=[AReg#a_reg{value=AReg#a_reg.value+Value}|AOthers]}
-            end
-    end;
-%% c_unreg
-next_state(S,_V,{call,_,c_unreg,[Key,Pid]}) ->
-    case is_c_unregister_ok(S,Key,Pid) of
-        false ->
-            S;
-        true ->
-            FunC = fun(#c_reg{key=Key1,pid=Pid1}) -> (Key==Key1 andalso Pid==Pid1) end,
-            case lists:partition(FunC, S#state.c_regs) of
-                {[#c_reg{value=Value}], COthers} ->
-                    S1 = S#state{c_regs=COthers},
-                    %% aggr counter update
-                    FunA = fun(#a_reg{key=Key1}) -> Key==Key1 end,
-                    case lists:partition(FunA, S#state.a_regs) of
-                        {[], _AOthers} ->
-                            S1;
-                        {[AReg], AOthers} ->
-                            S1#state{a_regs=[AReg#a_reg{value=AReg#a_reg.value-Value}|AOthers]}
+            FunC = fun(#reg{pid=Pid1,key=Key1}) -> (Pid==Pid1 andalso Key==Key1) end,
+            case lists:partition(FunC, S#state.regs) of
+                {[#reg{value=Value}], Others} ->
+                    S1 = S#state{regs=Others},
+                    case Key of
+                        #key{class=c,name=Name} ->
+                            %% update aggr counter
+                            FunA = fun(#reg{key=#key{class=Class1,name=Name1}}) -> (Class1 == a andalso Name==Name1) end,
+                            case lists:partition(FunA, S1#state.regs) of
+                                {[], _Others1} ->
+                                    S1;
+                                {[Reg], Others1} ->
+                                    S1#state{regs=[Reg#reg{value=Reg#reg.value-Value}|Others1]}
+                            end;
+                        _ ->
+                            S1
                     end
             end
     end;
-%% a_reg
-next_state(S,_V,{call,_,a_reg,[Key,Pid]}) ->
-    case is_a_register_ok(S,Key,Pid) of
+%% set_value
+next_state(S,_V,{call,_,set_value,[Pid,Key,Value]}) ->
+    case is_registered_and_alive(S,Pid,Key) of
         false ->
             S;
         true ->
-            S#state{a_regs=[#a_reg{key=Key,pid=Pid,value=0}|S#state.a_regs]}
-    end;
-%% a_unreg
-next_state(S,_V,{call,_,a_unreg,[Key,Pid]}) ->
-    case is_a_unregister_ok(S,Key,Pid) of
-        false ->
-            S;
-        true ->
-            FunA = fun(#a_reg{key=Key1,pid=Pid1}) -> (Key==Key1 andalso Pid==Pid1) end,
-            case lists:partition(FunA, S#state.a_regs) of
-                {[_], AOthers} ->
-                    S#state{a_regs=AOthers}
+            FunC = fun(#reg{pid=Pid1,key=Key1}) -> (Pid==Pid1 andalso Key==Key1) end,
+            case lists:partition(FunC, S#state.regs) of
+                {[#reg{value=OldValue}=OldReg], Others} ->
+                    S1 = S#state{regs=[OldReg#reg{value=Value}|Others]},
+                    case Key of
+                        #key{class=c,name=Name} ->
+                            %% aggr counter update
+                            FunA = fun(#reg{key=#key{class=Class1,name=Name1}}) -> (Class1 == a andalso Name==Name1) end,
+                            case lists:partition(FunA, S1#state.regs) of
+                                {[], _Others1} ->
+                                    S1;
+                                {[Reg], Others1} ->
+                                    S1#state{regs=[Reg#reg{value=Reg#reg.value-OldValue+Value}|Others1]}
+                            end;
+                        _ ->
+                            S1
+                    end
             end
     end;
-%% set_value
-next_state(S,_V,{call,_,c_set_value,[Key,Pid,Value]}) ->
-    case is_c_registered_and_alive(S,Key,Pid) of
+%% update_counter
+next_state(S,_V,{call,_,update_counter,[Pid,#key{class=Class}=Key,Incr]})
+  when Class == c ->
+    case is_registered_and_alive(S,Pid,Key) of
         false ->
             S;
         true ->
-            FunC = fun(#c_reg{key=Key1,pid=Pid1}) -> (Key==Key1 andalso Pid==Pid1) end,
-            case lists:partition(FunC, S#state.c_regs) of
-                {[#c_reg{value=OldValue}=CReg], COthers} ->
-                    S1 = S#state{c_regs=[CReg#c_reg{value=Value}|COthers]},
-                    %% aggr counter update
-                    FunA = fun(#a_reg{key=Key1}) -> Key==Key1 end,
-                    case lists:partition(FunA, S#state.a_regs) of
-                        {[], _AOthers} ->
-                            S1;
-                        {[AReg], AOthers} ->
-                            S1#state{a_regs=[AReg#a_reg{value=AReg#a_reg.value-OldValue+Value}|AOthers]}
+            FunC = fun(#reg{pid=Pid1,key=Key1}) -> (Pid==Pid1 andalso Key==Key1) end,
+            case lists:partition(FunC, S#state.regs) of
+                {[#reg{value=OldValue}=OldReg], Others} ->
+                    S1 = S#state{regs=[OldReg#reg{value=OldValue+Incr}|Others]},
+                    case Key of
+                        #key{class=c,name=Name} ->
+                            %% aggr counter update
+                            FunA = fun(#reg{key=#key{class=Class1,name=Name1}}) -> (Class1 == a andalso Name==Name1) end,
+                            case lists:partition(FunA, S1#state.regs) of
+                                {[], _Others1} ->
+                                    S1;
+                                {[Reg], Others1} ->
+                                    S1#state{regs=[Reg#reg{value=Reg#reg.value+Incr}|Others1]}
+                            end;
+                        _ ->
+                            S1
                     end
             end
     end;
@@ -251,90 +280,69 @@ postcondition(_S,{call,_,spawn,_},_Res) ->
 %% kill
 postcondition(_S,{call,_,kill,_},_Res) ->
     true;
-%% n_reg
-postcondition(S,{call,_,n_reg,[Key,Pid]},Res) ->
-    case Res of
-        true ->
-            is_n_register_ok(S,Key,Pid);
-        {'EXIT',_} ->
-            not is_n_register_ok(S,Key,Pid)
+%% where
+postcondition(S,{call,_,where,[#key{class=Class}=Key]},Res) ->
+    if Class == n orelse Class == a ->
+            case lists:keysearch(Key,#reg.key,S#state.regs) of
+                {value, #reg{pid=Pid}} ->
+                    Res == Pid;
+                false ->
+                    Res == undefined
+            end;
+       true ->
+            case Res of
+                {'EXIT', {badarg, _}} ->
+                    true;
+                _ ->
+                    false
+            end
     end;
-%% n_unreg
-postcondition(S,{call,_,n_unreg,[Key,Pid]},Res) ->
+%% reg
+postcondition(S,{call,_,reg,[Pid,Key,Value]},Res) ->
     case Res of
         true ->
-            is_n_unregister_ok(S,Key,Pid);
-        {'EXIT',_} ->
-            not is_n_unregister_ok(S,Key,Pid)
+            is_register_ok(S,Pid,Key,Value);
+        {'EXIT', {badarg, _}} ->
+            is_unregister_ok(S,Pid,Key)
+                orelse not is_register_ok(S,Pid,Key,Value)
     end;
-%% c_reg
-postcondition(S,{call,_,c_reg,[Key,Pid,_Value]},Res) ->
+%% unreg
+postcondition(S,{call,_,unreg,[Pid,Key]},Res) ->
     case Res of
         true ->
-            is_c_register_ok(S,Key,Pid);
-        {'EXIT',_} ->
-            not is_c_register_ok(S,Key,Pid)
-    end;
-%% c_unreg
-postcondition(S,{call,_,c_unreg,[Key,Pid]},Res) ->
-    case Res of
-        true ->
-            is_c_unregister_ok(S,Key,Pid);
-        {'EXIT',_} ->
-            not is_c_unregister_ok(S,Key,Pid)
-    end;
-%% a_reg
-postcondition(S,{call,_,a_reg,[Key,Pid]},Res) ->
-    case Res of
-        true ->
-            is_a_register_ok(S,Key,Pid);
-        {'EXIT',_} ->
-            not is_a_register_ok(S,Key,Pid)
-    end;
-%% a_unreg
-postcondition(S,{call,_,a_unreg,[Key,Pid]},Res) ->
-    case Res of
-        true ->
-            is_a_unregister_ok(S,Key,Pid);
-        {'EXIT',_} ->
-            not is_a_unregister_ok(S,Key,Pid)
+            is_unregister_ok(S,Pid,Key);
+        {'EXIT', {badarg, _}} ->
+            not is_unregister_ok(S,Pid,Key)
     end;
 %% set_value
-postcondition(S,{call,_,c_set_value,[Key,Pid,_Value]},Res) ->
+postcondition(S,{call,_,set_value,[Pid,Key,_Value]},Res) ->
     case Res of
         true ->
-            is_c_registered_and_alive(S,Key,Pid);
-        {'EXIT',_} ->
-            not is_c_registered_and_alive(S,Key,Pid)
+            is_registered_and_alive(S,Pid,Key);
+        {'EXIT', {badarg, _}} ->
+            not is_registered_and_alive(S,Pid,Key)
     end;
-%% get_value
-postcondition(S,{call,_,a_get_value,[Key,Pid]},Res) ->
-    case [ Value || #a_reg{key=Key1,pid=Pid1,value=Value} <- S#state.a_regs
-                        , (Key==Key1 andalso Pid==Pid1) ] of
+%% update_counter
+postcondition(S,{call,_,update_counter,[Pid,#key{class=Class}=Key,Incr]},Res)
+  when Class == c ->
+    case [ Value1 || #reg{pid=Pid1,key=Key1,value=Value1} <- S#state.regs
+                         , (Pid==Pid1 andalso Key==Key1) ] of
         [] ->
-            case Res of {'EXIT',_} -> true; _ -> false end;
+            case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
+        [Value] ->
+            Res == Value+Incr
+    end;
+postcondition(_S,{call,_,update_counter,[_Pid,_Key,_Incr]},Res) ->
+    case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
+%% get_value
+postcondition(S,{call,_,get_value,[Pid,Key]},Res) ->
+    case [ Value1 || #reg{pid=Pid1,key=Key1,value=Value1} <- S#state.regs
+                         , (Pid==Pid1 andalso Key==Key1) ] of
+        [] ->
+            case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
         [Value] ->
             Res == Value
     end;
-%% where
-postcondition(S,{call,_,where,[{n,l,Key}]},Res) ->
-    case lists:keysearch(Key,#n_reg.key,S#state.n_regs) of
-        {value, #n_reg{pid=Pid}} ->
-            Res == Pid;
-        false ->
-            Res == undefined
-    end;
-postcondition(S,{call,_,where,[{a,l,Key}]},Res) ->
-    case lists:keysearch(Key,#a_reg.key,S#state.a_regs) of
-        {value, #a_reg{pid=Pid}} ->
-            Res == Pid;
-        false ->
-            Res == undefined
-    end;
-%% lookup_pids
-postcondition(S,{call,_,lookup_pids,[{c,l,Key}]},Res) ->
-    lists:sort(Res) ==
-        lists:sort([ Pid || #c_reg{key=Key1,pid=Pid} <- S#state.c_regs, Key==Key1 ]);
 %% otherwise
 postcondition(_S,{call,_,_,_},_Res) ->
     false.
@@ -344,10 +352,10 @@ prop_gproc() ->
     ?FORALL(Cmds,commands(?MODULE),
             ?TRAPEXIT(
                begin
+                   ok = stop_app(),
                    ok = start_app(),
                    {H,S,Res} = run_commands(?MODULE,Cmds),
                    kill_all_pids({H,S}),
-                   ok = stop_app(),
 
                    %% whenfail
                    ?WHENFAIL(
@@ -371,6 +379,7 @@ prop_gproc() ->
                       Res == ok)
                end)).
 
+%% helpers
 start_app() ->
     case application:start(gproc) of
         {error, {already_started,_}} ->
@@ -381,12 +390,15 @@ start_app() ->
     end.
 
 stop_app() ->
-    ok = application:stop(gproc).
-
+    case application:stop(gproc) of
+        {error, {not_started,_}} ->
+            ok;
+        ok ->
+            ok
+    end.
 
 %% If using the scheduler... This code needs to run in a separate
 %% module, so it can be compiled without instrumentation.
-
 kill_all_pids(Pid) when is_pid(Pid) ->
     case is_process_alive(Pid) of
         true ->
@@ -403,41 +415,9 @@ kill_all_pids(_) ->
     ok.
 
 
-%% helpers
-is_n_register_ok(S,Key,_Pid) ->
-    [] == [ Pid1 || #n_reg{key=Key1,pid=Pid1}
-                        <- S#state.n_regs, (Key==Key1) ].
-
-is_n_unregister_ok(S,Key,Pid) ->
-    [] /= [ Pid1 || #n_reg{key=Key1,pid=Pid1}
-                        <- S#state.n_regs, (Key==Key1 andalso Pid==Pid1) ].
-
-is_c_register_ok(S,Key,Pid) ->
-    [] == [ Pid1 || #c_reg{key=Key1,pid=Pid1}
-                        <- S#state.c_regs, (Key==Key1 andalso Pid==Pid1) ].
-
-is_c_unregister_ok(S,Key,Pid) ->
-    [] /= [ Pid1 || #c_reg{key=Key1,pid=Pid1}
-                        <- S#state.c_regs, (Key==Key1 andalso Pid==Pid1) ].
-
-is_a_register_ok(S,Key,_Pid) ->
-    [] == [ Pid1 || #a_reg{key=Key1,pid=Pid1}
-                        <- S#state.a_regs, (Key==Key1) ].
-
-is_a_unregister_ok(S,Key,Pid) ->
-    [] /= [ Pid1 || #a_reg{key=Key1,pid=Pid1}
-                        <- S#state.a_regs, (Key==Key1 andalso Pid==Pid1) ].
-
-is_c_registered_and_alive(S,Key,Pid) ->
-    is_c_unregister_ok(S,Key,Pid)
-        andalso lists:member(Pid,S#state.pids)
-        andalso not lists:member(Pid,S#state.killed).
-
 %% spawn
 spawn() ->
-    spawn(fun() ->
-                  loop()
-          end).
+    spawn(fun() -> loop() end).
 
 loop() ->
     receive
@@ -452,62 +432,29 @@ kill(Pid) ->
     exit(Pid,foo),
     timer:sleep(10).
 
-%% n_reg
-n_reg(Key,Pid) ->
-    do(Pid,
-       fun() ->
-               catch gproc:reg({n,l,Key},Pid)
-       end).
+%% where
+where(#key{class=Class,scope=Scope,name=Name}) ->
+    catch gproc:where({Class,Scope,Name}).
 
-%% n_unreg
-n_unreg(Key,Pid) ->
-    do(Pid,
-       fun() ->
-               catch gproc:unreg({n,l,Key})
-       end).
+%% reg
+reg(Pid,#key{class=Class,scope=Scope,name=Name},Value) ->
+    do(Pid, fun() -> catch gproc:reg({Class,Scope,Name},Value) end).
 
-%% c_reg
-c_reg(Key,Pid,Value) ->
-    do(Pid,
-       fun() ->
-               catch gproc:reg({c,l,Key},Value)
-       end).
+%% unreg
+unreg(Pid,#key{class=Class,scope=Scope,name=Name}) ->
+    do(Pid, fun() -> catch gproc:unreg({Class,Scope,Name}) end).
 
-%% c_unreg
-c_unreg(Key,Pid) ->
-    do(Pid,
-       fun() ->
-               catch gproc:unreg({c,l,Key})
-       end).
+%% set_value
+set_value(Pid,#key{class=Class,scope=Scope,name=Name},Value) ->
+    do(Pid, fun() -> catch gproc:set_value({Class,Scope,Name},Value) end).
 
-%% a_reg
-a_reg(Key,Pid) ->
-    do(Pid,
-       fun() ->
-               catch gproc:reg({a,l,Key},Pid)
-       end).
+%% update_counter
+update_counter(Pid, #key{class=Class,scope=Scope,name=Name},Incr) ->
+    do(Pid, fun() -> catch gproc:update_counter({Class,Scope,Name},Incr) end).
 
-%% a_unreg
-a_unreg(Key,Pid) ->
-    do(Pid,
-       fun() ->
-               catch gproc:unreg({a,l,Key})
-       end).
-
-%% c_set_value
-c_set_value(Key,Pid,Value) ->
-    do(Pid,
-       fun() ->
-               catch gproc:set_value({c,l,Key},Value)
-       end).
-
-%% a_get_value
-a_get_value(Key,Pid) ->
-    do(Pid,
-       fun() ->
-               catch gproc:get_value({a,l,Key})
-       end).
-
+%% get_value
+get_value(Pid,#key{class=Class,scope=Scope,name=Name}) ->
+    do(Pid, fun() -> catch gproc:get_value({Class,Scope,Name}) end).
 
 %% do
 do(Pid, F) ->
@@ -515,7 +462,7 @@ do(Pid, F) ->
     Pid ! {self(), Ref, F},
     receive
         {'DOWN', Ref, process, Pid, Reason} ->
-            {'EXIT', {'DOWN',Reason}};
+            {'EXIT', {'DOWN', Reason}};
         {Ref, Result} ->
             erlang:demonitor(Ref),
             Result
