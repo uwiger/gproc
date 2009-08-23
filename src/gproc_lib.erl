@@ -25,16 +25,16 @@
 -include("gproc.hrl").
 
 insert_reg({T,_,Name} = K, Value, Pid, C) when T==a; T==n ->
-    %%% We want to store names and aggregated counters with the same
-    %%% structure as properties, but at the same time, we must ensure
-    %%% that the key is unique. We replace the Pid in the key part
-    %%% with an atom. To know which Pid owns the object, we lug the
-    %%% Pid around as payload as well. This is a bit redundant, but
-    %%% symmetric.
-    %%%
+%%% We want to store names and aggregated counters with the same
+%%% structure as properties, but at the same time, we must ensure
+%%% that the key is unique. We replace the Pid in the key part
+%%% with an atom. To know which Pid owns the object, we lug the
+%%% Pid around as payload as well. This is a bit redundant, but
+%%% symmetric.
+%%%
     case ets:insert_new(?TAB, [{{K, T}, Pid, Value}, {{Pid,K}}]) of
         true ->
-            if T == a ->
+            if T==a ->
                     Initial = scan_existing_counters(C, Name),
                     ets:insert(?TAB, {{K,a}, Pid, Initial});
                true ->
@@ -44,6 +44,13 @@ insert_reg({T,_,Name} = K, Value, Pid, C) when T==a; T==n ->
         false ->
             false
     end;
+insert_reg({c,l,Ctr} = Key, Value, Pid, _C) ->
+    %% Non-unique keys; store Pid in the key part
+    K = {Key, Pid},
+    Kr = {Pid, Key},
+    Res = ets:insert_new(?TAB, [{K, Pid, Value}, {Kr}]),
+    update_aggr_counter(l, Ctr, Value),
+    Res;
 insert_reg(Key, Value, Pid, _C) ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
@@ -62,7 +69,7 @@ insert_many(T, C, KVL, Pid) ->
     end.
 
 
-mk_reg_objs(T, C, _, L) when T == n; T == a ->
+mk_reg_objs(T, C, _, L) when T==n; T==a ->
     lists:map(fun({K,V}) ->
                       {{{T,C,K},T}, V};
                  (_) ->
@@ -80,7 +87,7 @@ mk_reg_rev_objs(T, C, Pid, L) ->
 
 
 
-ensure_monitor(Pid) when node(Pid) == node() ->
+ensure_monitor(Pid) when node(Pid)==node() ->
     case ets:insert_new(?TAB, {Pid}) of
         false -> ok;
         true  -> erlang:monitor(process, Pid)
@@ -100,36 +107,36 @@ remove_reg_1({_,_,_} = Key, Pid) ->
     ets:delete(?TAB, {Key, Pid}).
 
 remove_counter_1({c,C,N} = Key, Val, Pid) ->
+    Res = ets:delete(?TAB, {Key, Pid}),
     update_aggr_counter(C, N, -Val),
-    ets:delete(?TAB, {Key, Pid}).
+    Res.
 
 do_set_value({T,_,_} = Key, Value, Pid) ->
-    K2 = if T==n -> T;
+    K2 = if T==n; T==a -> T;
             true -> Pid
          end,
-    case ets:member(?TAB, {Key, K2}) of
-        true ->
+    case (catch ets:lookup_element(?TAB, {Key,K2}, 2)) of
+        {'EXIT', {badarg, _}} ->
+            false;
+        Pid ->
             ets:insert(?TAB, {{Key, K2}, Pid, Value});
-        false ->
+        _ ->
             false
     end.
 
 do_set_counter_value({_,C,N} = Key, Value, Pid) ->
     OldVal = ets:lookup_element(?TAB, {Key, Pid}, 3), % may fail with badarg
+    Res = ets:insert(?TAB, {{Key, Pid}, Pid, Value}),
     update_aggr_counter(C, N, Value - OldVal),
-    ets:insert(?TAB, {{Key, Pid}, Pid, Value}).
+    Res.
 
-
-update_counter({c,l,Ctr} = Key, Incr) ->
+update_counter({c,l,Ctr} = Key, Incr, Pid) ->
+    Res = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
     update_aggr_counter(l, Ctr, Incr),
-    ets:update_counter(?TAB, Key, {3,Incr}).
-
+    Res.
 
 update_aggr_counter(C, N, Val) ->
     catch ets:update_counter(?TAB, {{a,C,N},a}, {3, Val}).
-
-
-
 
 cleanup_counter({c,g,N}=K, Pid, Acc) ->
     remove_reg(K,Pid),
@@ -147,4 +154,3 @@ scan_existing_counters(Ctxt, Name) ->
     Head = {{{c,Ctxt,Name},'_'},'_','$1'},
     Cs = ets:select(?TAB, [{Head, [], ['$1']}]),
     lists:sum(Cs).
-

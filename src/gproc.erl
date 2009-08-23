@@ -228,7 +228,7 @@ lookup_pids({T,_,_} = Key) ->
 
 
 update_counter({c,l,_} = Key, Incr) when is_integer(Incr) ->
-    gproc_lib:update_counter(Key, Incr);
+    gproc_lib:update_counter(Key, Incr, self());
 update_counter({c,g,_} = Key, Incr) when is_integer(Incr) ->
     ?CHK_DIST,
     gproc_dist:update_counter(Key, Incr);
