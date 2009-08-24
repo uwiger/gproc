@@ -27,8 +27,11 @@ vpath %.beam ../ebin
 vpath %.pdf ../doc
 
 ERLC = erlc -W -o ../ebin +debug_info
-EQC = /host/dev/eqc-1.16/ebin
-ERL_EQC = erl -pz ../ebin -pz $(EQC) -kernel error_logger silent
+
+EQC ?= /host/dev/eqc-1.16/ebin
+
+EQC_ERLC = $(ERLC) -I $(EQC)/include
+EQC_ERL = erl -pz ../ebin -pz $(EQC)/ebin -pz ./Unit-Quick-Files -kernel error_logger silent
 
 beams = gproc.beam \
 	gproc_app.beam \
@@ -37,17 +40,19 @@ beams = gproc.beam \
 	gproc_sup.beam
 
 all : $(beams)
-test : all gproc_eqc.beam
-	$(ERL_EQC) -s gproc_eqc run
-
-itest : all gproc_eqc.beam
-	$(ERL_EQC) -s eqc start
-
 clean :
-	rm -f *~ #*# 
+	rm -f  *~ ../ebin/*.beam ./Unit-Quick-Files/*.beam
 
+## erlc targets
 $(beams) : %.beam : %.erl
 	$(ERLC) $<
 
-gproc_eqc.beam : gproc_eqc.erl
-	$(ERLC) -pz $(EQC) gproc_eqc.erl
+./Unit-Quick-Files/gproc_eqc.beam : ./Unit-Quick-Files/gproc_eqc.erl
+	$(EQC_ERLC) $<
+
+## test targets
+test : all ./Unit-Quick-Files/gproc_eqc.beam
+	$(EQC_ERL) -s gproc_eqc run
+
+itest : all ./Unit-Quick-Files/gproc_eqc.beam
+	$(EQC_ERL) -s eqc start
