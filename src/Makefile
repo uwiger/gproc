@@ -53,7 +53,7 @@ $(beams) : %.beam : %.erl
 
 ## test targets
 test : all ./Unit-Quick-Files/gproc_eqc.beam
-	$(EQC_ERL) -s gproc_eqc run
+	$(EQC_ERL) -s gproc_eqc run -s erlang halt
 
 itest : all ./Unit-Quick-Files/gproc_eqc.beam
 	$(EQC_ERL) -s eqc start

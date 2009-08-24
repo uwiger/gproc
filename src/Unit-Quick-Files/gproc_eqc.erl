@@ -400,6 +400,7 @@ prop_gproc() ->
 
 %% helpers
 start_app() ->
+    application:start(sasl),
     case application:start(gproc) of
         {error, {already_started,_}} ->
             stop_app(),
