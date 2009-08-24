@@ -24,7 +24,6 @@
 %%
 %%  - add non integer to value() generator
 %%  - implement mreg
-%%  - implement lookup_pid/lookup_pids
 %%
 
 %%
@@ -96,9 +95,9 @@ command(S) ->
                   %% get_value
                   , {call,?MODULE,get_value,      [elements(S#state.pids), key()]}
                   %% lookup_pid
-                  %%, {call,gproc,lookup_pid,     [key()]}
+                  , {call,?MODULE,lookup_pid,     [key()]}
                   %% lookup_pids
-                  %%, {call,gproc,lookup_pids,    [key()]}
+                  , {call,?MODULE,lookup_pids,    [key()]}
                  ])
            || S#state.pids/=[] ]
      ).
@@ -343,6 +342,26 @@ postcondition(S,{call,_,get_value,[Pid,Key]},Res) ->
         [Value] ->
             Res == Value
     end;
+%% lookup_pid
+postcondition(S,{call,_,lookup_pid,[#key{class=Class}=Key]},Res)
+  when Class == n; Class == a ->
+    case [ Pid1 || #reg{pid=Pid1,key=Key1} <- S#state.regs
+                       , Key==Key1 ] of
+        [] ->
+            case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
+        [Pid] ->
+            Res == Pid
+    end;
+postcondition(_S,{call,_,lookup_pid,[_Key]},Res) ->
+    case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
+%% lookup_pids
+postcondition(S,{call,_,lookup_pids,[#key{class=Class}=Key]},Res)
+  when Class == n; Class == a; Class == c ->
+    Pids = [ Pid1 || #reg{pid=Pid1,key=Key1} <- S#state.regs
+                         , Key==Key1 ],
+    lists:sort(Res) == lists:sort(Pids);
+postcondition(_S,{call,_,lookup_pids,[_Key]},Res) ->
+    case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
 %% otherwise
 postcondition(_S,{call,_,_,_},_Res) ->
     false.
@@ -455,6 +474,14 @@ update_counter(Pid, #key{class=Class,scope=Scope,name=Name},Incr) ->
 %% get_value
 get_value(Pid,#key{class=Class,scope=Scope,name=Name}) ->
     do(Pid, fun() -> catch gproc:get_value({Class,Scope,Name}) end).
+
+%% lookup_pid
+lookup_pid(#key{class=Class,scope=Scope,name=Name}) ->
+    catch gproc:lookup_pid({Class,Scope,Name}).
+
+%% lookup_pids
+lookup_pids(#key{class=Class,scope=Scope,name=Name}) ->
+    catch gproc:lookup_pids({Class,Scope,Name}).
 
 %% do
 do(Pid, F) ->

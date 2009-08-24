@@ -185,7 +185,7 @@ get_value(Key) ->
     get_value(Key, self()).
 
 get_value({T,_,_} = Key, Pid) when is_pid(Pid) ->
-    if T==n; T==a ->
+    if T==n orelse T==a ->
             case ets:lookup(?TAB, {Key, T}) of
                 [{_, P, Value}] when P == Pid -> Value;
                 _ -> erlang:error(badarg)
@@ -208,7 +208,7 @@ lookup_pid({_T,_,_} = Key) ->
 
 
 where({T,_,_}=Key) ->
-    if T==n; T==a ->
+    if T==n orelse T==a ->
             case ets:lookup(?TAB, {Key,T}) of
                 [] ->
                     undefined;
@@ -220,8 +220,10 @@ where({T,_,_}=Key) ->
     end.
 
 lookup_pids({T,_,_} = Key) ->
-    if T==n; T==a; T==c ->
+    if T==n orelse T==a ->
             ets:select(?TAB, [{{{Key,T}, '$1', '_'},[],['$1']}]);
+       T==c ->
+            ets:select(?TAB, [{{{Key,'_'}, '$1', '_'},[],['$1']}]);
        true ->
             erlang:error(badarg)
     end.
@@ -239,14 +241,14 @@ update_counter(_, _) ->
 
 
 send({T,C,_} = Key, Msg) when C==l; C==g ->
-    if T == n; T == a ->
+    if T == n orelse T == a ->
             case ets:lookup(?TAB, {Key, T}) of
                 [{_, Pid, _}] ->
                     Pid ! Msg;
                 [] ->
                     erlang:error(badarg)
             end;
-       T==p; T==c ->
+       T==p orelse T==c ->
             %% BUG - if the key part contains select wildcards, we may end up
             %% sending multiple messages to the same pid
             Head = {{Key,'$1'},'_'},
@@ -483,7 +485,7 @@ headpat(T, C, V1,V2,V3) ->
     Rf = fun(Pos) ->
                  {element,Pos,{element,1,{element,1,'$_'}}}
          end,
-    K2 = if T==n; T==a -> T;
+    K2 = if T==n orelse T==a -> T;
             true -> '_'
          end,
     {Kp,Vars} = case V1 of
@@ -644,7 +646,7 @@ qlc_lookup(Scope, 2, Pids) ->
                                                   [], ['$_']}]),
                           lists:flatmap(
                             fun({{_,{T,_,_}=K}}) ->
-                                    K2 = if T==n; T==a -> T;
+                                    K2 = if T==n orelse T==a -> T;
                                             true -> Pid
                                          end,
                                     case ets:lookup(?TAB, {K,K2}) of

@@ -112,7 +112,7 @@ remove_counter_1({c,C,N} = Key, Val, Pid) ->
     Res.
 
 do_set_value({T,_,_} = Key, Value, Pid) ->
-    K2 = if T==n; T==a -> T;
+    K2 = if T==n orelse T==a -> T;
             true -> Pid
          end,
     case (catch ets:lookup_element(?TAB, {Key,K2}, 2)) of
