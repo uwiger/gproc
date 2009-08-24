@@ -99,8 +99,10 @@ mreg(T, g, KVL) ->
     ?CHK_DIST,
     gproc_dist:mreg(T, KVL);
 mreg(T, l, KVL) when T==a; T==n ->
-    if is_list(KVL) -> call({mreg, T, l, KVL});
-       true -> erlang:error(badarg)
+    if is_list(KVL) ->
+            call({mreg, T, l, KVL});
+       true ->
+            erlang:error(badarg)
     end;
 mreg(p, l, KVL) ->
     local_mreg(p, KVL);

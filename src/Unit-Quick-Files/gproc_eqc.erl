@@ -7,7 +7,6 @@
 
 -module(gproc_eqc).
 
-
 -include("eqc.hrl").
 -include("eqc_statem.hrl").
 
@@ -17,18 +16,13 @@
 %% QUESTIONS:
 %%
 %%  - does set_value for Class==a make sense?
-%%
+%%  - shouldn't mreg return {true, keys()} rather than the {true,
+%%    objects()} upon success?
 
 %%
-%% TODO Now:
+%% TODO:
 %%
-%%  - add non integer to value() generator
 %%  - implement mreg
-%%
-
-%%
-%% TODO Later:
-%%
 %%  - implement send
 %%  - implement info
 %%  - implement select
@@ -85,7 +79,8 @@ command(S) ->
                   %% unregister
                   , {call,?MODULE,unreg,          [elements(S#state.pids), key()]}
                   %% many register
-                  %%, {call,?MODULE,mreg,         [elements(S#state.pids), class(), scope(), list({name(), value()})]}
+                  %%, {call,?MODULE,mreg,           [elements(S#state.pids), class(), scope()
+                  %%                                 , list({name(), value()})]}
 
                   %% set_value
                   , {call,?MODULE,set_value,      [elements(S#state.pids), key(), value()]}
@@ -115,10 +110,13 @@ name() -> elements([x,y,z,w]).
 key() -> #key{class=class(), scope=scope(), name=name()}.
 
 %% generator value
-value() -> int().
+value() -> frequency([{8, int()}, {1, undefined}, {1, make_ref()}]).
 
 
 %% helpers
+is_register_ok(_S,_Pid,#key{class=Class},Value)
+  when Class == c, not is_integer(Value) ->
+    false;
 is_register_ok(S,Pid,Key,_Value) ->
     [] == [ Pid1 || #reg{pid=Pid1,key=Key1}
                         <- S#state.regs, is_register_eq(Pid,Key,Pid1,Key1) ].
