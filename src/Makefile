@@ -26,7 +26,8 @@
 vpath %.beam ../ebin
 vpath %.pdf ../doc
 
-ERLC = erlc -W -o ../ebin +debug_info
+ERLC = erlc -W -I ../include -o ../ebin
+ERLC += +debug_info
 
 EQC ?= /host/dev/eqc-1.16/ebin
 
