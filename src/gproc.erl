@@ -51,7 +51,8 @@
 -include("gproc.hrl").
 
 -define(SERVER, ?MODULE).
--define(l, l(?LINE)).
+%%-define(l, l(?LINE)). % when activated, calls a traceable empty function
+-define(l, ignore).
 
 -define(CHK_DIST,
         case whereis(gproc_dist) of
