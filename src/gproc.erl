@@ -23,7 +23,7 @@
 -behaviour(gen_server).
 
 -export([start_link/0,
-         reg/2, unreg/1,
+         reg/1, reg/2, unreg/1,
          mreg/3,
          set_value/2,
          get_value/1,
@@ -51,6 +51,7 @@
 -include("gproc.hrl").
 
 -define(SERVER, ?MODULE).
+-define(l, l(?LINE)).
 
 -define(CHK_DIST,
         case whereis(gproc_dist) of
@@ -65,6 +66,18 @@
 start_link() ->
     create_tabs(),
     gen_server:start({local, ?SERVER}, ?MODULE, [], []).
+
+
+%%% @spec({Class,Scope, Key}) -> true
+%%% {@equiv reg(Key, undefined)}
+%%%    Class = n  - unique name
+%%%          | p  - non-unique property
+%%%          | c  - counter
+%%%          | a  - aggregated counter
+%%%    Scope = l | g (global or local)
+%%%
+reg(Key) ->
+    reg(Key, undefined).
 
 
 %%% @spec({Class,Scope, Key}, Value) -> true
@@ -460,22 +473,39 @@ monitor_me() ->
 
 
 pattern([{'_', Gs, As}], T) ->
+    ?l,
     {HeadPat, Vs} = headpat(T, '$1', '$2', '$3'),
     [{HeadPat, rewrite(Gs,Vs), rewrite(As,Vs)}];
 pattern([{{A,B,C},Gs,As}], Scope) ->
+    ?l,
     {HeadPat, Vars} = headpat(Scope, A,B,C),
     [{HeadPat, rewrite(Gs,Vars), rewrite(As,Vars)}];
 pattern([{Head, Gs, As}], Scope) ->
+    ?l,
     case is_var(Head) of
-        {true,N} ->
-            {A,B,C} = vars(N),
-            {HeadPat, Vs} = headpat(Scope, A,B,C),
+        {true,_N} ->
+            HeadPat = {{{type(Scope),'_','_'},'_'},'_','_'},
+            Vs = [{Head, obj_prod()}],
+%%            {HeadPat, Vs} = headpat(Scope, A,B,C),
             %% the headpat function should somehow verify that Head is
             %% consistent with Scope (or should we add a guard?)
             [{HeadPat, rewrite(Gs, Vs), rewrite(As, Vs)}];
         false ->
             erlang:error(badarg)
     end.
+
+%% This is the expression to use in guards and the RHS to address the whole
+%% object, in its logical representation.
+obj_prod() ->
+    {{ {element,1,{element,1,'$_'}},
+       {element,2,'$_'},
+       {element,3,'$_'} }}.
+
+obj_prod_l() ->
+    [ {element,1,{element,1,'$_'}},
+      {element,2,'$_'},
+      {element,3,'$_'} ].
+
 
 headpat({C, T}, V1,V2,V3) when C==global; C==local; C==all ->
     headpat(type(T), ctxt(C), V1,V2,V3);
@@ -492,28 +522,34 @@ headpat(T, C, V1,V2,V3) ->
          end,
     {Kp,Vars} = case V1 of
                     {Vt,Vc,Vn} ->
+                        ?l,
                         {T1,Vs1} = subst(T,Vt,fun() -> Rf(1) end,[]),
                         {C1,Vs2} = subst(C,Vc,fun() -> Rf(2) end,Vs1),
                         {{T1,C1,Vn}, Vs2};
                     '_' ->
+                        ?l,
                         {{T,C,'_'}, []};
                     _ ->
+                        ?l,
                         case is_var(V1) of
-                            true ->
-                                {{T,C,'_'}, [{V1, {element,1,
-                                                   {element,1,'$_'}}}]};
+                            {true,_} ->
+                                {{T,C,V1}, [{V1, {element,1,
+                                                  {element,1,'$_'}}}]};
                             false ->
                                 erlang:error(badarg)
                         end
                 end,
     {{{Kp,K2},V2,V3}, Vars}.
 
+l(L) -> L.
+    
+
 
 subst(X, '_', _F, Vs) ->
     {X, Vs};
 subst(X, V, F, Vs) ->
     case is_var(V) of
-        true ->
+        {true,_} ->
             {X, [{V,F()}|Vs]};
         false ->
             {V, Vs}
@@ -539,15 +575,15 @@ get_c_t({C,T}) -> {ctxt(C), type(T)};
 get_c_t(T) when is_atom(T) ->
     {l, type(T)}.
 
-is_var('$1') -> true;
-is_var('$2') -> true;
-is_var('$3') -> true;
-is_var('$4') -> true;
-is_var('$5') -> true;
-is_var('$6') -> true;
-is_var('$7') -> true;
-is_var('$8') -> true;
-is_var('$9') -> true;
+is_var('$1') -> {true,1};
+is_var('$2') -> {true,2};
+is_var('$3') -> {true,3};
+is_var('$4') -> {true,4};
+is_var('$5') -> {true,5};
+is_var('$6') -> {true,6};
+is_var('$7') -> {true,7};
+is_var('$8') -> {true,8};
+is_var('$9') -> {true,9};
 is_var(X) when is_atom(X) ->
     case atom_to_list(X) of
         "$" ++ Tl ->
@@ -572,20 +608,16 @@ rewrite(Gs, R) ->
     [rewrite1(G, R) || G <- Gs].
 
 rewrite1('$_', _) ->
-    {{ {element,1,{element,1,'$_'}},
-       {element,2,'$_'},
-       {element,3,'$_'} }};
+    obj_prod();
 rewrite1('$$', _) ->
-    [ {element,1,{element,1,'$_'}},
-      {element,2,'$_'},
-      {element,3,'$_'} ];
+    obj_prod_l();
 rewrite1(Guard, R) when is_tuple(Guard) ->
     list_to_tuple([rewrite1(G, R) || G <- tuple_to_list(Guard)]);
 rewrite1(Exprs, R) when is_list(Exprs) ->
     [rewrite1(E, R) || E <- Exprs];
 rewrite1(V, R) when is_atom(V) ->
     case is_var(V) of
-        true ->
+        {true,_N} ->
             case lists:keysearch(V, 1, R) of
                 {value, {_, V1}} ->
                     V1;
