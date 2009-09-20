@@ -9,213 +9,228 @@
 <hr>
 
 <h1>Module gproc</h1>
-<ul class="index"><li><a href="#description">Description</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>Extended process registry.
+<ul class="index"><li><a href="#description">Description</a></li><li><a href="#types">Data Types</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>Extended process registry.
 
-<p><b>Behaviours:</b> <a href="gen_leader.html"><tt>gen_leader</tt></a>.</p>
+<p><b>Behaviours:</b> <a href="gen_server.html"><tt>gen_server</tt></a>.</p>
 <p><b>Authors:</b> Ulf Wiger (<a href="mailto:ulf.wiger@ericsson.com"><tt>ulf.wiger@ericsson.com</tt></a>).</p>
 
 <h2><a name="description">Description</a></h2>Extended process registry
   <p>This module implements an extended process registry</p>
   <p>For a detailed description, see gproc/doc/erlang07-wiger.pdf.</p>
+ 
+<h2><a name="types">Data Types</a></h2>
+
+<h3 class="typedecl"><a name="type-context">context()</a></h3>
+<p><tt>context() = {<a href="#type-scope">scope()</a>, <a href="#type-type">type()</a>} | <a href="#type-type">type()</a></tt></p>
+<p>Local scope is the default</p>
+
+<h3 class="typedecl"><a name="type-headpat">headpat()</a></h3>
+<p><tt>headpat() = {<a href="#type-keypat">keypat()</a>, <a href="#type-pidpat">pidpat()</a>, ValPat}</tt></p>
+
+
+<h3 class="typedecl"><a name="type-key">key()</a></h3>
+<p><tt>key() = {<a href="#type-type">type()</a>, <a href="#type-scope">scope()</a>, any()}</tt></p>
+
+
+<h3 class="typedecl"><a name="type-keypat">keypat()</a></h3>
+<p><tt>keypat() = {<a href="#type-sel_type">sel_type()</a> | <a href="#type-sel_var">sel_var()</a>, l | g | <a href="#type-sel_var">sel_var()</a>, any()}</tt></p>
+
+
+<h3 class="typedecl"><a name="type-pidpat">pidpat()</a></h3>
+<p><tt>pidpat() = pid() | <a href="#type-sel_var">sel_var()</a></tt></p>
+<p>sel_var() = DollarVar | '_'.</p>
+
+<h3 class="typedecl"><a name="type-scope">scope()</a></h3>
+<p><tt>scope() = l | g</tt></p>
+<p>l = local registration; g = global registration</p>
+
+<h3 class="typedecl"><a name="type-sel_pattern">sel_pattern()</a></h3>
+<p><tt>sel_pattern() = [{<a href="#type-headpat">headpat()</a>, Guards, Prod}]</tt></p>
+
+
+<h3 class="typedecl"><a name="type-sel_type">sel_type()</a></h3>
+<p><tt>sel_type() = n | p | c | a | names | props | counters | aggr_counters</tt></p>
+
+
+<h3 class="typedecl"><a name="type-type">type()</a></h3>
+<p><tt>type() = n | p | c | a</tt></p>
+<p>n = name; p = property; c = counter;
+                                 a = aggregate_counter</p>
+
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#code_change-4">code_change/4</a></td><td></td></tr>
-<tr><td valign="top"><a href="#elected-2">elected/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#first-1">first/1</a></td><td></td></tr>
-<tr><td valign="top"><a href="#from_leader-3">from_leader/3</a></td><td></td></tr>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#first-1">first/1</a></td><td>Behaves as ets:first(Tab) for a given type of registration object.</td></tr>
 <tr><td valign="top"><a href="#get_value-1">get_value/1</a></td><td>Read the value stored with a key registered to the current process.</td></tr>
-<tr><td valign="top"><a href="#go_global-0">go_global/0</a></td><td></td></tr>
-<tr><td valign="top"><a href="#go_global-1">go_global/1</a></td><td></td></tr>
-<tr><td valign="top"><a href="#handle_DOWN-3">handle_DOWN/3</a></td><td></td></tr>
-<tr><td valign="top"><a href="#handle_call-3">handle_call/3</a></td><td></td></tr>
-<tr><td valign="top"><a href="#handle_cast-2">handle_cast/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#handle_info-2">handle_info/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#handle_leader_call-4">handle_leader_call/4</a></td><td></td></tr>
-<tr><td valign="top"><a href="#handle_leader_cast-3">handle_leader_cast/3</a></td><td></td></tr>
-<tr><td valign="top"><a href="#info-1">info/1</a></td><td></td></tr>
-<tr><td valign="top"><a href="#info-2">info/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr>
-<tr><td valign="top"><a href="#last-1">last/1</a></td><td></td></tr>
-<tr><td valign="top"><a href="#mreg-3">mreg/3</a></td><td></td></tr>
-<tr><td valign="top"><a href="#next-2">next/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#prev-2">prev/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#reg-2">reg/2</a></td><td>
-      Class = n  - unique name
-            | p  - non-unique property
-            | c  - counter
-            | a  - aggregated counter
-      Scope = l | g (global or local).</td></tr>
-<tr><td valign="top"><a href="#select-1">select/1</a></td><td></td></tr>
-<tr><td valign="top"><a href="#select-2">select/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#send-2">send/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#info-1">info/1</a></td><td>Similar to <code>process_info(Pid)</code> but with additional gproc info.</td></tr>
+<tr><td valign="top"><a href="#info-2">info/2</a></td><td>Similar to process_info(Pid, Item), but with additional gproc info.</td></tr>
+<tr><td valign="top"><a href="#last-1">last/1</a></td><td>Behaves as ets:last(Tab) for a given type of registration object.</td></tr>
+<tr><td valign="top"><a href="#lookup_pid-1">lookup_pid/1</a></td><td>Lookup the Pid stored with a key.</td></tr>
+<tr><td valign="top"><a href="#lookup_pids-1">lookup_pids/1</a></td><td>Returns a list of pids with the published key Key.</td></tr>
+<tr><td valign="top"><a href="#mreg-3">mreg/3</a></td><td>Register multiple {Key,Value} pairs of a given type and scope.</td></tr>
+<tr><td valign="top"><a href="#next-2">next/2</a></td><td>Behaves as ets:next(Tab,Key) for a given type of registration object.</td></tr>
+<tr><td valign="top"><a href="#prev-2">prev/2</a></td><td>Behaves as ets:prev(Tab,Key) for a given type of registration object.</td></tr>
+<tr><td valign="top"><a href="#reg-1">reg/1</a></td><td>Equivalent to <a href="#reg-2"><tt>reg(Key, undefined)</tt></a>.
+</td></tr>
+<tr><td valign="top"><a href="#reg-2">reg/2</a></td><td>Register a name or property for the current process.</td></tr>
+<tr><td valign="top"><a href="#select-1">select/1</a></td><td>Equivalent to <a href="#select-2"><tt>select(all, Pat)</tt></a>.
+</td></tr>
+<tr><td valign="top"><a href="#select-2">select/2</a></td><td>Perform a select operation on the process registry.</td></tr>
+<tr><td valign="top"><a href="#select-3">select/3</a></td><td>Like <a href="#select-2"><code>select/2</code></a> but returns Limit objects at a time.</td></tr>
+<tr><td valign="top"><a href="#send-2">send/2</a></td><td>Sends a message to the process, or processes, corresponding to Key.</td></tr>
+<tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td>Sets the value of the registeration entry given by Key.</td></tr>
 <tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td></td></tr>
-<tr><td valign="top"><a href="#start_link-1">start_link/1</a></td><td></td></tr>
-<tr><td valign="top"><a href="#start_local-0">start_local/0</a></td><td></td></tr>
-<tr><td valign="top"><a href="#surrendered-3">surrendered/3</a></td><td></td></tr>
 <tr><td valign="top"><a href="#table-1">table/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#table-2">table/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td></td></tr>
-<tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td>Unregister a name or property.</td></tr>
+<tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td>Updates the counter registered as Key for the current process.</td></tr>
+<tr><td valign="top"><a href="#where-1">where/1</a></td><td>Returns the pid registered as Key.</td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
 
-<h3 class="function"><a name="code_change-4">code_change/4</a></h3>
-<div class="spec">
-<p><tt>code_change(FromVsn, S, Extra, E) -&gt; any()</tt></p>
-</div>
-
-<h3 class="function"><a name="elected-2">elected/2</a></h3>
-<div class="spec">
-<p><tt>elected(S, E) -&gt; any()</tt></p>
-</div>
-
 <h3 class="function"><a name="first-1">first/1</a></h3>
 <div class="spec">
-<p><tt>first(Scope) -&gt; any()</tt></p>
-</div>
-
-<h3 class="function"><a name="from_leader-3">from_leader/3</a></h3>
-<div class="spec">
-<p><tt>from_leader(Ops, S, E) -&gt; any()</tt></p>
-</div>
+<p><tt>first(Type::<a href="#type-type">type()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'</tt></p>
+</div><p><p>Behaves as ets:first(Tab) for a given type of registration object.</p>
+ 
+  See <a href="http://www.erlang.org/doc/man/ets.html#first-1" target="_top"><tt>http://www.erlang.org/doc/man/ets.html#first-1</tt></a>.
+   The registry behaves as an ordered_set table.</p>
 
 <h3 class="function"><a name="get_value-1">get_value/1</a></h3>
 <div class="spec">
 <p><tt>get_value(Key) -&gt; Value</tt></p>
-</div><p>Read the value stored with a key registered to the current process.
-  </p>
-
-<h3 class="function"><a name="go_global-0">go_global/0</a></h3>
-<div class="spec">
-<p><tt>go_global() -&gt; any()</tt></p>
-</div>
-
-<h3 class="function"><a name="go_global-1">go_global/1</a></h3>
-<div class="spec">
-<p><tt>go_global(Nodes) -&gt; any()</tt></p>
-</div>
-
-<h3 class="function"><a name="handle_DOWN-3">handle_DOWN/3</a></h3>
-<div class="spec">
-<p><tt>handle_DOWN(Node, S, E) -&gt; any()</tt></p>
-</div>
-
-<h3 class="function"><a name="handle_call-3">handle_call/3</a></h3>
-<div class="spec">
-<p><tt>handle_call(X1, X2, S) -&gt; any()</tt></p>
-</div>
-
-<h3 class="function"><a name="handle_cast-2">handle_cast/2</a></h3>
-<div class="spec">
-<p><tt>handle_cast(X1, S) -&gt; any()</tt></p>
-</div>
-
-<h3 class="function"><a name="handle_info-2">handle_info/2</a></h3>
-<div class="spec">
-<p><tt>handle_info(X1, S) -&gt; any()</tt></p>
-</div>
-
-<h3 class="function"><a name="handle_leader_call-4">handle_leader_call/4</a></h3>
-<div class="spec">
-<p><tt>handle_leader_call(X1, From, State, E) -&gt; any()</tt></p>
-</div>
-
-<h3 class="function"><a name="handle_leader_cast-3">handle_leader_cast/3</a></h3>
-<div class="spec">
-<p><tt>handle_leader_cast(X1, State, E) -&gt; any()</tt></p>
-</div>
+</div><p><p>Read the value stored with a key registered to the current process.</p>
+ 
+  If no such key is registered to the current process, this function exits.</p>
 
 <h3 class="function"><a name="info-1">info/1</a></h3>
 <div class="spec">
-<p><tt>info(Pid) -&gt; any()</tt></p>
-</div>
+<p><tt>info(Pid::pid()) -&gt; ProcessInfo</tt>
+<ul class="definitions"><li><tt>ProcessInfo = [{gproc, [{Key, Value}]} | ProcessInfo]</tt></li>
+</ul></p>
+</div><p><p>Similar to <code>process_info(Pid)</code> but with additional gproc info.</p>
+ 
+  Returns the same information as process_info(Pid), but with the
+  addition of a <code>gproc</code> information item, containing the <code>{Key,Value}</code>
+  pairs registered to the process.</p>
 
 <h3 class="function"><a name="info-2">info/2</a></h3>
 <div class="spec">
-<p><tt>info(Pid, I) -&gt; any()</tt></p>
-</div>
-
-<h3 class="function"><a name="init-1">init/1</a></h3>
-<div class="spec">
-<p><tt>init(X1) -&gt; any()</tt></p>
-</div>
+<p><tt>info(Pid::pid(), Item::atom()) -&gt; {Item, Info}</tt></p>
+</div><p><p>Similar to process_info(Pid, Item), but with additional gproc info.</p>
+ 
+  For <code>Item = gproc</code>, this function returns a list of <code>{Key, Value}</code> pairs
+  registered to the process Pid. For other values of Item, it returns the
+  same as <a href="http://www.erlang.org/doc/man/erlang.html#process_info-2" target="_top"><tt>http://www.erlang.org/doc/man/erlang.html#process_info-2</tt></a>.</p>
 
 <h3 class="function"><a name="last-1">last/1</a></h3>
 <div class="spec">
-<p><tt>last(Scope) -&gt; any()</tt></p>
-</div>
+<p><tt>last(Context::<a href="#type-context">context()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'</tt></p>
+</div><p><p>Behaves as ets:last(Tab) for a given type of registration object.</p>
+ 
+  See <a href="http://www.erlang.org/doc/man/ets.html#last-1" target="_top"><tt>http://www.erlang.org/doc/man/ets.html#last-1</tt></a>.
+  The registry behaves as an ordered_set table.</p>
+
+<h3 class="function"><a name="lookup_pid-1">lookup_pid/1</a></h3>
+<div class="spec">
+<p><tt>lookup_pid(Key) -&gt; Pid</tt></p>
+</div><p>Lookup the Pid stored with a key.
+ </p>
+
+<h3 class="function"><a name="lookup_pids-1">lookup_pids/1</a></h3>
+<div class="spec">
+<p><tt>lookup_pids(Key::<a href="#type-key">key()</a>) -&gt; [pid()]</tt></p>
+</div><p><p>Returns a list of pids with the published key Key</p>
+ 
+  If the type of registration entry is either name or aggregated counter,
+  this function will return either an empty list, or a list of one pid.
+  For non-unique types, the return value can be a list of any length.</p>
 
 <h3 class="function"><a name="mreg-3">mreg/3</a></h3>
 <div class="spec">
-<p><tt>mreg(T, X2, KVL) -&gt; any()</tt></p>
-</div>
+<p><tt>mreg(T::<a href="#type-type">type()</a>, X2::<a href="#type-scope">scope()</a>, KVL::[{Key::any(), Value::any()}]) -&gt; true</tt></p>
+</div><p><p>Register multiple {Key,Value} pairs of a given type and scope.</p>
+ 
+  This function is more efficient than calling <a href="#reg-2"><code>reg/2</code></a> repeatedly.</p>
 
 <h3 class="function"><a name="next-2">next/2</a></h3>
 <div class="spec">
-<p><tt>next(Scope, K) -&gt; any()</tt></p>
-</div>
+<p><tt>next(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'</tt></p>
+</div><p><p>Behaves as ets:next(Tab,Key) for a given type of registration object.</p>
+ 
+  See <a href="http://www.erlang.org/doc/man/ets.html#next-2" target="_top"><tt>http://www.erlang.org/doc/man/ets.html#next-2</tt></a>.
+  The registry behaves as an ordered_set table.</p>
 
 <h3 class="function"><a name="prev-2">prev/2</a></h3>
 <div class="spec">
-<p><tt>prev(Scope, K) -&gt; any()</tt></p>
-</div>
+<p><tt>prev(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'</tt></p>
+</div><p><p>Behaves as ets:prev(Tab,Key) for a given type of registration object.</p>
+ 
+  See <a href="http://www.erlang.org/doc/man/ets.html#prev-2" target="_top"><tt>http://www.erlang.org/doc/man/ets.html#prev-2</tt></a>.
+  The registry behaves as an ordered_set table.</p>
+
+<h3 class="function"><a name="reg-1">reg/1</a></h3>
+<div class="spec">
+<p><tt>reg(Key::<a href="#type-key">key()</a>) -&gt; true</tt></p>
+</div><p>Equivalent to <a href="#reg-2"><tt>reg(Key, undefined)</tt></a>.</p>
+
 
 <h3 class="function"><a name="reg-2">reg/2</a></h3>
 <div class="spec">
-<p><tt>reg(Key, Value) -&gt; any()</tt></p>
-</div><p>
-      Class = n  - unique name
-            | p  - non-unique property
-            | c  - counter
-            | a  - aggregated counter
-      Scope = l | g (global or local)
-  </p>
+<p><tt>reg(Key::<a href="#type-key">key()</a>, Value) -&gt; true</tt></p>
+</div><p><p>Register a name or property for the current process</p>
+ 
+ </p>
 
 <h3 class="function"><a name="select-1">select/1</a></h3>
 <div class="spec">
-<p><tt>select(Pat) -&gt; any()</tt></p>
-</div>
+<p><tt>select(Pat::<a href="#type-select_pattern">select_pattern()</a>) -&gt; list(<a href="#type-sel_object">sel_object()</a>)</tt></p>
+</div><p>Equivalent to <a href="#select-2"><tt>select(all, Pat)</tt></a>.</p>
+
 
 <h3 class="function"><a name="select-2">select/2</a></h3>
 <div class="spec">
-<p><tt>select(Scope, Pat) -&gt; any()</tt></p>
-</div>
+<p><tt>select(Type::<a href="#type-sel_type">sel_type()</a>, Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -&gt; [{Key, Pid, Value}]</tt></p>
+</div><p><p>Perform a select operation on the process registry.</p>
+ 
+  The physical representation in the registry may differ from the above,
+  but the select patterns are transformed appropriately.</p>
+
+<h3 class="function"><a name="select-3">select/3</a></h3>
+<div class="spec">
+<p><tt>select(Type::<a href="#type-sel_type">sel_type()</a>, Pat::<a href="#type-sel_patten">sel_patten()</a>, Limit::integer()) -&gt; [{Key, Pid, Value}]</tt></p>
+</div><p><p>Like <a href="#select-2"><code>select/2</code></a> but returns Limit objects at a time.</p>
+ 
+  See <a href="http://www.erlang.org/doc/man/ets.html#select-3" target="_top"><tt>http://www.erlang.org/doc/man/ets.html#select-3</tt></a>.</p>
 
 <h3 class="function"><a name="send-2">send/2</a></h3>
 <div class="spec">
-<p><tt>send(Key, Msg) -&gt; any()</tt></p>
-</div>
+<p><tt>send(Key::<a href="#type-key">key()</a>, Msg::any()) -&gt; Msg</tt></p>
+</div><p><p>Sends a message to the process, or processes, corresponding to Key.</p>
+ 
+  If Key belongs to a unique object (name or aggregated counter), this
+  function will send a message to the corresponding process, or fail if there
+  is no such process. If Key is for a non-unique object type (counter or
+  property), Msg will be send to all processes that have such an object.</p>
 
 <h3 class="function"><a name="set_value-2">set_value/2</a></h3>
 <div class="spec">
-<p><tt>set_value(Key, Value) -&gt; any()</tt></p>
-</div>
+<p><tt>set_value(Key::<a href="#type-key">key()</a>, Value) -&gt; true</tt></p>
+</div><p><p>Sets the value of the registeration entry given by Key</p>
+ 
+  <p>Key is assumed to exist and belong to the calling process.  
+If it doesn't, this function will exit.</p>
+ 
+  Value can be any term, unless the object is a counter, in which case
+  it must be an integer.</p>
 
 <h3 class="function"><a name="start_link-0">start_link/0</a></h3>
 <div class="spec">
 <p><tt>start_link() -&gt; any()</tt></p>
 </div>
 
-<h3 class="function"><a name="start_link-1">start_link/1</a></h3>
-<div class="spec">
-<p><tt>start_link(Nodes) -&gt; any()</tt></p>
-</div>
-
-<h3 class="function"><a name="start_local-0">start_local/0</a></h3>
-<div class="spec">
-<p><tt>start_local() -&gt; any()</tt></p>
-</div>
-
-<h3 class="function"><a name="surrendered-3">surrendered/3</a></h3>
-<div class="spec">
-<p><tt>surrendered(S, X2, E) -&gt; any()</tt></p>
-</div>
-
 <h3 class="function"><a name="table-1">table/1</a></h3>
 <div class="spec">
-<p><tt>table(Scope) -&gt; any()</tt></p>
+<p><tt>table(Type) -&gt; any()</tt></p>
 </div>
 
 <h3 class="function"><a name="table-2">table/2</a></h3>
@@ -223,23 +238,31 @@
 <p><tt>table(T, Opts) -&gt; any()</tt></p>
 </div>
 
-<h3 class="function"><a name="terminate-2">terminate/2</a></h3>
-<div class="spec">
-<p><tt>terminate(Reason, S) -&gt; any()</tt></p>
-</div>
-
 <h3 class="function"><a name="unreg-1">unreg/1</a></h3>
 <div class="spec">
-<p><tt>unreg(Key) -&gt; any()</tt></p>
-</div>
+<p><tt>unreg(Key::<a href="#type-key">key()</a>) -&gt; true</tt></p>
+</div><p>Unregister a name or property.</p>
 
 <h3 class="function"><a name="update_counter-2">update_counter/2</a></h3>
 <div class="spec">
-<p><tt>update_counter(Key, Incr) -&gt; any()</tt></p>
-</div>
+<p><tt>update_counter(Key::<a href="#type-key">key()</a>, Incr::integer()) -&gt; integer()</tt></p>
+</div><p><p>Updates the counter registered as Key for the current process.</p>
+ 
+  This function works like ets:update_counter/3
+  (see <a href="http://www.erlang.org/doc/man/ets.html#update_counter-3" target="_top"><tt>http://www.erlang.org/doc/man/ets.html#update_counter-3</tt></a>), but
+  will fail if the type of object referred to by Key is not a counter.</p>
+
+<h3 class="function"><a name="where-1">where/1</a></h3>
+<div class="spec">
+<p><tt>where(Key::<a href="#type-key">key()</a>) -&gt; pid()</tt></p>
+</div><p><p>Returns the pid registered as Key</p>
+ 
+  The type of registration entry must be either name or aggregated counter.
+  Otherwise this function will exit. Use <a href="#lookup_pids-1"><code>lookup_pids/1</code></a> in these
+  cases.</p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Sep 4 2008, 11:29:40.</i></p>
+<p><i>Generated by EDoc, Sep 20 2009, 09:15:40.</i></p>
 </body>
 </html>

@@ -23,16 +23,20 @@
 
 .SUFFIXES: .erl .beam
 
+APP = gproc
+
 vpath %.beam ../ebin
 vpath %.pdf ../doc
 
 ERLC = erlc -W -I ../include -o ../ebin
 ERLC += +debug_info
 
-EQC ?= /host/dev/eqc-1.16/ebin
+EQC ?= /host/dev/eqc-1.16
 
 EQC_ERLC = $(ERLC) -I $(EQC)/include
 EQC_ERL = erl -pz ../ebin -pz $(EQC)/ebin -pz ./Unit-Quick-Files -kernel error_logger silent
+
+SOURCES = $(wildcard *.erl)
 
 beams = gproc.beam \
 	gproc_app.beam \
@@ -50,6 +54,11 @@ $(beams) : %.beam : %.erl
 
 ./Unit-Quick-Files/gproc_eqc.beam : ./Unit-Quick-Files/gproc_eqc.erl
 	$(EQC_ERLC) $<
+
+doc: ../doc/edoc-info
+
+../doc/edoc-info: ../doc/overview.edoc $(SOURCES)
+	erl -noshell -eval 'edoc:application($(APP),"..",[])' -s init stop
 
 ## test targets
 test : all ./Unit-Quick-Files/gproc_eqc.beam

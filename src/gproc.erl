@@ -18,6 +18,21 @@
 %% @doc Extended process registry
 %% <p>This module implements an extended process registry</p>
 %% <p>For a detailed description, see gproc/doc/erlang07-wiger.pdf.</p>
+%%
+%% @type type()  = n | p | c | a. n = name; p = property; c = counter; 
+%%                                a = aggregate_counter
+%% @type scope() = l | g. l = local registration; g = global registration
+%% @type context() = {scope(), type()} | type(). Local scope is the default
+%% @type sel_type() = n | p | c | a |
+%%                    names | props | counters | aggr_counters.
+%% @type headpat() = {keypat(),pidpat(),ValPat}.
+%% @type keypat() = {sel_type() | sel_var(),
+%%                   l | g | sel_var(),
+%%                   any()}.
+%% @type pidpat() = pid() | sel_var().
+%% sel_var() = DollarVar | '_'.
+%% @type sel_pattern() = [{headpat(), Guards, Prod}].
+%% @type key()   = {type(), scope(), any()}
 %% @end
 -module(gproc).
 -behaviour(gen_server).
@@ -33,7 +48,7 @@
          update_counter/2,
          send/2,
          info/1, info/2,
-         select/1, select/2,
+         select/1, select/2, select/3,
          first/1,
          next/2,
          prev/2,
@@ -69,26 +84,20 @@ start_link() ->
     gen_server:start({local, ?SERVER}, ?MODULE, [], []).
 
 
-%%% @spec({Class,Scope, Key}) -> true
-%%% {@equiv reg(Key, undefined)}
-%%%    Class = n  - unique name
-%%%          | p  - non-unique property
-%%%          | c  - counter
-%%%          | a  - aggregated counter
-%%%    Scope = l | g (global or local)
-%%%
+%% @spec reg(Key::key()) -> true
+%%
+%% @doc
+%% @equiv reg(Key, undefined)
+%% @end
 reg(Key) ->
     reg(Key, undefined).
 
 
-%%% @spec({Class,Scope, Key}, Value) -> true
-%%% @doc
-%%%    Class = n  - unique name
-%%%          | p  - non-unique property
-%%%          | c  - counter
-%%%          | a  - aggregated counter
-%%%    Scope = l | g (global or local)
-%%%
+%% @spec reg(Key::key(), Value) -> true
+%%
+%% @doc Register a name or property for the current process
+%%
+%%
 reg({_,g,_} = Key, Value) ->
     %% anything global
     ?CHK_DIST,
@@ -109,6 +118,12 @@ reg({_,l,_} = Key, Value) ->
 reg(_, _) ->
     erlang:error(badarg).
 
+%% @spec mreg(type(), scope(), [{Key::any(), Value::any()}]) -> true
+%%
+%% @doc Register multiple {Key,Value} pairs of a given type and scope.
+%% 
+%% This function is more efficient than calling {@link reg/2} repeatedly.
+%% @end
 mreg(T, g, KVL) ->
     ?CHK_DIST,
     gproc_dist:mreg(T, KVL);
@@ -123,6 +138,10 @@ mreg(p, l, KVL) ->
 mreg(_, _, _) ->
     erlang:error(badarg).
 
+%% @spec (Key:: key()) -> true
+%%
+%% @doc Unregister a name or property.
+%% @end
 unreg(Key) ->
     case Key of
         {_, g, _} ->
@@ -139,14 +158,31 @@ unreg(Key) ->
             end
     end.
 
+%% @spec (select_pattern()) -> list(sel_object())
+%% @doc
+%% @equiv select(all, Pat)
+%% @end
 select(Pat) ->
     select(all, Pat).
 
-select(Scope, Pat) ->
-    ets:select(?TAB, pattern(Pat, Scope)).
+%% @spec (Type::sel_type(), Pat::sel_pattern()) -> [{Key, Pid, Value}]
+%%
+%% @doc Perform a select operation on the process registry.
+%%
+%% The physical representation in the registry may differ from the above,
+%% but the select patterns are transformed appropriately.
+%% @end
+select(Type, Pat) ->
+    ets:select(?TAB, pattern(Pat, Type)).
 
-select(Scope, Pat, NObjs) ->
-    ets:select(?TAB, pattern(Pat, Scope), NObjs).
+%% @spec (Type::sel_type(), Pat::sel_patten(), Limit::integer()) ->
+%%          [{Key, Pid, Value}]
+%% @doc Like {@link select/2} but returns Limit objects at a time.
+%%
+%% See [http://www.erlang.org/doc/man/ets.html#select-3].
+%% @end
+select(Type, Pat, Limit) ->
+    ets:select(?TAB, pattern(Pat, Type), Limit).
 
 
 %%% Local properties can be registered in the local process, since
@@ -168,7 +204,16 @@ local_mreg(T, [_|_] = KVL) ->
 
 
 
-
+%% @spec (Key :: key(), Value) -> true
+%% @doc Sets the value of the registeration entry given by Key
+%% 
+%% Key is assumed to exist and belong to the calling process.
+%% If it doesn't, this function will exit.
+%%
+%% Value can be any term, unless the object is a counter, in which case
+%% it must be an integer.
+%% @end
+%%
 set_value({_,g,_} = Key, Value) ->
     ?CHK_DIST,
     gproc_dist:set_value(Key, Value);
@@ -194,9 +239,11 @@ set_value(_, _) ->
 
 
 
-%%% @spec (Key) -> Value
-%%% @doc Read the value stored with a key registered to the current process.
-%%%
+%% @spec (Key) -> Value
+%% @doc Read the value stored with a key registered to the current process.
+%%
+%% If no such key is registered to the current process, this function exits.
+%% @end
 get_value(Key) ->
     get_value(Key, self()).
 
@@ -213,16 +260,24 @@ get_value(_, _) ->
     erlang:error(badarg).
 
 
-%%% @spec (Key) -> Pid
-%%% @doc Lookup the Pid stored with a key.
-%%%
+%% @spec (Key) -> Pid
+%% @doc Lookup the Pid stored with a key.
+%%
 lookup_pid({_T,_,_} = Key) ->
     case where(Key) of
         undefined -> erlang:error(badarg);
         P -> P
     end.
 
-
+%% @spec (Key::key()) -> pid()
+%%
+%% @doc Returns the pid registered as Key
+%% 
+%% The type of registration entry must be either name or aggregated counter.
+%% Otherwise this function will exit. Use {@link lookup_pids/1} in these
+%% cases.
+%% @end
+%%
 where({T,_,_}=Key) ->
     if T==n orelse T==a ->
             case ets:lookup(?TAB, {Key,T}) of
@@ -235,6 +290,15 @@ where({T,_,_}=Key) ->
             erlang:error(badarg)
     end.
 
+%% @spec (Key::key()) -> [pid()]
+%%
+%% @doc Returns a list of pids with the published key Key
+%%
+%% If the type of registration entry is either name or aggregated counter,
+%% this function will return either an empty list, or a list of one pid.
+%% For non-unique types, the return value can be a list of any length.
+%% @end
+%%
 lookup_pids({T,_,_} = Key) ->
     if T==n orelse T==a ->
             ets:select(?TAB, [{{{Key,T}, '$1', '_'},[],['$1']}]);
@@ -244,7 +308,15 @@ lookup_pids({T,_,_} = Key) ->
             erlang:error(badarg)
     end.
 
-
+%% @spec (Key::key(), Incr::integer()) -> integer()
+%%
+%% @doc Updates the counter registered as Key for the current process.
+%%
+%% This function works like ets:update_counter/3
+%% (see [http://www.erlang.org/doc/man/ets.html#update_counter-3]), but 
+%% will fail if the type of object referred to by Key is not a counter.
+%% @end
+%%
 update_counter({c,l,_} = Key, Incr) when is_integer(Incr) ->
     gproc_lib:update_counter(Key, Incr, self());
 update_counter({c,g,_} = Key, Incr) when is_integer(Incr) ->
@@ -255,7 +327,16 @@ update_counter(_, _) ->
 
 
 
-
+%% @spec (Key::key(), Msg::any()) -> Msg
+%%
+%% @doc Sends a message to the process, or processes, corresponding to Key.
+%%
+%% If Key belongs to a unique object (name or aggregated counter), this 
+%% function will send a message to the corresponding process, or fail if there
+%% is no such process. If Key is for a non-unique object type (counter or 
+%% property), Msg will be send to all processes that have such an object.
+%% @end
+%%
 send({T,C,_} = Key, Msg) when C==l; C==g ->
     if T == n orelse T == a ->
             case ets:lookup(?TAB, {Key, T}) of
@@ -280,8 +361,16 @@ send(_, _) ->
     erlang:error(badarg).
 
 
-first(Scope) ->
-    {HeadPat,_} = headpat(Scope, '_', '_', '_'),
+%% @spec (Type :: type()) -> key() | '$end_of_table'
+%%
+%% @doc Behaves as ets:first(Tab) for a given type of registration object.
+%%
+%% See [http://www.erlang.org/doc/man/ets.html#first-1].
+%%  The registry behaves as an ordered_set table.
+%% @end
+%%
+first(Type) ->
+    {HeadPat,_} = headpat(Type, '_', '_', '_'),
     case ets:select(?TAB, [{HeadPat,[],[{element,1,'$_'}]}], 1) of
         {[First], _} ->
             First;
@@ -289,21 +378,46 @@ first(Scope) ->
             '$end_of_table'
     end.
 
-last(Scope) ->
-    {C, T} = get_c_t(Scope),
-    C1 = if C == '_'; C == l -> m;
-            C == g -> h
+%% @spec (Context :: context()) -> key() | '$end_of_table'
+%%
+%% @doc Behaves as ets:last(Tab) for a given type of registration object.
+%%
+%% See [http://www.erlang.org/doc/man/ets.html#last-1].
+%% The registry behaves as an ordered_set table.
+%% @end
+%%
+last(Context) ->
+    {S, T} = get_s_t(Context),
+    S1 = if S == '_'; S == l -> m;
+            S == g -> h
          end,
-    Beyond = {{T,C1,[]},[]},
-    step(ets:prev(?TAB, Beyond), C, T).
+    Beyond = {{T,S1,[]},[]},
+    step(ets:prev(?TAB, Beyond), S, T).
 
-next(Scope, K) ->
-    {C,T} = get_c_t(Scope),
-    step(ets:next(?TAB,K), C, T).
 
-prev(Scope, K) ->
-    {C, T} = get_c_t(Scope),
-    step(ets:prev(?TAB, K), C, T).
+%% @spec (Context::context(), Key::key()) -> key() | '$end_of_table'
+%%
+%% @doc Behaves as ets:next(Tab,Key) for a given type of registration object.
+%%
+%% See [http://www.erlang.org/doc/man/ets.html#next-2].
+%% The registry behaves as an ordered_set table.
+%% @end
+%%
+next(Context, K) ->
+    {S,T} = get_s_t(Context),
+    step(ets:next(?TAB,K), S, T).
+
+%% @spec (Context::context(), Key::key()) -> key() | '$end_of_table'
+%%
+%% @doc Behaves as ets:prev(Tab,Key) for a given type of registration object.
+%%
+%% See [http://www.erlang.org/doc/man/ets.html#prev-2].
+%% The registry behaves as an ordered_set table.
+%% @end
+%%
+prev(Context, K) ->
+    {S, T} = get_s_t(Context),
+    step(ets:prev(?TAB, K), S, T).
 
 step(Key, '_', '_') ->
     case Key of
@@ -315,23 +429,39 @@ step(Key, '_', T) ->
         {{T,_,_},_} -> Key;
         _ -> '$end_of_table'
     end;
-step(Key, C, '_') ->
+step(Key, S, '_') ->
     case Key of
-        {{_, C, _}, _} -> Key;
+        {{_, S, _}, _} -> Key;
         _ -> '$end_of_table'
     end;
-step(Key, C, T) ->
+step(Key, S, T) ->
     case Key of
-        {{T,C,_},_} -> Key;
+        {{T, S, _}, _} -> Key;
         _ -> '$end_of_table'
     end.
 
 
-
+%% @spec (Pid::pid()) -> ProcessInfo
+%% ProcessInfo = [{gproc, [{Key,Value}]} | ProcessInfo]
+%%
+%% @doc Similar to `process_info(Pid)' but with additional gproc info.
+%% 
+%% Returns the same information as process_info(Pid), but with the 
+%% addition of a `gproc' information item, containing the `{Key,Value}'
+%% pairs registered to the process.
+%% @end
 info(Pid) when is_pid(Pid) ->
     Items = [?MODULE | [ I || {I,_} <- process_info(self())]],
     [info(Pid,I) || I <- Items].
 
+%% @spec (Pid::pid(), Item::atom()) -> {Item, Info}
+%%
+%% @doc Similar to process_info(Pid, Item), but with additional gproc info.
+%%
+%% For `Item = gproc', this function returns a list of `{Key, Value}' pairs
+%% registered to the process Pid. For other values of Item, it returns the 
+%% same as [http://www.erlang.org/doc/man/erlang.html#process_info-2].
+%% @end
 info(Pid, ?MODULE) ->
     Keys = ets:select(?TAB, [{ {{Pid,'$1'}}, [], ['$1'] }]),
     {?MODULE, lists:zf(
@@ -351,11 +481,12 @@ info(Pid, I) ->
 
 %%% ==========================================================
 
-
+%% @hidden
 handle_cast({monitor_me, Pid}, S) ->
     erlang:monitor(process, Pid),
     {noreply, S}.
 
+%% @hidden
 handle_call({reg, {_T,l,_} = Key, Val}, {Pid,_}, S) ->
     case try_insert_reg(Key, Val, Pid) of
         true ->
@@ -389,6 +520,7 @@ handle_call({set, {_,l,_} = Key, Value}, {Pid,_}, S) ->
 handle_call(_, _, S) ->
     {reply, badarg, S}.
 
+%% @hidden
 handle_info({'DOWN', _MRef, process, Pid, _}, S) ->
     process_is_down(Pid),
     {noreply, S};
@@ -396,10 +528,11 @@ handle_info(_, S) ->
     {noreply, S}.
 
 
-
+%% @hidden
 code_change(_FromVsn, S, _Extra) ->
     {ok, S}.
 
+%% @hidden
 terminate(_Reason, _S) ->
     ok.
 
@@ -448,6 +581,8 @@ process_is_down(Pid) ->
 create_tabs() ->
     ets:new(?MODULE, [ordered_set, public, named_table]).
 
+
+%% @hidden
 init([]) ->
     {ok, #state{}}.
 
@@ -508,8 +643,8 @@ obj_prod_l() ->
       {element,3,'$_'} ].
 
 
-headpat({C, T}, V1,V2,V3) when C==global; C==local; C==all ->
-    headpat(type(T), ctxt(C), V1,V2,V3);
+headpat({S, T}, V1,V2,V3) when S==global; S==local; S==all ->
+    headpat(type(T), scope(S), V1,V2,V3);
 headpat(T, V1, V2, V3) when is_atom(T) ->
     headpat(type(T), l, V1, V2, V3);
 headpat(_, _, _, _) -> erlang:error(badarg).
@@ -542,7 +677,7 @@ headpat(T, C, V1,V2,V3) ->
                 end,
     {{{Kp,K2},V2,V3}, Vars}.
 
-l(L) -> L.
+%% l(L) -> L.
     
 
 
@@ -556,24 +691,25 @@ subst(X, V, F, Vs) ->
             {V, Vs}
     end.
 
-ctxt(all)    -> '_';
-ctxt(global) -> g;
-ctxt(local)  -> l.
+scope(all)    -> '_';
+scope(global) -> g;
+scope(local)  -> l.
 
 type(all)   -> '_';
+type(T) when T==n; T==p; T==c; T==a -> T;
 type(names) -> n;
 type(props) -> p;
 type(counters) -> c;
 type(aggr_counters) -> a.
 
-keypat(Scope) ->
-    {C,T} = get_c_t(Scope),
-    {{T,C,'_'},'_'}.
+keypat(Context) ->
+    {S,T} = get_s_t(Context),
+    {{T,S,'_'},'_'}.
 
 
 
-get_c_t({C,T}) -> {ctxt(C), type(T)};
-get_c_t(T) when is_atom(T) ->
+get_s_t({S,T}) -> {scope(S), type(T)};
+get_s_t(T) when is_atom(T) ->
     {l, type(T)}.
 
 is_var('$1') -> {true,1};
@@ -598,11 +734,6 @@ is_var(X) when is_atom(X) ->
             false
     end;
 is_var(_) -> false.
-
-vars(N) when N > 3 ->
-    {'$1','$2','$3'};
-vars(_) ->
-    {'$4','$5','$6'}.
 
 
 rewrite(Gs, R) ->
@@ -632,8 +763,8 @@ rewrite1(Expr, _) ->
     Expr.
 
 
-table(Scope) ->
-    table(Scope, []).
+table(Type) ->
+    table(Type, []).
 
 table(T, Opts) ->
     [Traverse, NObjs] = [proplists:get_value(K,Opts,Def) ||
@@ -643,9 +774,9 @@ table(T, Opts) ->
                  fun() -> qlc_next(T, first(T)) end;
              last_prev -> fun() -> qlc_prev(T, last(T)) end;
              select ->
-                 fun(MS) -> qlc_select(select(T,MS,NObjs)) end;
+                 fun(MS) -> qlc_select(select(T, MS, NObjs)) end;
              {select,MS} ->
-                 fun() -> qlc_select(select(T,MS,NObjs)) end;
+                 fun() -> qlc_select(select(T, MS, NObjs)) end;
              _ ->
                  erlang:error(badarg, [T,Opts])
          end,
