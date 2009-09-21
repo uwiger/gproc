@@ -318,6 +318,8 @@ postcondition(S,{call,_,set_value,[Pid,Key,_Value]},Res) ->
             is_registered_and_alive(S,Pid,Key);
         {'EXIT', {badarg, _}} ->
             not is_registered_and_alive(S,Pid,Key)
+                orelse (Key#key.class == c
+                        andalso is_registered_and_alive(S, Pid, Key))
     end;
 %% update_counter
 postcondition(S,{call,_,update_counter,[Pid,#key{class=Class}=Key,Incr]},Res)
@@ -354,12 +356,12 @@ postcondition(_S,{call,_,lookup_pid,[_Key]},Res) ->
     case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
 %% lookup_pids
 postcondition(S,{call,_,lookup_pids,[#key{class=Class}=Key]},Res)
-  when Class == n; Class == a; Class == c ->
+  when Class == n; Class == a; Class == c; Class == p ->
     Pids = [ Pid1 || #reg{pid=Pid1,key=Key1} <- S#state.regs
                          , Key==Key1 ],
     lists:sort(Res) == lists:sort(Pids);
-postcondition(_S,{call,_,lookup_pids,[_Key]},Res) ->
-    case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
+%% postcondition(_S,{call,_,lookup_pids,[_Key]},Res) ->
+%%     case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
 %% otherwise
 postcondition(_S,{call,_,_,_},_Res) ->
     false.

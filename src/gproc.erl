@@ -13,7 +13,7 @@
 %% Portions created by Ericsson are Copyright 1999, Ericsson Utvecklings
 %% AB. All Rights Reserved.''
 %%
-%% @author Ulf Wiger <ulf.wiger@ericsson.com>
+%% @author Ulf Wiger <ulf.wiger@erlang-consulting.com>
 %%
 %% @doc Extended process registry
 %% <p>This module implements an extended process registry</p>
@@ -45,6 +45,7 @@
          where/1,
          lookup_pid/1,
          lookup_pids/1,
+         lookup_values/1,
          update_counter/2,
          send/2,
          info/1, info/2,
@@ -54,6 +55,24 @@
          prev/2,
          last/1,
          table/1, table/2]).
+
+%% Convenience functions
+-export([add_local_name/1,
+         add_global_name/1,
+         add_local_property/2,
+         add_global_property/2,
+         add_local_counter/2,
+         add_global_counter/2,
+         add_local_aggr_counter/1,
+         add_global_aggr_counter/1,
+         lookup_local_name/1,
+         lookup_global_name/1,
+         lookup_local_properties/1,
+         lookup_global_properties/1,
+         lookup_local_counters/1,
+         lookup_global_counters/1,
+         lookup_local_aggr_counter/1,
+         lookup_global_aggr_counter/1]).
 
 %%% internal exports
 -export([init/1,
@@ -79,9 +98,154 @@
 
 -record(state, {}).
 
+%% @spec () -> {ok, pid()}
+%%
+%% @doc Starts the gproc server.
+%%
+%% This function is intended to be called from gproc_sup, as part of 
+%% starting the gproc application.
+%% @end
 start_link() ->
     create_tabs(),
     gen_server:start({local, ?SERVER}, ?MODULE, [], []).
+
+%% spec(Name::any()) -> true
+%%
+%% @doc Registers a local (unique) name. @equiv reg({n,l,Name})
+%% @end
+%%
+add_local_name(Name)  -> reg({n,l,Name}, undefined).
+
+
+%% spec(Name::any()) -> true
+%%
+%% @doc Registers a global (unique) name. @equiv reg({n,g,Name})
+%% @end
+%%
+add_global_name(Name) -> reg({n,g,Name}, undefined).
+
+
+%% spec(Name::any(), Value::any()) -> true
+%%
+%% @doc Registers a local (non-unique) property. @equiv reg({p,l,Name},Value)
+%% @end
+%%
+add_local_property(Name , Value) -> reg({p,l,Name}, Value).
+
+%% spec(Name::any(), Value::any()) -> true
+%%
+%% @doc Registers a global (non-unique) property. @equiv reg({p,g,Name},Value)
+%% @end
+%%
+add_global_property(Name, Value) -> reg({p,g,Name}, Value).
+
+%% spec(Name::any(), Initial::integer()) -> true
+%%
+%% @doc Registers a local (non-unique) counter. @equiv reg({c,l,Name},Value)
+%% @end
+%%
+add_local_counter(Name, Initial) when is_integer(Initial) ->
+    reg({c,l,Name}, Initial).
+
+
+%% spec(Name::any(), Initial::integer()) -> true
+%%
+%% @doc Registers a global (non-unique) counter. @equiv reg({c,g,Name},Value)
+%% @end
+%%
+add_global_counter(Name, Initial) when is_integer(Initial) ->
+    reg({n,g,Name}, Initial).
+
+%% spec(Name::any()) -> true
+%%
+%% @doc Registers a local (unique) aggregated counter.
+%% @equiv reg({a,l,Name})
+%% @end
+%%
+add_local_aggr_counter(Name)  -> reg({a,l,Name}).
+
+%% spec(Name::any()) -> true
+%%
+%% @doc Registers a global (unique) aggregated counter.
+%% @equiv reg({a,l,Name})
+%% @end
+%%
+add_global_aggr_counter(Name) -> reg({a,g,Name}).
+    
+
+%% @spec (Name::any()) -> pid()
+%%
+%% @doc Lookup a local unique name. Fails if there is no such name.
+%% @equiv where({n,l,Name})
+%% @end
+%%
+lookup_local_name(Name)   -> where({n,l,Name}).
+
+%% @spec (Name::any()) -> pid()
+%%
+%% @doc Lookup a global unique name. Fails if there is no such name.
+%% @equiv where({n,g,Name})
+%% @end
+%%
+lookup_global_name(Name)  -> where({g,l,Name}).
+
+%% @spec (Name::any()) -> integer()
+%%
+%% @doc Lookup a local (unique) aggregated counter and returns its value.
+%% Fails if there is no such object.
+%% @equiv where({a,l,Name})
+%% @end
+%%
+lookup_local_aggr_counter(Name)  -> lookup_value({a,l,Name}).
+
+%% @spec (Name::any()) -> integer()
+%%
+%% @doc Lookup a global (unique) aggregated counter and returns its value.
+%% Fails if there is no such object.
+%% @equiv where({a,g,Name})
+%% @end
+%%
+lookup_global_aggr_counter(Name) -> lookup_value({a,g,Name}).
+    
+
+%% @spec (Property::any()) -> [{pid(), Value}]
+%%
+%% @doc Look up all local (non-unique) instances of a given Property.
+%% Returns a list of {Pid, Value} tuples for all matching objects.
+%% @equiv lookup_values({p, l, Property})
+%% @end
+%%
+lookup_local_properties(P)  -> lookup_values({p,l,P}).
+
+%% @spec (Property::any()) -> [{pid(), Value}]
+%%
+%% @doc Look up all global (non-unique) instances of a given Property.
+%% Returns a list of {Pid, Value} tuples for all matching objects.
+%% @equiv lookup_values({p, g, Property})
+%% @end
+%%
+lookup_global_properties(P) -> lookup_values({p,g,P}).
+
+
+%% @spec (Counter::any()) -> [{pid(), Value::integer()}]
+%%
+%% @doc Look up all local (non-unique) instances of a given Counter.
+%% Returns a list of {Pid, Value} tuples for all matching objects.
+%% @equiv lookup_values({c, l, Counter})
+%% @end
+%%
+lookup_local_counters(P)    -> lookup_values({c,l,P}).
+
+
+%% @spec (Counter::any()) -> [{pid(), Value::integer()}]
+%%
+%% @doc Look up all global (non-unique) instances of a given Counter.
+%% Returns a list of {Pid, Value} tuples for all matching objects.
+%% @equiv lookup_values({c, l, Counter})
+%% @end
+%%
+lookup_global_counters(P)   -> lookup_values({c,g,P}).
+
 
 
 %% @spec reg(Key::key()) -> true
@@ -269,6 +433,13 @@ lookup_pid({_T,_,_} = Key) ->
         P -> P
     end.
 
+lookup_value({T,_,_} = Key) ->
+    if T==n orelse T==a ->
+            ets:lookup_element(?TAB, {Key,T}, 3);
+       true ->
+            erlang:error(badarg)
+    end.
+
 %% @spec (Key::key()) -> pid()
 %%
 %% @doc Returns the pid registered as Key
@@ -302,11 +473,28 @@ where({T,_,_}=Key) ->
 lookup_pids({T,_,_} = Key) ->
     if T==n orelse T==a ->
             ets:select(?TAB, [{{{Key,T}, '$1', '_'},[],['$1']}]);
-       T==c ->
-            ets:select(?TAB, [{{{Key,'_'}, '$1', '_'},[],['$1']}]);
        true ->
-            erlang:error(badarg)
+            ets:select(?TAB, [{{{Key,'_'}, '$1', '_'},[],['$1']}])
+%%%        true ->
+%%%             erlang:error(badarg)
     end.
+
+%% @spec (Key::key()) -> [{pid(), Value}]
+%%
+%% @doc Retrieve the `{Pid,Value}' pairs corresponding to Key.
+%%
+%% Key refer to any type of registry object. If it refers to a unique
+%% object, the list will be of length 0 or 1. If it refers to a non-unique
+%% object, the return value can be a list of any length.
+%% @end
+%%
+lookup_values({T,_,_} = Key) ->
+    if T==n orelse T==a ->
+            ets:select(?TAB, [{{{Key,T}, '$1', '$2'},[],[{{'$1','$2'}}]}]);
+       true ->
+            ets:select(?TAB, [{{{Key,'_'}, '$1', '$2'},[],[{{'$1','$2'}}]}])
+    end.
+
 
 %% @spec (Key::key(), Incr::integer()) -> integer()
 %%
@@ -763,25 +951,37 @@ rewrite1(Expr, _) ->
     Expr.
 
 
-table(Type) ->
-    table(Type, []).
+%% @spec (Context::context()) -> any()
+%%
+%% @doc
+%% @equiv table(Context, [])
+%% @end
+%%
+table(Context) ->
+    table(Context, []).
 
-table(T, Opts) ->
+%% @spec (Context::context(), Opts) -> any()
+%%
+%% @doc QLC table generator for the gproc registry.
+%% Context specifies which subset of the registry should be queried.
+%% See [http://www.erlang.org/doc/man/qlc.html].
+%% @end
+table(Ctxt, Opts) ->
     [Traverse, NObjs] = [proplists:get_value(K,Opts,Def) ||
                             {K,Def} <- [{traverse,select}, {n_objects,100}]],
     TF = case Traverse of
              first_next ->
-                 fun() -> qlc_next(T, first(T)) end;
-             last_prev -> fun() -> qlc_prev(T, last(T)) end;
+                 fun() -> qlc_next(Ctxt, first(Ctxt)) end;
+             last_prev -> fun() -> qlc_prev(Ctxt, last(Ctxt)) end;
              select ->
-                 fun(MS) -> qlc_select(select(T, MS, NObjs)) end;
+                 fun(MS) -> qlc_select(select(Ctxt, MS, NObjs)) end;
              {select,MS} ->
-                 fun() -> qlc_select(select(T, MS, NObjs)) end;
+                 fun() -> qlc_select(select(Ctxt, MS, NObjs)) end;
              _ ->
-                 erlang:error(badarg, [T,Opts])
+                 erlang:error(badarg, [Ctxt,Opts])
          end,
     InfoFun = fun(indices) -> [2];
-                 (is_unique_objects) -> is_unique(T);
+                 (is_unique_objects) -> is_unique(Ctxt);
                  (keypos) -> 1;
                  (is_sorted_key) -> true;
                  (num_of_objects) ->
@@ -791,7 +991,7 @@ table(T, Opts) ->
     LookupFun =
         case Traverse of
             {select, _MS} -> undefined;
-            _ -> fun(Pos, Ks) -> qlc_lookup(T, Pos, Ks) end
+            _ -> fun(Pos, Ks) -> qlc_lookup(Ctxt, Pos, Ks) end
         end,
     qlc:table(TF, [{info_fun, InfoFun},
                    {lookup_fun, LookupFun}] ++ [{K,V} || {K,V} <- Opts,

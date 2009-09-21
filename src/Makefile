@@ -34,7 +34,7 @@ ERLC += +debug_info
 EQC ?= /host/dev/eqc-1.16
 
 EQC_ERLC = $(ERLC) -I $(EQC)/include
-EQC_ERL = erl -pz ../ebin -pz $(EQC)/ebin -pz ./Unit-Quick-Files -kernel error_logger silent
+EQC_ERL = erl -pz ../ebin -pz $(EQC)/ebin -pz ./Unit-Quick-Files -kernel error_logger silent -sasl errlog_type error
 
 SOURCES = $(wildcard *.erl)
 
