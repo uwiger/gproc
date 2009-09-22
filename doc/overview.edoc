@@ -4,6 +4,9 @@
 @doc Extended process dictionary
 <h2>Introduction</h2>
 
+Gproc was first introduced at the ACM SIGPLAN Erlang Workshop in
+Freiburg 2007 (<a href="erlang07-wiger.pdf">Paper available here</a>).
+
 This application was designed to meet the following requirements:
 
 <li>

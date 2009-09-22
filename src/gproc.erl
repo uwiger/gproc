@@ -17,7 +17,8 @@
 %%
 %% @doc Extended process registry
 %% <p>This module implements an extended process registry</p>
-%% <p>For a detailed description, see gproc/doc/erlang07-wiger.pdf.</p>
+%% <p>For a detailed description, see
+%% <a href="erlang07-wiger.pdf">erlang07-wiger.pdf</a>.</p>
 %%
 %% @type type()  = n | p | c | a. n = name; p = property; c = counter; 
 %%                                a = aggregate_counter
