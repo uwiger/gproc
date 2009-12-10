@@ -75,6 +75,8 @@
          lookup_local_aggr_counter/1,
          lookup_global_aggr_counter/1]).
 
+-export([default/1]).
+
 %%% internal exports
 -export([init/1,
          handle_cast/2,
@@ -252,10 +254,15 @@ lookup_global_counters(P)   -> lookup_values({c,g,P}).
 %% @spec reg(Key::key()) -> true
 %%
 %% @doc
-%% @equiv reg(Key, undefined)
+%% @equiv reg(Key, default(Key))
 %% @end
+reg({T,_,_}=Key) when T==c; T==a ->
+    reg(Key, 0);
 reg(Key) ->
     reg(Key, undefined).
+
+default({T,_,_}=Key) when T==c; T==a -> 0;
+default(_) -> undefined.
 
 
 %% @spec reg(Key::key(), Value) -> true
