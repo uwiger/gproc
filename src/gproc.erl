@@ -276,11 +276,12 @@ reg({p,l,_} = Key, Value) ->
     local_reg(Key, Value);
 reg({T,l,_} = Key, Value) when T==n; T==c; T==a ->
     %% local names, counters and aggregated counters
-    if is_integer(Value) ->
-            call({reg, Key, Value});
+    if T=/=n andalso is_integer(Value) ->
+	    true;
        true ->
             erlang:error(badarg)
-    end;
+    end,
+    call({reg, Key, Value});
 reg(_, _) ->
     erlang:error(badarg).
 
