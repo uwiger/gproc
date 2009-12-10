@@ -272,19 +272,15 @@ reg({_,g,_} = Key, Value) ->
     %% anything global
     ?CHK_DIST,
     gproc_dist:reg(Key, Value);
-reg({T,l,_} = Key, Value) when T==n; T==a ->
-    %% local names and aggregated counters
-    call({reg, Key, Value});
-reg({c,l,_} = Key, Value) ->
-    %% local counter
+reg({a,l,_} = Key, Value) ->
+    local_reg(Key, Value);
+reg({T,l,_} = Key, Value) when T==n; T==c; T==a ->
+    %% local names, counters and aggregated counters
     if is_integer(Value) ->
             call({reg, Key, Value});
        true ->
             erlang:error(badarg)
     end;
-reg({_,l,_} = Key, Value) ->
-    %% local property
-    local_reg(Key, Value);
 reg(_, _) ->
     erlang:error(badarg).
 
