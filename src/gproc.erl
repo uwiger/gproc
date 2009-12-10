@@ -256,12 +256,10 @@ lookup_global_counters(P)   -> lookup_values({c,g,P}).
 %% @doc
 %% @equiv reg(Key, default(Key))
 %% @end
-reg({T,_,_}=Key) when T==c; T==a ->
-    reg(Key, 0);
 reg(Key) ->
-    reg(Key, undefined).
+    reg(Key, default(Key)).
 
-default({T,_,_}=Key) when T==c; T==a -> 0;
+default({T,_,_}) when T==c; T==a -> 0;
 default(_) -> undefined.
 
 
