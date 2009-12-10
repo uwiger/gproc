@@ -55,6 +55,9 @@ $(beams) : %.beam : %.erl
 ./Unit-Quick-Files/gproc_eqc.beam : ./Unit-Quick-Files/gproc_eqc.erl
 	$(EQC_ERLC) $<
 
+./Unit-Quick-Files/gproc_pulse.beam : ./Unit-Quick-Files/gproc_pulse.erl
+	$(EQC_ERLC) $<
+
 doc: ../doc/edoc-info
 
 ../doc/edoc-info: ../doc/overview.edoc $(SOURCES)
@@ -66,3 +69,6 @@ test : all ./Unit-Quick-Files/gproc_eqc.beam
 
 itest : all ./Unit-Quick-Files/gproc_eqc.beam
 	$(EQC_ERL) -s eqc start
+
+pulsetest : all ./Unit-Quick-Files/gproc_pulse.beam
+	$(EQC_ERL) -pa ../../scheduler_msg -pa -s eqc start 

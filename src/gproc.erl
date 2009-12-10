@@ -37,7 +37,7 @@
 %% @end
 -module(gproc).
 -behaviour(gen_server).
-
+ 
 -export([start_link/0,
          reg/1, reg/2, unreg/1,
          mreg/3,
@@ -276,8 +276,8 @@ reg({p,l,_} = Key, Value) ->
     local_reg(Key, Value);
 reg({T,l,_} = Key, Value) when T==n; T==c; T==a ->
     %% local names, counters and aggregated counters
-    if T=/=n andalso is_integer(Value) ->
-	    true;
+    if T =:= n orelse is_integer(Value) ->
+			true;
        true ->
             erlang:error(badarg)
     end,
