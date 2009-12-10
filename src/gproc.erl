@@ -272,7 +272,7 @@ reg({_,g,_} = Key, Value) ->
     %% anything global
     ?CHK_DIST,
     gproc_dist:reg(Key, Value);
-reg({a,l,_} = Key, Value) ->
+reg({p,l,_} = Key, Value) ->
     local_reg(Key, Value);
 reg({T,l,_} = Key, Value) when T==n; T==c; T==a ->
     %% local names, counters and aggregated counters
