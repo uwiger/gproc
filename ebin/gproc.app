@@ -13,7 +13,7 @@
   },
   {registered, [ ] },
   %% NOTE: do not list applications which are load-only!
-  {applications, [ kernel, stdlib, sasl ] },
+  {applications, [ kernel, stdlib ] },
   {mod, {gproc_app, []} }
  ]
 }.

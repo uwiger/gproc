@@ -67,6 +67,9 @@
 <tr><td valign="top"><a href="#add_local_counter-2">add_local_counter/2</a></td><td>Registers a local (non-unique) counter.</td></tr>
 <tr><td valign="top"><a href="#add_local_name-1">add_local_name/1</a></td><td>Registers a local (unique) name.</td></tr>
 <tr><td valign="top"><a href="#add_local_property-2">add_local_property/2</a></td><td>Registers a local (non-unique) property.</td></tr>
+<tr><td valign="top"><a href="#await-2">await/2</a></td><td>Wait for a local name to be registered.</td></tr>
+<tr><td valign="top"><a href="#cancel_wait-2">cancel_wait/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#default-1">default/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#first-1">first/1</a></td><td>Behaves as ets:first(Tab) for a given type of registration object.</td></tr>
 <tr><td valign="top"><a href="#get_value-1">get_value/1</a></td><td>Read the value stored with a key registered to the current process.</td></tr>
 <tr><td valign="top"><a href="#info-1">info/1</a></td><td>Similar to <code>process_info(Pid)</code> but with additional gproc info.</td></tr>
@@ -84,9 +87,10 @@
 <tr><td valign="top"><a href="#lookup_pids-1">lookup_pids/1</a></td><td>Returns a list of pids with the published key Key.</td></tr>
 <tr><td valign="top"><a href="#lookup_values-1">lookup_values/1</a></td><td>Retrieve the <code>{Pid,Value}</code> pairs corresponding to Key.</td></tr>
 <tr><td valign="top"><a href="#mreg-3">mreg/3</a></td><td>Register multiple {Key,Value} pairs of a given type and scope.</td></tr>
+<tr><td valign="top"><a href="#nb_wait-1">nb_wait/1</a></td><td>Wait for a local name to be registered.</td></tr>
 <tr><td valign="top"><a href="#next-2">next/2</a></td><td>Behaves as ets:next(Tab,Key) for a given type of registration object.</td></tr>
 <tr><td valign="top"><a href="#prev-2">prev/2</a></td><td>Behaves as ets:prev(Tab,Key) for a given type of registration object.</td></tr>
-<tr><td valign="top"><a href="#reg-1">reg/1</a></td><td>Equivalent to <a href="#reg-2"><tt>reg(Key, undefined)</tt></a>.
+<tr><td valign="top"><a href="#reg-1">reg/1</a></td><td>Equivalent to <a href="#reg-2"><tt>reg(Key, default(Key))</tt></a>.
 </td></tr>
 <tr><td valign="top"><a href="#reg-2">reg/2</a></td><td>Register a name or property for the current process.</td></tr>
 <tr><td valign="top"><a href="#select-1">select/1</a></td><td>Equivalent to <a href="#select-2"><tt>select(all, Pat)</tt></a>.
@@ -109,7 +113,7 @@
 <h3 class="function"><a name="add_global_aggr_counter-1">add_global_aggr_counter/1</a></h3>
 <div class="spec">
 <p><tt>add_global_aggr_counter(Name) -&gt; any()</tt></p>
-</div><p>Equivalent to <a href="#reg-1"><tt>reg({a, l, Name})</tt></a>.</p>
+</div><p>Equivalent to <a href="#reg-1"><tt>reg({a, g, Name})</tt></a>.</p>
 <p>Registers a global (unique) aggregated counter.</p>
 
 <h3 class="function"><a name="add_global_counter-2">add_global_counter/2</a></h3>
@@ -147,6 +151,25 @@
 <div class="spec">
 <p><tt>add_local_property(Name, Value) -&gt; any()</tt></p>
 </div><p>Registers a local (non-unique) property. @equiv reg({p,l,Name},Value)</p>
+
+<h3 class="function"><a name="await-2">await/2</a></h3>
+<div class="spec">
+<p><tt>await(Key::<a href="#type-key">key()</a>, Timeout) -&gt; {pid(), Value}</tt>
+<ul class="definitions"><li><tt>Timeout = integer() | infinity</tt></li>
+</ul></p>
+</div><p>Wait for a local name to be registered.
+  The function raises an exception if the timeout expires. Timeout must be
+  either an interger &gt; 0 or 'infinity'.</p>
+
+<h3 class="function"><a name="cancel_wait-2">cancel_wait/2</a></h3>
+<div class="spec">
+<p><tt>cancel_wait(Key, Ref) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="default-1">default/1</a></h3>
+<div class="spec">
+<p><tt>default(X1) -&gt; any()</tt></p>
+</div>
 
 <h3 class="function"><a name="first-1">first/1</a></h3>
 <div class="spec">
@@ -201,7 +224,7 @@
 <h3 class="function"><a name="lookup_global_counters-1">lookup_global_counters/1</a></h3>
 <div class="spec">
 <p><tt>lookup_global_counters(Counter::any()) -&gt; [{pid(), Value::integer()}]</tt></p>
-</div><p>Equivalent to <a href="#lookup_values-1"><tt>lookup_values({c, l, Counter})</tt></a>.</p>
+</div><p>Equivalent to <a href="#lookup_values-1"><tt>lookup_values({c, g, Counter})</tt></a>.</p>
 <p>Look up all global (non-unique) instances of a given Counter.
   Returns a list of {Pid, Value} tuples for all matching objects.</p>
 
@@ -276,6 +299,13 @@
  
   This function is more efficient than calling <a href="#reg-2"><code>reg/2</code></a> repeatedly.</p>
 
+<h3 class="function"><a name="nb_wait-1">nb_wait/1</a></h3>
+<div class="spec">
+<p><tt>nb_wait(Key::<a href="#type-key">key()</a>) -&gt; Ref</tt></p>
+</div><p>Wait for a local name to be registered.
+  The caller can expect to receive a message,
+  {gproc, Ref, registered, {Key, Pid, Value}}, once the name is registered.</p>
+
 <h3 class="function"><a name="next-2">next/2</a></h3>
 <div class="spec">
 <p><tt>next(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'</tt></p>
@@ -295,7 +325,7 @@
 <h3 class="function"><a name="reg-1">reg/1</a></h3>
 <div class="spec">
 <p><tt>reg(Key::<a href="#type-key">key()</a>) -&gt; true</tt></p>
-</div><p>Equivalent to <a href="#reg-2"><tt>reg(Key, undefined)</tt></a>.</p>
+</div><p>Equivalent to <a href="#reg-2"><tt>reg(Key, default(Key))</tt></a>.</p>
 
 
 <h3 class="function"><a name="reg-2">reg/2</a></h3>
@@ -393,6 +423,6 @@ If it doesn't, this function will exit.</p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Sep 22 2009, 10:04:07.</i></p>
+<p><i>Generated by EDoc, Feb 11 2010, 05:33:39.</i></p>
 </body>
 </html>

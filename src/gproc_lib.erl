@@ -24,38 +24,45 @@
 
 -include("gproc.hrl").
 
+%% We want to store names and aggregated counters with the same
+%% structure as properties, but at the same time, we must ensure
+%% that the key is unique. We replace the Pid in the key part
+%% with an atom. To know which Pid owns the object, we lug the
+%% Pid around as payload as well. This is a bit redundant, but
+%% symmetric.
+%%
 insert_reg({T,_,Name} = K, Value, Pid, C) when T==a; T==n ->
-%%% We want to store names and aggregated counters with the same
-%%% structure as properties, but at the same time, we must ensure
-%%% that the key is unique. We replace the Pid in the key part
-%%% with an atom. To know which Pid owns the object, we lug the
-%%% Pid around as payload as well. This is a bit redundant, but
-%%% symmetric.
-%%%
-    case ets:insert_new(?TAB, [{{K, T}, Pid, Value}, {{Pid,K}}]) of
+    MaybeScan = fun() ->
+                        if T==a ->
+                                Initial = scan_existing_counters(C, Name),
+                                ets:insert(?TAB, {{K,a}, Pid, Initial});
+                           true ->
+                                true
+                        end
+                end,
+    Info = [{{K, T}, Pid, Value}, {{Pid,K},r}],
+    case ets:insert_new(?TAB, Info) of
         true ->
-            if T==a ->
-                    Initial = scan_existing_counters(C, Name),
-                    ets:insert(?TAB, {{K,a}, Pid, Initial});
-               true ->
-                    true
-            end,
-            true;
+            MaybeScan();
         false ->
-            false
+            if T==n ->
+                    maybe_waiters(K, Pid, Value, T, Info);
+               true ->
+                    false
+            end
     end;
 insert_reg({c,l,Ctr} = Key, Value, Pid, _C) ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
     Kr = {Pid, Key},
-    Res = ets:insert_new(?TAB, [{K, Pid, Value}, {Kr}]),
+    Res = ets:insert_new(?TAB, [{K, Pid, Value}, {Kr,r}]),
     update_aggr_counter(l, Ctr, Value),
     Res;
 insert_reg(Key, Value, Pid, _C) ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
     Kr = {Pid, Key},
-    ets:insert_new(?TAB, [{K, Pid, Value}, {Kr}]).
+    ets:insert_new(?TAB, [{K, Pid, Value}, {Kr,r}]).
 
 insert_many(T, C, KVL, Pid) ->
     Objs = mk_reg_objs(T, C, Pid, KVL),
@@ -65,8 +72,46 @@ insert_many(T, C, KVL, Pid) ->
             ets:insert(?TAB, RevObjs),
             {true, Objs};
         false ->
+            Existing = [{Obj, ets:lookup(?TAB, K)} || {K,_,_} = Obj <- Objs],
+            case lists:any(fun({_, [{_,L}]}) -> is_list(L);
+                              (_) -> false
+                           end, Existing) of
+                [_|_] ->
+                    insert_objects(Existing);
+                [] ->
+                    false
+            end
+    end.
+
+insert_objects(Objs) ->
+    lists:map(
+      fun({{K, Pid, V} = Obj, Existing}) ->
+              ets:insert(?TAB, [Obj, {{Pid, K}, r}]),
+              case Existing of
+                  [] -> ok;
+                  [{_, Waiters}] ->
+                      notify_waiters(Waiters, K, Pid, V)
+              end,
+              Obj
+      end, Objs).
+
+
+maybe_waiters(K, Pid, Value, T, Info) ->
+    case ets:lookup(?TAB, {K,T}) of
+        [{_, Waiters}] when is_list(Waiters) ->
+            ets:insert(?TAB, Info),
+            notify_waiters(Waiters, K, Pid, Value),
+            true;
+        [_] ->
             false
     end.
+
+notify_waiters(Waiters, K, Pid, V) ->
+    [begin
+         P ! {gproc, Ref, registered, {K, Pid, V}},
+         ets:delete(?TAB, {P,K}) 
+     end || {P, Ref} <- Waiters].
+
 
 
 mk_reg_objs(T, C, _, L) when T==n; T==a ->
@@ -83,7 +128,7 @@ mk_reg_objs(p = T, C, Pid, L) ->
               end, L).
 
 mk_reg_rev_objs(T, C, Pid, L) ->
-    [{Pid,{T,C,K}} || {K,_} <- L].
+    [{{Pid,{T,C,K}},r} || {K,_} <- L].
 
 
 
@@ -101,8 +146,10 @@ remove_reg(Key, Pid) ->
 
 remove_reg_1({c,_,_} = Key, Pid) ->
     remove_counter_1(Key, ets:lookup_element(?TAB, {Key,Pid}, 3), Pid);
-remove_reg_1({T,_,_} = Key, _Pid) when T==a; T==n ->
-    ets:delete(?TAB, {Key,T});
+remove_reg_1({a,_,_} = Key, _Pid) ->
+    ets:delete(?TAB, {Key,a});
+remove_reg_1({n,_,_} = Key, _Pid) ->
+    ets:delete(?TAB, {Key,n});
 remove_reg_1({_,_,_} = Key, Pid) ->
     ets:delete(?TAB, {Key, Pid}).
 
