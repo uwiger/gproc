@@ -109,13 +109,15 @@ name() -> elements([x,y,z,w]).
 %% generator key
 key() -> #key{class=class(), scope=scope(), name=name()}.
 
+
 %% generator value
 value() -> frequency([{8, int()}, {1, undefined}, {1, make_ref()}]).
 
 
 %% helpers
-is_register_ok(_S,_Pid,#key{class=Class},Value)
-  when Class == c, not is_integer(Value) ->
+is_register_ok(_S,_Pid,#key{class=c},Value) when not is_integer(Value) ->
+    false;
+is_register_ok(_S,_Pid,#key{class=a},Value) when not is_integer(Value) ->
     false;
 is_register_ok(S,Pid,Key,_Value) ->
     [] == [ Pid1 || #reg{pid=Pid1,key=Key1}

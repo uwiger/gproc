@@ -272,9 +272,23 @@ default(_) -> undefined.
 %% @doc Wait for a local name to be registered.
 %% The function raises an exception if the timeout expires. Timeout must be 
 %% either an interger &gt; 0 or 'infinity'.
+%% A small optimization: we first perform a lookup, to see if the name
+%% is already registered. This way, the cost of the operation will be 
+%% roughly the same as of where/1 in the case where the name is already 
+%% registered (the difference: await/2 also returns the value).
 %% @end
 %%
 await({n,l,_} = Key, Timeout) ->
+    case ets:lookup(?TAB, {Key, n}) of
+        [{_, Pid, Value}] ->
+            {Pid, Value};
+        _ ->
+            request_wait(Key, Timeout)
+    end;
+await(K, T) ->
+    erlang:error(badarg, [K, T]).
+
+request_wait({n,l,_} = Key, Timeout) ->
     TRef = case Timeout of
                infinity -> no_timer;
                T when is_integer(T), T > 0 ->
@@ -289,9 +303,8 @@ await({n,l,_} = Key, Timeout) ->
         {timeout, TRef, timeout} ->
             cancel_wait(Key, WRef),
             erlang:error(timeout, [Key, Timeout])
-    end;
-await(K, T) ->
-    erlang:error(badarg, [K, T]).
+    end.
+
 
 %% @spec nb_wait(Key::key()) -> Ref
 %%
@@ -502,10 +515,10 @@ lookup_value({T,_,_} = Key) ->
 where({T,_,_}=Key) ->
     if T==n orelse T==a ->
             case ets:lookup(?TAB, {Key,T}) of
-                [] ->
-                    undefined;
                 [{_, P, _Value}] ->
-                    P
+                    P;
+                _ ->  % may be [] or [{Key,Waiters}]
+                    undefined
             end;
        true ->
             erlang:error(badarg)
@@ -580,7 +593,7 @@ send({T,C,_} = Key, Msg) when C==l; C==g ->
             case ets:lookup(?TAB, {Key, T}) of
                 [{_, Pid, _}] ->
                     Pid ! Msg;
-                [] ->
+                _ ->
                     erlang:error(badarg)
             end;
        T==p orelse T==c ->
@@ -826,6 +839,9 @@ try_insert_reg({T,l,_} = Key, Val, Pid) ->
     case gproc_lib:insert_reg(Key, Val, Pid, l) of
         false ->
             case ets:lookup(?TAB, {Key,T}) of
+                %% In this particular case, the lookup cannot result in
+                %% [{_, Waiters}], since the insert_reg/4 function would
+                %% have succeeded then.
                 [{_, OtherPid, _}] ->
                     case is_process_alive(OtherPid) of
                         true ->
