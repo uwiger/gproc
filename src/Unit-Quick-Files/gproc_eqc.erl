@@ -75,7 +75,7 @@ command(S) ->
                   %% kill
                   {call,?MODULE,kill,             [elements(S#state.pids)]}
                   %% register
-                  , {call,?MODULE,reg,            [elements(S#state.pids), key(), value()]}
+                  , {call,?MODULE,reg,            ?LET(Key, key(),[elements(S#state.pids), Key, reg_value(Key)])}
                   %% unregister
                   , {call,?MODULE,unreg,          [elements(S#state.pids), key()]}
                   %% many register
@@ -83,7 +83,7 @@ command(S) ->
                   %%                                 , list({name(), value()})]}
 
                   %% set_value
-                  , {call,?MODULE,set_value,      [elements(S#state.pids), key(), value()]}
+                  , {call,?MODULE,set_value,      ?LET(Key, key(),[elements(S#state.pids), Key, reg_value(Key)])}
                   %% update_counter
                   , {call,?MODULE,update_counter, [elements(S#state.pids), key(), value()]}
 
@@ -113,6 +113,10 @@ key() -> #key{class=class(), scope=scope(), name=name()}.
 %% generator value
 value() -> frequency([{8, int()}, {1, undefined}, {1, make_ref()}]).
 
+%% value for reg and set_value
+%% 'a' and 'c' should only have integers as values (reg: value is ignored for 'a') 
+reg_value(#key{class=C}) when C == a; C == c -> int();
+reg_value(_) -> value().
 
 %% helpers
 is_register_ok(_S,_Pid,#key{class=c},Value) when not is_integer(Value) ->
