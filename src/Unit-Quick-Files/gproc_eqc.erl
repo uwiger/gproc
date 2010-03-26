@@ -239,7 +239,7 @@ next_state(S,_V,{call,_,set_value,[Pid,Key,Value]}) ->
     end;
 %% update_counter
 next_state(S,_V,{call,_,update_counter,[Pid,#key{class=Class}=Key,Incr]})
-  when Class == c ->
+  when Class == c, is_integer(Incr) ->
     case is_registered_and_alive(S,Pid,Key) of
         false ->
             S;
@@ -270,6 +270,8 @@ next_state(S,_V,{call,_,_,_}) ->
 
 %% Precondition, checked before command is added to the command
 %% sequence
+precondition(S,{call,_,get_value,[Pid,_]}) ->
+	lists:member(Pid,S#state.pids);
 precondition(_S,{call,_,_,_}) ->
     true.
 
@@ -329,13 +331,15 @@ postcondition(S,{call,_,set_value,[Pid,Key,_Value]},Res) ->
     end;
 %% update_counter
 postcondition(S,{call,_,update_counter,[Pid,#key{class=Class}=Key,Incr]},Res)
-  when Class == c ->
+  when Class == c, is_integer(Incr) ->
     case [ Value1 || #reg{pid=Pid1,key=Key1,value=Value1} <- S#state.regs
                          , (Pid==Pid1 andalso Key==Key1) ] of
         [] ->
             case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
-        [Value] ->
-            Res == Value+Incr
+        [Value] when is_integer(Value) ->
+            Res == Value+Incr;
+		[_] ->
+            case Res of {'EXIT', {badarg, _}} -> true; _ -> false end
     end;
 postcondition(_S,{call,_,update_counter,[_Pid,_Key,_Incr]},Res) ->
     case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
@@ -372,7 +376,16 @@ postcondition(S,{call,_,lookup_pids,[#key{class=Class}=Key]},Res)
 postcondition(_S,{call,_,_,_},_Res) ->
     false.
 
-%% property
+
+%%% Spec fixes
+%%% 
+%%% - added precondition for set_value must be integer (could be changed 
+%%%   to neg. test)
+%%% - updated postcondition for update_counter to check for non-integers
+%%%
+%%% It still crashes on lists:sum in next_state... Maybe we should change
+%%% the generators instead!
+
 prop_gproc() ->
     ?FORALL(Cmds,commands(?MODULE),
             ?TRAPEXIT(
