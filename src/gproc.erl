@@ -44,7 +44,7 @@
          set_value/2,
          get_value/1,
          where/1,
-         await/2,
+         await/1, await/2,
          nb_wait/1,
          cancel_wait/2,
          lookup_pid/1,
@@ -278,6 +278,9 @@ default(_) -> undefined.
 %% registered (the difference: await/2 also returns the value).
 %% @end
 %%
+await(Key) ->
+    await(Key, infinity).
+
 await({n,l,_} = Key, Timeout) ->
     case ets:lookup(?TAB, {Key, n}) of
         [{_, Pid, Value}] ->

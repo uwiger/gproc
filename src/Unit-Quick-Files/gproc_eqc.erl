@@ -71,14 +71,14 @@ command(S) ->
       %% where
       ++ [ {call,?MODULE,where, [key()]} ]
 
-      ++ [ {call,?MODULE,await_new, [key()]} ]
+      ++ [ {call,?MODULE,await_new, [name_key()]} ]
 
       %% kill
       ++ [ oneof([
                   %% kill
                   {call,?MODULE,kill,             [elements(S#state.pids)]}
                   %% register
-                  , {call,?MODULE,reg,            [elements(S#state.pids), key(), value()]}
+                  , {call,?MODULE,reg,            ?LET(Key, key(),[elements(S#state.pids), Key, reg_value(Key)])}
                   %% unregister
                   , {call,?MODULE,unreg,          [elements(S#state.pids), key()]}
                   %% many register
@@ -86,7 +86,7 @@ command(S) ->
                   %%                                 , list({name(), value()})]}
 
                   %% set_value
-                  , {call,?MODULE,set_value,      [elements(S#state.pids), key(), value()]}
+                  , {call,?MODULE,set_value,      ?LET(Key, key(),[elements(S#state.pids), Key, reg_value(Key)])}
                   %% update_counter
                   , {call,?MODULE,update_counter, [elements(S#state.pids), key(), value()]}
 
@@ -119,10 +119,16 @@ name() -> elements([x,y,z,w]).
 %% generator key
 key() -> #key{class=class(), scope=scope(), name=name()}.
 
+name_key() -> #key{class=n, scope=scope(), name=name()}.
+    
 
 %% generator value
 value() -> frequency([{8, int()}, {1, undefined}, {1, make_ref()}]).
 
+%% value for reg and set_value
+%% 'a' and 'c' should only have integers as values (reg: value is ignored for 'a') 
+reg_value(#key{class=C}) when C == a; C == c -> int();
+reg_value(_) -> value().
 
 %% helpers
 is_register_ok(_S,_Pid,#key{class=c},Value) when not is_integer(Value) ->
@@ -190,7 +196,9 @@ next_state(S,_V,{call,_,reg,[Pid,Key,Value]}) ->
                             S1
                     end;
                 _ ->
-                    S#state{regs=[#reg{pid=Pid,key=Key,value=Value}|S#state.regs]}
+                    S#state{regs=[#reg{pid=Pid,key=Key,value=Value}|S#state.regs],
+                            waiters = [W || {K,_} = W <- S#state.waiters,
+                                            K =/= Key]}
             end
     end;
 %% unreg
@@ -245,7 +253,7 @@ next_state(S,_V,{call,_,set_value,[Pid,Key,Value]}) ->
     end;
 %% update_counter
 next_state(S,_V,{call,_,update_counter,[Pid,#key{class=Class}=Key,Incr]})
-  when Class == c ->
+  when Class == c, is_integer(Incr) ->
     case is_registered_and_alive(S,Pid,Key) of
         false ->
             S;
@@ -269,6 +277,8 @@ next_state(S,_V,{call,_,update_counter,[Pid,#key{class=Class}=Key,Incr]})
                     end
             end
     end;
+next_state(S,V,{call,_,await_new,[Key]}) ->
+    S#state{waiters = [{Key,V}|S#state.waiters]};
 %% otherwise
 next_state(S,_V,{call,_,_,_}) ->
     S.
@@ -276,8 +286,13 @@ next_state(S,_V,{call,_,_,_}) ->
 
 %% Precondition, checked before command is added to the command
 %% sequence
-precondition(S, {call,_,await_new,[Key]}) ->
-    not lists:keymember(Key,#reg.key,S#state.regs);
+precondition(S, {call,_,await_new,[#key{class=C}=Key]}) ->
+    C == n andalso
+        not lists:keymember(Key,#reg.key,S#state.regs);
+precondition(S, {call,_,await_existing,[#reg{key=#key{class=C}}]}) ->
+    C == n;
+precondition(S,{call,_,get_value,[Pid,_]}) ->
+	lists:member(Pid,S#state.pids);
 precondition(_S,{call,_,_,_}) ->
     true.
 
@@ -338,13 +353,15 @@ postcondition(S,{call,_,set_value,[Pid,Key,_Value]},Res) ->
     end;
 %% update_counter
 postcondition(S,{call,_,update_counter,[Pid,#key{class=Class}=Key,Incr]},Res)
-  when Class == c ->
+  when Class == c, is_integer(Incr) ->
     case [ Value1 || #reg{pid=Pid1,key=Key1,value=Value1} <- S#state.regs
                          , (Pid==Pid1 andalso Key==Key1) ] of
         [] ->
             case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
-        [Value] ->
-            Res == Value+Incr
+        [Value] when is_integer(Value) ->
+            Res == Value+Incr;
+		[_] ->
+            case Res of {'EXIT', {badarg, _}} -> true; _ -> false end
     end;
 postcondition(_S,{call,_,update_counter,[_Pid,_Key,_Incr]},Res) ->
     case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
@@ -377,13 +394,27 @@ postcondition(S,{call,_,lookup_pids,[#key{class=Class}=Key]},Res)
     lists:sort(Res) == lists:sort(Pids);
 postcondition(S,{call,_,await_new,[#key{}=Key]}, Pid) ->
     is_pid(Pid);
+postcondition(S,{call,_,await_existing,[#reg{key=Key,value=V}]}, {P1,V1}) ->
+    case lists:keyfind(Key, #reg.key, S#state.regs) of
+        #reg{pid=P1, value = V1} -> true;
+        _ -> false
+    end;
 %% postcondition(_S,{call,_,lookup_pids,[_Key]},Res) ->
 %%     case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
 %% otherwise
 postcondition(_S,{call,_,_,_},_Res) ->
     false.
 
-%% property
+
+%%% Spec fixes
+%%% 
+%%% - added precondition for set_value must be integer (could be changed 
+%%%   to neg. test)
+%%% - updated postcondition for update_counter to check for non-integers
+%%%
+%%% It still crashes on lists:sum in next_state... Maybe we should change
+%%% the generators instead!
+
 prop_gproc() ->
     ?FORALL(Cmds,commands(?MODULE),
             ?TRAPEXIT(
@@ -516,36 +547,38 @@ do(Pid, F) ->
     end.
 
 
-await_existing(#key{class=Class,scope=Scope,name=Name}) ->
+await_existing(#reg{key = #key{class=Class,scope=Scope,name=Name}}) ->
     %% short timeout, this call is expected to work
     gproc:await({Class,Scope,Name}, 1000).
 
 await_new(#key{class=Class,scope=Scope,name=Name} = Key) ->
-    spawn_link(
+    spawn(
       fun() ->
-              Res = (catch gproc:await({Class,Scope,Name}, infinity)),
+              Res = (catch gproc:await({Class,Scope,Name})),
               receive
                   {From, send_result} ->
-                      From ! {result, Key, Res}
+                      From ! {result, Res},
+                      timer:sleep(1000)
               end
       end).
 
 check_waiters(Pid, Key, Value, Waiters) ->
-    case [W || {Key, W} <- Waiters] of
+    case [W || {K, W} <- Waiters,
+               K == Key] of
         [] ->
             true;
         WPids ->
             lists:all(fun(WPid) ->
-                              check_waiter(WPid, Key, Value)
+                              check_waiter(WPid, Pid, Key, Value)
                       end, WPids)
     end.
 
-check_waiter(Pid, Key, Value) ->   
-    MRef = erlang:monitor(process, Pid),
-    Pid ! {self(), send_result},
+check_waiter(WPid, Pid, Key, Value) ->   
+    MRef = erlang:monitor(process, WPid),
+    WPid ! {self(), send_result},
     receive
         {result, Res} ->
-            Res == {Key, {Pid, Value}};
+            {Pid,Value} == Res;
         {'DOWN', MRef, _, _, R} ->
             erlang:error(R)
     after 1000 ->
