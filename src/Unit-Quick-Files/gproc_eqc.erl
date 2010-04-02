@@ -47,6 +47,7 @@
         {pids=[]        %% [pid()]
          , killed=[]    %% [pid()]
          , regs=[]      %% [reg()]
+         , waiters=[]   %% [{key(),pid()}]
         }).
 
 
@@ -69,6 +70,8 @@ command(S) ->
 
       %% where
       ++ [ {call,?MODULE,where, [key()]} ]
+
+      ++ [ {call,?MODULE,await_new, [key()]} ]
 
       %% kill
       ++ [ oneof([
@@ -95,6 +98,13 @@ command(S) ->
                   , {call,?MODULE,lookup_pids,    [key()]}
                  ])
            || S#state.pids/=[] ]
+
+      ++ [
+          %% await on existing value
+          {call,?MODULE,await_existing, [elements(S#state.regs)]}
+          || S#state.regs/=[] ]
+
+
      ).
 
 %% generator class
@@ -117,8 +127,8 @@ value() -> frequency([{8, int()}, {1, undefined}, {1, make_ref()}]).
 %% helpers
 is_register_ok(_S,_Pid,#key{class=c},Value) when not is_integer(Value) ->
     false;
-is_register_ok(_S,_Pid,#key{class=a},Value) when not is_integer(Value) ->
-    false;
+is_register_ok(_S,_Pid,#key{class=a},Value) ->
+    Value == undefined;
 is_register_ok(S,Pid,Key,_Value) ->
     [] == [ Pid1 || #reg{pid=Pid1,key=Key1}
                         <- S#state.regs, is_register_eq(Pid,Key,Pid1,Key1) ].
@@ -266,6 +276,8 @@ next_state(S,_V,{call,_,_,_}) ->
 
 %% Precondition, checked before command is added to the command
 %% sequence
+precondition(S, {call,_,await_new,[Key]}) ->
+    not lists:keymember(Key,#reg.key,S#state.regs);
 precondition(_S,{call,_,_,_}) ->
     true.
 
@@ -300,7 +312,8 @@ postcondition(S,{call,_,where,[#key{class=Class}=Key]},Res) ->
 postcondition(S,{call,_,reg,[Pid,Key,Value]},Res) ->
     case Res of
         true ->
-            is_register_ok(S,Pid,Key,Value);
+            is_register_ok(S,Pid,Key,Value) andalso
+                check_waiters(Pid, Key, Value, S#state.waiters);
         {'EXIT', {badarg, _}} ->
             is_unregister_ok(S,Pid,Key)
                 orelse not is_register_ok(S,Pid,Key,Value)
@@ -362,6 +375,8 @@ postcondition(S,{call,_,lookup_pids,[#key{class=Class}=Key]},Res)
     Pids = [ Pid1 || #reg{pid=Pid1,key=Key1} <- S#state.regs
                          , Key==Key1 ],
     lists:sort(Res) == lists:sort(Pids);
+postcondition(S,{call,_,await_new,[#key{}=Key]}, Pid) ->
+    is_pid(Pid);
 %% postcondition(_S,{call,_,lookup_pids,[_Key]},Res) ->
 %%     case Res of {'EXIT', {badarg, _}} -> true; _ -> false end;
 %% otherwise
@@ -498,4 +513,41 @@ do(Pid, F) ->
             Result
     after 3000 ->
             {'EXIT', timeout}
+    end.
+
+
+await_existing(#key{class=Class,scope=Scope,name=Name}) ->
+    %% short timeout, this call is expected to work
+    gproc:await({Class,Scope,Name}, 1000).
+
+await_new(#key{class=Class,scope=Scope,name=Name} = Key) ->
+    spawn_link(
+      fun() ->
+              Res = (catch gproc:await({Class,Scope,Name}, infinity)),
+              receive
+                  {From, send_result} ->
+                      From ! {result, Key, Res}
+              end
+      end).
+
+check_waiters(Pid, Key, Value, Waiters) ->
+    case [W || {Key, W} <- Waiters] of
+        [] ->
+            true;
+        WPids ->
+            lists:all(fun(WPid) ->
+                              check_waiter(WPid, Key, Value)
+                      end, WPids)
+    end.
+
+check_waiter(Pid, Key, Value) ->   
+    MRef = erlang:monitor(process, Pid),
+    Pid ! {self(), send_result},
+    receive
+        {result, Res} ->
+            Res == {Key, {Pid, Value}};
+        {'DOWN', MRef, _, _, R} ->
+            erlang:error(R)
+    after 1000 ->
+            erlang:error(timeout)
     end.

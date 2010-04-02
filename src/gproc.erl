@@ -334,13 +334,11 @@ reg({_,g,_} = Key, Value) ->
     gproc_dist:reg(Key, Value);
 reg({p,l,_} = Key, Value) ->
     local_reg(Key, Value);
-reg({T,l,_} = Key, Value) when T==n; T==c; T==a ->
-    %% local names, counters and aggregated counters
-    if T =:= n orelse is_integer(Value) ->
-			true;
-       true ->
-            erlang:error(badarg)
-    end,
+reg({a,l,_} = Key, undefined) ->
+    call({reg, Key, undefined});
+reg({c,l,_} = Key, Value) when is_integer(Value) ->
+    call({reg, Key, Value});
+reg({n,l,_} = Key, Value) ->
     call({reg, Key, Value});
 reg(_, _) ->
     erlang:error(badarg).
@@ -599,11 +597,9 @@ send({T,C,_} = Key, Msg) when C==l; C==g ->
        T==p orelse T==c ->
             %% BUG - if the key part contains select wildcards, we may end up
             %% sending multiple messages to the same pid
-            Head = {{Key,'$1'},'_'},
-            Pids = ets:select(?TAB, [{Head,[],['$1']}]),
             lists:foreach(fun(Pid) ->
                                   Pid ! Msg
-                          end, Pids),
+                          end, lookup_pids(Key)),
             Msg;
        true ->
             erlang:error(badarg)

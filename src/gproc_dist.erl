@@ -36,7 +36,8 @@
 	 handle_leader_call/4,
 	 handle_leader_cast/3,
 	 handle_DOWN/3,
-	 elected/2,
+         elected/2,  % original version
+	 elected/3,  
 	 surrendered/3,
 	 from_leader/3,
 	 code_change/4,
@@ -46,15 +47,21 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {is_leader}).
+-record(state, {
+          always_broadcast = false,
+          is_leader}).
 
 
 start_link() ->
-    start_link([node()|nodes()]).
+    start_link({[node()|nodes()], []}).
 
-start_link(Nodes) ->
+start_link(Nodes) when is_list(Nodes) ->
+    start_link({Nodes, []});
+start_link({Nodes, Opts}) ->
     gen_leader:start_link(
-      ?SERVER, Nodes, [],?MODULE, [], [{debug,[trace]}]).
+      ?SERVER, Nodes, Opts, ?MODULE, [], []).
+    
+%%       ?SERVER, Nodes, [],?MODULE, [], [{debug,[trace]}]).
 
 %%% @spec({Class,Scope, Key}, Value) -> true
 %%% @doc
@@ -129,8 +136,25 @@ handle_info(_, S) ->
 
 
 elected(S, _E) ->
-    Globs = ets:select(?TAB, [{{{{'_',g,'_'},'_'},'_','_'},[],['$_']}]),
-    {ok, {globals, Globs}, S#state{is_leader = true}}.
+    {ok, {globals,globs()}, S#state{is_leader = true}}.
+
+elected(S, _E, undefined) ->
+    %% I have become leader; full synch
+    {ok, {globals, globs()}, S#state{is_leader = true}};
+elected(S, _E, _Node) ->
+    Synch = {globals, globs()},
+    if not S#state.always_broadcast ->
+            %% Another node recognized us as the leader.
+            %% Don't broadcast all data to everyone else
+            {reply, Synch, S};
+       true ->
+            %% Main reason for doing this is if we are using a gen_leader
+            %% that doesn't support the 'reply' return value
+            {ok, Synch, S}
+    end.
+
+globs() ->
+    ets:select(?TAB, [{{{{'_',g,'_'},'_'},'_','_'},[],['$_']}]).
 
 surrendered(S, {globals, Globs}, _E) ->
     %% globals from this node should be more correct in our table than
@@ -302,8 +326,11 @@ leader_cast(Msg) ->
 	     
 
 
-init([]) ->
-    {ok, #state{}}.
+init(Opts) ->
+    S0 = #state{},
+    AlwaysBcast = proplists:get_value(always_broadcast, Opts,
+                                      S0#state.always_broadcast),
+    {ok, #state{always_broadcast = AlwaysBcast}}.
 
 
 surrendered_1(Globs) ->
