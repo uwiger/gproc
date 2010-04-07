@@ -262,7 +262,7 @@ lookup_global_counters(P)   -> lookup_values({c,g,P}).
 reg(Key) ->
     reg(Key, default(Key)).
 
-default({T,_,_}) when T==c; T==a -> 0;
+default({T,_,_}) when T==c -> 0;
 default(_) -> undefined.
 
 
@@ -859,7 +859,7 @@ try_insert_reg({T,l,_} = Key, Val, Pid) ->
 process_is_down(Pid) ->
     Keys = ets:select(?TAB, [{{{Pid,'$1'},'$2'},
                               [{'==',{element,2,'$1'},l}], [{{'$1','$2'}}]}]),
-    ets:select_delete(?TAB, [{{{Pid,{'_',l,'_'}}}, [], [true]}]),
+    ets:select_delete(?TAB, [{{{Pid,{'_',l,'_'}},'_'}, [], [true]}]),
     ets:delete(?TAB, Pid),
     lists:foreach(fun({Key,r}) ->
                           gproc_lib:remove_reg_1(Key, Pid);
