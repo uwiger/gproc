@@ -713,7 +713,7 @@ info(Pid) when is_pid(Pid) ->
 %% same as [http://www.erlang.org/doc/man/erlang.html#process_info-2].
 %% @end
 info(Pid, ?MODULE) ->
-    Keys = ets:select(?TAB, [{ {{Pid,'$1'}}, [], ['$1'] }]),
+    Keys = ets:select(?TAB, [{ {{Pid,'$1'}, r}, [], ['$1'] }]),
     {?MODULE, lists:zf(
                 fun(K) ->
                         try V = get_value(K, Pid),
