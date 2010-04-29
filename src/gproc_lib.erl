@@ -51,12 +51,12 @@ insert_reg({T,_,Name} = K, Value, Pid, C) when T==a; T==n ->
                     false
             end
     end;
-insert_reg({c,l,Ctr} = Key, Value, Pid, _C) ->
+insert_reg({c,C,Ctr} = Key, Value, Pid, _C) when C==l; C==g ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
     Kr = {Pid, Key},
     Res = ets:insert_new(?TAB, [{K, Pid, Value}, {Kr,r}]),
-    update_aggr_counter(l, Ctr, Value),
+    update_aggr_counter(g, Ctr, Value),
     Res;
 insert_reg(Key, Value, Pid, _C) ->
     %% Non-unique keys; store Pid in the key part
@@ -96,6 +96,29 @@ insert_objects(Objs) ->
       end, Objs).
 
 
+await({T,C,_} = Key, {Pid, Ref} = From) ->
+    Rev = {{Pid,Key}, r},
+    case ets:lookup(?TAB, {Key,T}) of
+        [{_, P, Value}] ->
+            %% for symmetry, we always reply with Ref and then send a message
+            gen_server:reply(From, Ref),
+            Pid ! {gproc, Ref, registered, {Key, P, Value}},
+            noreply;
+        [{K, Waiters}] ->
+            NewWaiters = [{Pid,Ref} | Waiters],
+            W = {K, NewWaiters},
+            ets:insert(?TAB, [W, Rev]),
+            gproc_lib:ensure_monitor(Pid,C),
+            {reply, Ref, [W,Rev]};
+        [] ->
+            W = {{Key,T}, [{Pid,Ref}]},
+            ets:insert(?TAB, [W, Rev]),
+            gproc_lib:ensure_monitor(Pid,C),
+            {reply, Ref, [W,Rev]}
+    end.
+
+
+
 maybe_waiters(K, Pid, Value, T, Info) ->
     case ets:lookup(?TAB, {K,T}) of
         [{_, Waiters}] when is_list(Waiters) ->
@@ -131,14 +154,11 @@ mk_reg_rev_objs(T, C, Pid, L) ->
     [{{Pid,{T,C,K}},r} || {K,_} <- L].
 
 
-
-ensure_monitor(Pid) when node(Pid)==node() ->
-    case ets:insert_new(?TAB, {Pid}) of
+ensure_monitor(Pid,C) when C==g; C==l ->
+    case node(Pid) == node() andalso ets:insert_new(?TAB, {Pid,C}) of
         false -> ok;
         true  -> erlang:monitor(process, Pid)
-    end;
-ensure_monitor(_) ->
-    true.
+    end.
 
 remove_reg(Key, Pid) ->
     remove_reg_1(Key, Pid),
@@ -185,17 +205,17 @@ update_counter({c,l,Ctr} = Key, Incr, Pid) ->
 update_aggr_counter(C, N, Val) ->
     catch ets:update_counter(?TAB, {{a,C,N},a}, {3, Val}).
 
-cleanup_counter({c,g,N}=K, Pid, Acc) ->
-    remove_reg(K,Pid),
-    case ets:lookup(?TAB, {{a,g,N},a}) of
-        [Aggr] ->
-            [Aggr|Acc];
-        [] ->
-            Acc
-    end;
-cleanup_counter(K, Pid, Acc) ->
-    remove_reg(K,Pid),
-    Acc.
+%% cleanup_counter({c,g,N}=K, Pid, Acc) ->
+%%     remove_reg(K,Pid),
+%%     case ets:lookup(?TAB, {{a,g,N},a}) of
+%%         [Aggr] ->
+%%             [Aggr|Acc];
+%%         [] ->
+%%             Acc
+%%     end;
+%% cleanup_counter(K, Pid, Acc) ->
+%%     remove_reg(K,Pid),
+%%     Acc.
 
 scan_existing_counters(Ctxt, Name) ->
     Head = {{{c,Ctxt,Name},'_'},'_','$1'},

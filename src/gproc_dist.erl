@@ -23,10 +23,12 @@
 -behaviour(gen_leader).
 
 -export([start_link/0, start_link/1,
-	 reg/2, unreg/1,
+	 reg/1, reg/2, unreg/1,
 	 mreg/2,
 	 set_value/2,
 	 update_counter/2]).
+
+-export([leader_call/1, leader_cast/1]).
 
 %%% internal exports
 -export([init/1,
@@ -62,6 +64,11 @@ start_link({Nodes, Opts}) ->
       ?SERVER, Nodes, Opts, ?MODULE, [], []).
     
 %%       ?SERVER, Nodes, [],?MODULE, [], [{debug,[trace]}]).
+
+
+reg(Key) ->
+    reg(Key, gproc:default(Key)).
+
 
 %%% @spec({Class,Scope, Key}, Value) -> true
 %%% @doc
@@ -120,22 +127,17 @@ handle_call(_, _, S) ->
     {reply, badarg, S}.
 
 handle_info({'DOWN', _MRef, process, Pid, _}, S) ->
-    Keys = ets:select(?TAB, [{{{Pid,'$1'}}, [], ['$1']}]),
-    case lists:keymember(g, 2, Keys) of
-	true ->
-	    leader_cast({pid_is_DOWN, Pid});
-	false ->
-	    ok
-    end,
-    ets:select_delete(?TAB, [{{{Pid,'_'}}, [], [true]}]),
-    ets:delete(?TAB, Pid),
-    lists:foreach(fun(Key) -> gproc_lib:remove_reg_1(Key, Pid) end, Keys),
+    leader_cast({pid_is_DOWN, Pid}),
+%%     ets:select_delete(?TAB, [{{{Pid,'_'}}, [], [true]}]),
+%%     ets:delete(?TAB, Pid),
+%%     lists:foreach(fun(Key) -> gproc_lib:remove_reg_1(Key, Pid) end, Keys),
     {ok, S};
 handle_info(_, S) ->
     {ok, S}.
 
 
 elected(S, _E) ->
+    io:fwrite("elected(_, E = ~p)~n", [_E]),
     {ok, {globals,globs()}, S#state{is_leader = true}}.
 
 elected(S, _E, undefined) ->
@@ -166,32 +168,44 @@ surrendered(S, {globals, Globs}, _E) ->
 handle_DOWN(Node, S, _E) ->
     Head = {{{'_',g,'_'},'_'},'$1','_'},
     Gs = [{'==', {node,'$1'},Node}],
-    Globs = ets:select(?TAB, [{Head, Gs, [{element,1,'$_'}]}]),
-    ets:select_delete(?TAB, [{Head, Gs, [true]}]),
-    {ok, [{delete, Globs}], S}.
+    Globs = ets:select(?TAB, [{Head, Gs, [{{{element,1,{element,1,'$_'}},
+                                            {element,2,'$_'}}}]}]),
+    io:fwrite("handle_DOWN(~p); Globs = ~p~n", [Node, Globs]),
+    case process_globals(Globs) of
+        [] ->
+            {ok, S};
+        Broadcast ->
+            {ok, Broadcast, S}
+    end.
+%%     ets:select_delete(?TAB, [{Head, Gs, [true]}]),
+%%     {ok, [{delete, Globs}], S}.
 
 handle_leader_call({reg, {C,g,Name} = K, Value, Pid}, _From, S, _E) ->
     case gproc_lib:insert_reg(K, Value, Pid, g) of
 	false ->
 	    {reply, badarg, S};
 	true ->
-	    gproc_lib:ensure_monitor(Pid),
+	    gproc_lib:ensure_monitor(Pid,g),
 	    Vals =
 		if C == a ->
 			ets:lookup(?TAB, {K,a});
 		   C == c ->
-			case ets:lookup(?TAB, {{a,g,Name},a}) of
-			    [] ->
-				ets:lookup(?TAB, {K,Pid});
-			    [AC] ->
-				[AC | ets:lookup(?TAB, {K,Pid})]
-			end;
+                        [{{K,Pid},Pid,Value} | ets:lookup(?TAB,{{a,g,Name},a})];
 		   C == n ->
 			[{{K,n},Pid,Value}];
 		   true ->
 			[{{K,Pid},Pid,Value}]
 		end,
 	    {reply, true, [{insert, Vals}], S}
+    end;
+handle_leader_call({update_counter, {c,g,Ctr} = Key, Incr, Pid}, _From, S, _E)
+  when is_integer(Incr) ->
+    try New = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
+        Vals = [{{Key,Pid},Pid,New} | update_aggr_counter(Ctr,Incr)],
+        {reply, New, [{insert, Vals}], S}
+    catch
+        error:_ ->
+            {reply, badarg, S}
     end;
 handle_leader_call({unreg, {T,g,Name} = K, Pid}, _From, S, _E) ->
     Key = if T == n; T == a -> {K,T};
@@ -253,6 +267,15 @@ handle_leader_call({set,{T,g,N} =K,V,Pid}, _From, S, _E) ->
 		    {reply, badarg, S}
 	    end
     end;
+handle_leader_call({await, Key, Pid}, {_,Ref} = _From, S, _E) ->
+    %% The pid in _From is of the gen_leader instance that forwarded the
+    %% call - not of the client. This is why the Pid is explicitly passed.
+    case gproc_lib:await(Key, {Pid,Ref}) of
+        noreply ->
+            {noreply, S};
+        {reply, Reply, Insert} ->
+            {reply, Reply, [{insert, Insert}], S}
+    end;
 handle_leader_call(_, _, S, _E) ->
     {reply, badarg, S}.
 
@@ -266,23 +289,37 @@ handle_leader_cast({remove_globals, Globals}, S, _E) ->
     delete_globals(Globals),
     {ok, S};
 handle_leader_cast({pid_is_DOWN, Pid}, S, _E) ->
-    Globals = ets:select(?TAB, [{{{Pid,'$1'}},
-				 [{'==',{element,2,'$1'},g}],['$1']}]),
-    ets:select_delete(?TAB, [{{{Pid,{'_',g,'_'}}},[],[true]}]),
-    ets:delete(?TAB, Pid),
-    Modified = 
-	lists:foldl(
-	  fun({T,_,_}=K,A) when T==a;T==n -> ets:delete(?TAB, {K,T}), A;
-	     ({c,_,_}=K,A) -> gproc_lib:cleanup_counter(K, Pid, A);
-	     (K,A) -> ets:delete(?TAB, {K,Pid}), A
-	  end, [], Globals),
-    case [{Op,Objs} || {Op,Objs} <- [{insert,Modified},
-				     {remove,Globals}], Objs =/= []] of
+    Globals = ets:select(?TAB, [{{{Pid,'$1'},r},
+				 [{'==',{element,2,'$1'},g}],[{{'$1',Pid}}]}]),
+    io:fwrite("pid_is_DOWN(~p); Globals = ~p~n", [Pid,Globals]),
+%%     ets:select_delete(?TAB, [{{{Pid,{'_',g,'_'}},r},[],[true]}]),
+    ets:delete(?TAB, {Pid,g}),
+    case process_globals(Globals) of
 	[] ->
 	    {ok, S};
 	Broadcast ->
 	    {ok, Broadcast, S}
     end.
+
+process_globals(Globals) ->
+    Modified = 
+        lists:foldl(
+          fun({{T,_,_} = Key, Pid}, A) ->
+                  A1 = case T of
+                           c ->
+                               Incr = ets:lookup_element(?TAB, {Key,Pid}, 3),
+                               update_aggr_counter(Key, -Incr) ++ A;
+                           _ ->
+                               A
+                       end,
+                  K = ets_key(Key, Pid),
+                  ets:delete(?TAB, K),
+                  ets:delete(?TAB, {Pid,Key}),
+                  A1
+          end, [], Globals),
+    [{Op,Objs} || {Op,Objs} <- [{insert,Modified},
+                                {delete,Globals}], Objs =/= []].
+
 
 code_change(_FromVsn, S, _Extra, _E) ->
     {ok, S}.
@@ -301,18 +338,28 @@ from_leader(Ops, S, _E) ->
 	      ets:insert(?TAB, Globals),
 	      lists:foreach(
 		fun({{{_,g,_}=Key,_}, P, _}) ->
-			ets:insert(?TAB, {{P,Key}}),
-			gproc_lib:ensure_monitor(P)
+			ets:insert(?TAB, {{P,Key},r}),
+			gproc_lib:ensure_monitor(P,g);
+                   ({{P,_K},r}) ->
+                        gproc_lib:ensure_monitor(P,g);
+                   (_) ->
+                        skip
 		end, Globals)
       end, Ops),
     {ok, S}.
 
 delete_globals(Globals) ->
     lists:foreach(
-      fun({{Key,_}=K, Pid}) ->
+      fun({Key, Pid}) ->
+              K = ets_key(Key,Pid),
 	      ets:delete(?TAB, K),
-	      ets:delete(?TAB, {{Pid, Key}})
+	      ets:delete(?TAB, {Pid, Key})
       end, Globals).
+
+ets_key({T,_,_} = K, _) when T==n; T==a ->
+    {K, T};
+ets_key(K, Pid) ->
+    {K, Pid}.
     
 
 leader_call(Req) ->
@@ -369,3 +416,14 @@ surrendered_1(Globs) ->
 	    leader_cast({remove_globals, Remove})
     end.
 
+
+update_aggr_counter({c,g,Ctr}, Incr) ->
+    Key = {{a,g,Ctr},a},
+    case ets:lookup(?TAB, Key) of
+        [] ->
+            [];
+        [{K, Pid, Prev}] ->
+            New = {K, Pid, Prev+Incr},
+            ets:insert(?TAB, New),
+            [New]
+    end.
