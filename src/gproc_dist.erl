@@ -32,8 +32,8 @@
 
 %%% internal exports
 -export([init/1,
-	 handle_cast/2,
-	 handle_call/3,
+	 handle_cast/3,
+	 handle_call/4,
 	 handle_info/2,
 	 handle_leader_call/4,
 	 handle_leader_cast/3,
@@ -120,10 +120,10 @@ update_counter(_, _) ->
 %%% ==========================================================
 
 
-handle_cast(_Msg, S) ->
+handle_cast(_Msg, S, _) ->
     {stop, unknown_cast, S}.
 
-handle_call(_, _, S) ->
+handle_call(_, _, S, _) ->
     {reply, badarg, S}.
 
 handle_info({'DOWN', _MRef, process, Pid, _}, S) ->
