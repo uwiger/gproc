@@ -201,7 +201,7 @@ handle_leader_call({reg, {C,g,Name} = K, Value, Pid}, _From, S, _E) ->
 handle_leader_call({update_counter, {c,g,Ctr} = Key, Incr, Pid}, _From, S, _E)
   when is_integer(Incr) ->
     try New = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
-        Vals = [{{Key,Pid},Pid,New} | update_aggr_counter(Ctr,Incr)],
+        Vals = [{{Key,Pid},Pid,New} | update_aggr_counter({c,g,Ctr}, Incr)],
         {reply, New, [{insert, Vals}], S}
     catch
         error:_ ->
@@ -218,13 +218,13 @@ handle_leader_call({unreg, {T,g,Name} = K, Pid}, _From, S, _E) ->
 		    case ets:lookup(?TAB, {{a,g,Name},a}) of
 			[Aggr] ->
 			    %% updated by remove_reg/2
-			    {reply, true, [{delete,[{Key,Pid}]},
+			    {reply, true, [{delete,[{K,Pid}]},
 					   {insert, [Aggr]}], S};
 			[] ->
-			    {reply, true, [{delete, [{Key, Pid}]}], S}
+			    {reply, true, [{delete, [{K, Pid}]}], S}
 		    end;
 	       true ->
-		    {reply, true, [{delete, [{Key,Pid}]}], S}
+		    {reply, true, [{delete, [{K,Pid}]}], S}
 	    end;
 	false ->
 	    {reply, badarg, S}
@@ -293,7 +293,7 @@ handle_leader_cast({pid_is_DOWN, Pid}, S, _E) ->
 				 [{'==',{element,2,'$1'},g}],[{{'$1',Pid}}]}]),
     io:fwrite("pid_is_DOWN(~p); Globals = ~p~n", [Pid,Globals]),
 %%     ets:select_delete(?TAB, [{{{Pid,{'_',g,'_'}},r},[],[true]}]),
-    ets:delete(?TAB, {Pid,g}),
+    ets:delete(?TAB, Pid),
     case process_globals(Globals) of
 	[] ->
 	    {ok, S};
@@ -353,7 +353,12 @@ delete_globals(Globals) ->
       fun({Key, Pid}) ->
               K = ets_key(Key,Pid),
 	      ets:delete(?TAB, K),
-	      ets:delete(?TAB, {Pid, Key})
+	      ets:delete(?TAB, {Pid, Key}),
+		  case node(Pid) =:= node() of
+			  true ->
+				  ets:delete(?TAB, Pid);
+			  _ -> ok
+		  end
       end, Globals).
 
 ets_key({T,_,_} = K, _) when T==n; T==a ->
