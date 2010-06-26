@@ -198,10 +198,10 @@ handle_leader_call({reg, {C,g,Name} = K, Value, Pid}, _From, S, _E) ->
 		end,
 	    {reply, true, [{insert, Vals}], S}
     end;
-handle_leader_call({update_counter, {c,g,Ctr} = Key, Incr, Pid}, _From, S, _E)
+handle_leader_call({update_counter, {c,g,_Ctr} = Key, Incr, Pid}, _From, S, _E)
   when is_integer(Incr) ->
     try New = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
-        Vals = [{{Key,Pid},Pid,New} | update_aggr_counter({c,g,Ctr}, Incr)],
+        Vals = [{{Key,Pid},Pid,New} | update_aggr_counter(Key, Incr)],
         {reply, New, [{insert, Vals}], S}
     catch
         error:_ ->
@@ -293,7 +293,7 @@ handle_leader_cast({pid_is_DOWN, Pid}, S, _E) ->
 				 [{'==',{element,2,'$1'},g}],[{{'$1',Pid}}]}]),
     io:fwrite("pid_is_DOWN(~p); Globals = ~p~n", [Pid,Globals]),
 %%     ets:select_delete(?TAB, [{{{Pid,{'_',g,'_'}},r},[],[true]}]),
-    ets:delete(?TAB, Pid),
+    ets:delete(?TAB, {Pid,g}),
     case process_globals(Globals) of
 	[] ->
 	    {ok, S};

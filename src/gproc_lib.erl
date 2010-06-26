@@ -155,7 +155,7 @@ mk_reg_rev_objs(T, C, Pid, L) ->
 
 
 ensure_monitor(Pid,C) when C==g; C==l ->
-    case node(Pid) == node() andalso ets:insert_new(?TAB, {Pid,C}) of
+    case node(Pid) == node() andalso ets:insert_new(?TAB, {{Pid,C}}) of
         false -> ok;
         true  -> erlang:monitor(process, Pid)
     end.
