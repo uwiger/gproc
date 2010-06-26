@@ -160,7 +160,7 @@ add_local_counter(Name, Initial) when is_integer(Initial) ->
 %% @end
 %%
 add_global_counter(Name, Initial) when is_integer(Initial) ->
-    reg({n,g,Name}, Initial).
+    reg({c,g,Name}, Initial).
 
 %% spec(Name::any()) -> true
 %%
