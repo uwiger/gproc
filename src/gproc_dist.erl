@@ -137,7 +137,6 @@ handle_info(_, S) ->
 
 
 elected(S, _E) ->
-    io:fwrite("elected(_, E = ~p)~n", [_E]),
     {ok, {globals,globs()}, S#state{is_leader = true}}.
 
 elected(S, _E, undefined) ->
@@ -170,7 +169,6 @@ handle_DOWN(Node, S, _E) ->
     Gs = [{'==', {node,'$1'},Node}],
     Globs = ets:select(?TAB, [{Head, Gs, [{{{element,1,{element,1,'$_'}},
                                             {element,2,'$_'}}}]}]),
-    io:fwrite("handle_DOWN(~p); Globs = ~p~n", [Node, Globs]),
     case process_globals(Globs) of
         [] ->
             {ok, S};
@@ -291,8 +289,6 @@ handle_leader_cast({remove_globals, Globals}, S, _E) ->
 handle_leader_cast({pid_is_DOWN, Pid}, S, _E) ->
     Globals = ets:select(?TAB, [{{{Pid,'$1'},r},
 				 [{'==',{element,2,'$1'},g}],[{{'$1',Pid}}]}]),
-    io:fwrite("pid_is_DOWN(~p); Globals = ~p~n", [Pid,Globals]),
-%%     ets:select_delete(?TAB, [{{{Pid,{'_',g,'_'}},r},[],[true]}]),
     ets:delete(?TAB, {Pid,g}),
     case process_globals(Globals) of
 	[] ->
