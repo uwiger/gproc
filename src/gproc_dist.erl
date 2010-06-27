@@ -352,7 +352,7 @@ delete_globals(Globals) ->
 	      ets:delete(?TAB, {Pid, Key}),
 		  case node(Pid) =:= node() of
 			  true ->
-				  ets:delete(?TAB, Pid);
+				  ets:delete(?TAB, {Pid,g});
 			  _ -> ok
 		  end
       end, Globals).
