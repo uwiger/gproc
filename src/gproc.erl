@@ -926,7 +926,7 @@ init([]) ->
 %%     true.
 
 monitor_me() ->
-    case ets:insert_new(?TAB, {self(),l}) of
+    case ets:insert_new(?TAB, {{self(),l}}) of
         false -> true;
         true  ->
             cast({monitor_me,self()}),
