@@ -31,9 +31,9 @@ vpath %.pdf ../doc
 ERLC = erlc -W -I ../include -o ../ebin
 ERLC += +debug_info
 
-EQC ?= /host/dev/eqc-1.16
+#EQC ?= /host/dev/eqc-1.16
 
-EQC_ERLC = $(ERLC) -I $(EQC)/include
+EQC_ERLC = $(ERLC) -pa $(EQC)/ebin
 EQC_ERL = erl -pz ../ebin -pz $(EQC)/ebin -pz ./Unit-Quick-Files -kernel error_logger silent -sasl errlog_type error
 
 SOURCES = $(wildcard *.erl)
@@ -64,6 +64,10 @@ doc: ../doc/edoc-info
 	erl -noshell -eval 'edoc:application($(APP),"..",[])' -s init stop
 
 ## test targets
+eunit: all 
+	erl -noshell -boot start_clean -sasl errlog_type error \
+	-pa ../ebin -eval 'eunit:test("../ebin", [verbose])' -s init stop
+
 test : all ./Unit-Quick-Files/gproc_eqc.beam
 	$(EQC_ERL) -s gproc_eqc run -s erlang halt
 

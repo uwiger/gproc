@@ -13,8 +13,23 @@
 %% Portions created by Ericsson are Copyright 1999, Ericsson Utvecklings
 %% AB. All Rights Reserved.''
 %%
-%% @author Ulf Wiger <ulf.wiger@ericsson.com>
+%% @author Ulf Wiger <ulf.wiger@erlang-solutions.com>
 %% 
 %% gproc.hrl: Common definitions
 
 -define(TAB, gproc).
+
+
+-type type()     :: n | p | c | a.
+-type scope()    :: l | g.
+-type context()  :: {scope(),type()} | type().
+-type sel_type() :: n | p | c | a |
+                    names | props | counters | aggr_counters.
+
+-type sel_var() :: '_' | atom().
+-type keypat()  :: {sel_type() | sel_var(), l | g | sel_var(), any()}.
+-type pidpat()  :: pid() | sel_var().
+-type headpat() :: {keypat(),pidpat(),any()}.
+-type key()     :: {type(), scope(), any()}.
+
+-type sel_pattern() :: [{headpat(), list(), list()}].

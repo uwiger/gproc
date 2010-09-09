@@ -31,10 +31,12 @@
 %% Pid around as payload as well. This is a bit redundant, but
 %% symmetric.
 %%
-insert_reg({T,_,Name} = K, Value, Pid, C) when T==a; T==n ->
+-spec insert_reg(key(), any(), pid(), scope()) -> boolean().
+
+insert_reg({T,_,Name} = K, Value, Pid, Scope) when T==a; T==n ->
     MaybeScan = fun() ->
                         if T==a ->
-                                Initial = scan_existing_counters(C, Name),
+                                Initial = scan_existing_counters(Scope, Name),
                                 ets:insert(?TAB, {{K,a}, Pid, Initial});
                            true ->
                                 true
@@ -51,48 +53,67 @@ insert_reg({T,_,Name} = K, Value, Pid, C) when T==a; T==n ->
                     false
             end
     end;
-insert_reg({c,C,Ctr} = Key, Value, Pid, _C) when C==l; C==g ->
+insert_reg({c,Scope,Ctr} = Key, Value, Pid, Scope) when Scope==l; Scope==g ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
     Kr = {Pid, Key},
     Res = ets:insert_new(?TAB, [{K, Pid, Value}, {Kr,r}]),
-    update_aggr_counter(g, Ctr, Value),
+    case Res of
+        true ->
+            update_aggr_counter(Scope, Ctr, Value);
+        false ->
+            ignore
+    end,
     Res;
-insert_reg(Key, Value, Pid, _C) ->
+insert_reg(Key, Value, Pid, _Scope) ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
     Kr = {Pid, Key},
     ets:insert_new(?TAB, [{K, Pid, Value}, {Kr,r}]).
 
-insert_many(T, C, KVL, Pid) ->
-    Objs = mk_reg_objs(T, C, Pid, KVL),
+
+
+-spec insert_many(type(), scope(), [{key(),any()}], pid()) ->
+          {true,list()} | false.
+
+insert_many(T, Scope, KVL, Pid) ->
+    Objs = mk_reg_objs(T, Scope, Pid, KVL),
     case ets:insert_new(?TAB, Objs) of
         true ->
-            RevObjs = mk_reg_rev_objs(T, C, Pid, KVL),
+            RevObjs = mk_reg_rev_objs(T, Scope, Pid, KVL),
             ets:insert(?TAB, RevObjs),
+	    gproc_lib:ensure_monitor(Pid, Scope),
             {true, Objs};
         false ->
             Existing = [{Obj, ets:lookup(?TAB, K)} || {K,_,_} = Obj <- Objs],
-            case lists:any(fun({_, [{_,L}]}) -> is_list(L);
-                              (_) -> false
+            case lists:any(fun({_, [{_, _, _}]}) ->
+                                   true;
+                              (_) ->
+                                   %% (not found), or waiters registered
+                                   false
                            end, Existing) of
-                [_|_] ->
-                    insert_objects(Existing);
-                [] ->
-                    false
+                true ->
+                    %% conflict; return 'false', indicating failure
+                    false;
+                false ->
+                    %% possibly waiters, but they are handled in next step
+                    insert_objects(Existing),
+		    gproc_lib:ensure_monitor(Pid, Scope),
+                    {true, Objs}
             end
     end.
 
+-spec insert_objects([{key(), pid(), any()}]) -> ok.
+     
 insert_objects(Objs) ->
-    lists:map(
-      fun({{K, Pid, V} = Obj, Existing}) ->
-              ets:insert(?TAB, [Obj, {{Pid, K}, r}]),
+    lists:foreach(
+      fun({{{Id,_} = K, Pid, V} = Obj, Existing}) ->
+              ets:insert(?TAB, [Obj, {{Pid, Id}, r}]),
               case Existing of
                   [] -> ok;
                   [{_, Waiters}] ->
-                      notify_waiters(Waiters, K, Pid, V)
-              end,
-              Obj
+                      notify_waiters(Waiters, Id, Pid, V)
+              end
       end, Objs).
 
 
@@ -129,33 +150,37 @@ maybe_waiters(K, Pid, Value, T, Info) ->
             false
     end.
 
+
+-spec notify_waiters([{pid(), reference()}], key(), pid(), any()) -> ok.
+
 notify_waiters(Waiters, K, Pid, V) ->
     [begin
          P ! {gproc, Ref, registered, {K, Pid, V}},
-         ets:delete(?TAB, {P,K}) 
-     end || {P, Ref} <- Waiters].
+         ets:delete(?TAB, {P, K}) 
+     end || {P, Ref} <- Waiters],
+    ok.
 
 
 
-mk_reg_objs(T, C, _, L) when T==n; T==a ->
+mk_reg_objs(T, Scope, Pid, L) when T==n; T==a ->
     lists:map(fun({K,V}) ->
-                      {{{T,C,K},T}, V};
+                      {{{T,Scope,K},T}, Pid, V};
                  (_) ->
                       erlang:error(badarg)
               end, L);
-mk_reg_objs(p = T, C, Pid, L) ->
+mk_reg_objs(p = T, Scope, Pid, L) ->
     lists:map(fun({K,V}) ->
-                      {{{T,C,K},Pid}, V};
+                      {{{T,Scope,K},Pid}, Pid, V};
                  (_) ->
                       erlang:error(badarg)
               end, L).
 
-mk_reg_rev_objs(T, C, Pid, L) ->
-    [{{Pid,{T,C,K}},r} || {K,_} <- L].
+mk_reg_rev_objs(T, Scope, Pid, L) ->
+    [{{Pid,{T,Scope,K}},r} || {K,_} <- L].
 
 
-ensure_monitor(Pid,C) when C==g; C==l ->
-    case node(Pid) == node() andalso ets:insert_new(?TAB, {{Pid,C}}) of
+ensure_monitor(Pid, Scope) when Scope==g; Scope==l ->
+    case node(Pid) == node() andalso ets:insert_new(?TAB, {{Pid, Scope}}) of
         false -> ok;
         true  -> erlang:monitor(process, Pid)
     end.

@@ -26,7 +26,18 @@ all:
 	for D in $(DIRS) ; do \
 	(cd $$D; ${MAKE}) ; \
 	done
+
 clean:
 	for D in $(DIRS) ; do \
 	(cd $$D; ${MAKE} clean) ; \
+	done
+
+eunit:
+	for D in $(DIRS) ; do \
+	(cd $$D; ${MAKE} eunit) ; \
+	done
+
+test:
+	for D in $(DIRS) ; do \
+	(cd $$D; ${MAKE} test) ; \
 	done

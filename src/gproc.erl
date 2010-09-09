@@ -88,7 +88,12 @@
          code_change/3,
          terminate/2]).
 
+%% this shouldn't be necessary
+-export([audit_process/1]).
+
+
 -include("gproc.hrl").
+-include_lib("eunit/include/eunit.hrl").
 
 -define(SERVER, ?MODULE).
 %%-define(l, l(?LINE)). % when activated, calls a traceable empty function
@@ -527,7 +532,11 @@ where({T,_,_}=Key) ->
     if T==n orelse T==a ->
             case ets:lookup(?TAB, {Key,T}) of
                 [{_, P, _Value}] ->
-                    P;
+                    case is_process_alive(P) of
+			true -> P;
+			false ->
+			    undefined
+		    end;
                 _ ->  % may be [] or [{Key,Waiters}]
                     undefined
             end;
@@ -545,13 +554,13 @@ where({T,_,_}=Key) ->
 %% @end
 %%
 lookup_pids({T,_,_} = Key) ->
-    if T==n orelse T==a ->
-            ets:select(?TAB, [{{{Key,T}, '$1', '_'},[],['$1']}]);
-       true ->
-            ets:select(?TAB, [{{{Key,'_'}, '$1', '_'},[],['$1']}])
-%%%        true ->
-%%%             erlang:error(badarg)
-    end.
+    L = if T==n orelse T==a ->
+		ets:select(?TAB, [{{{Key,T}, '$1', '_'},[],['$1']}]);
+	   true ->
+		ets:select(?TAB, [{{{Key,'_'}, '$1', '_'},[],['$1']}])
+	end,
+    [P || P <- L, is_process_alive(P)].
+	  
 
 %% @spec (Key::key()) -> [{pid(), Value}]
 %%
@@ -563,11 +572,13 @@ lookup_pids({T,_,_} = Key) ->
 %% @end
 %%
 lookup_values({T,_,_} = Key) ->
-    if T==n orelse T==a ->
-            ets:select(?TAB, [{{{Key,T}, '$1', '$2'},[],[{{'$1','$2'}}]}]);
-       true ->
-            ets:select(?TAB, [{{{Key,'_'}, '$1', '$2'},[],[{{'$1','$2'}}]}])
-    end.
+    L = if T==n orelse T==a ->
+		ets:select(?TAB, [{{{Key,T}, '$1', '$2'},[],[{{'$1','$2'}}]}]);
+	   true ->
+		ets:select(?TAB, [{{{Key,'_'}, '$1', '$2'},[],[{{'$1','$2'}}]}])
+	end,
+    [Pair || {P,_} = Pair <- L, is_process_alive(P)].
+
 
 
 %% @spec (Key::key(), Incr::integer()) -> integer()
@@ -818,6 +829,14 @@ handle_call({set, {_,l,_} = Key, Value}, {Pid,_}, S) ->
         false ->
             {reply, badarg, S}
     end;
+handle_call({audit_process, Pid}, _, S) ->
+    case is_process_alive(Pid) of
+	false ->
+	    process_is_down(Pid);
+	true ->
+	    ignore
+    end,
+    {reply, ok, S};
 handle_call(_, _, S) ->
     {reply, badarg, S}.
 
@@ -884,7 +903,7 @@ try_insert_reg({T,l,_} = Key, Val, Pid) ->
                         true ->
                             false;
                         false ->
-                            process_is_down(Pid),
+                            process_is_down(OtherPid),
                             true = gproc_lib:insert_reg(Key, Val, Pid, l)
                     end;
                 [] ->
@@ -894,17 +913,50 @@ try_insert_reg({T,l,_} = Key, Val, Pid) ->
             true
     end.
 
-process_is_down(Pid) ->
-    Keys = ets:select(?TAB, [{{{Pid,'$1'},'$2'},
-                              [{'==',{element,2,'$1'},l}], [{{'$1','$2'}}]}]),
-    ets:select_delete(?TAB, [{{{Pid,{'_',l,'_'}},'_'}, [], [true]}]),
-    ets:delete(?TAB, {Pid,l}),
-    lists:foreach(fun({Key,r}) ->
-                          gproc_lib:remove_reg_1(Key, Pid);
-                     ({Key,w}) ->
-                          gproc_lib:remove_waiter(Key, Pid)
-                  end, Keys).
 
+-spec audit_process(pid()) -> ok.
+
+audit_process(Pid) when is_pid(Pid) ->
+    gen_server:call(gproc, {audit_process, Pid}, infinity).
+    
+
+-spec process_is_down(pid()) -> ok.
+
+process_is_down(Pid) ->
+    %% delete the monitor marker
+    %% io:fwrite(user, "process_is_down(~p) - ~p~n", [Pid,ets:tab2list(?TAB)]),
+    ets:delete(?TAB, {Pid,l}),
+    Revs = ets:select(?TAB, [{{{Pid,'$1'},r}, 
+                              [{'==',{element,2,'$1'},l}], ['$1']}]),
+    lists:foreach(
+      fun({n,l,_}=K) ->
+              Key = {K,n},
+              case ets:lookup(?TAB, Key) of
+                  [{_, Pid, _}] ->
+                      ets:delete(?TAB, Key);
+                  [{_, Waiters}] ->
+                      case [W || {P,_} = W <- Waiters,
+                                 P =/= Pid] of
+                          [] ->
+                              ets:delete(?TAB, Key);
+                          Waiters1 ->
+                              ets:insert(?TAB, {Key, Waiters1})
+                      end;
+                  [] ->
+                      true
+              end;
+         ({c,l,C} = K) ->
+              Key = {K, Pid},
+              [{_, _, Value}] = ets:lookup(?TAB, Key),
+              ets:delete(?TAB, Key),
+              gproc_lib:update_aggr_counter(l, C, -Value);
+         ({a,l,_} = K) -> 
+              ets:delete(?TAB, {K,a});
+         ({p,_,_} = K) ->
+              ets:delete(?TAB, {K, Pid})
+      end, Revs),
+    ets:select_delete(?TAB, [{{{Pid,{'_',l,'_'}},'_'}, [], [true]}]),
+    ok.
 
 create_tabs() ->
     ets:new(?MODULE, [ordered_set, public, named_table]).
@@ -1169,7 +1221,7 @@ qlc_next(_, '$end_of_table') -> [];
 qlc_next(Scope, K) ->
     case ets:lookup(?TAB, K) of
         [{{Key,_}, Pid, V}] ->
-            [{Key,Pid,V} | fun() -> qlc_next(Scope, next(Scope, K)) end];
+            [{Key,Pid,V}] ++ fun() -> qlc_next(Scope, next(Scope, K)) end;
         [] ->
             qlc_next(Scope, next(Scope, K))
     end.
@@ -1178,7 +1230,7 @@ qlc_prev(_, '$end_of_table') -> [];
 qlc_prev(Scope, K) ->
     case ets:lookup(?TAB, K) of
         [{{Key,_},Pid,V}] ->
-            [{Key,Pid,V} | fun() -> qlc_prev(Scope, prev(Scope, K)) end];
+            [{Key,Pid,V}] ++ fun() -> qlc_prev(Scope, prev(Scope, K)) end;
         [] ->
             qlc_prev(Scope, prev(Scope, K))
     end.
@@ -1200,3 +1252,71 @@ is_unique({_,a}) -> true;
 is_unique(_) -> false.
 
 
+%% =============== EUNIT tests
+
+reg_test_() ->
+    {setup,
+     fun() ->
+             application:start(gproc)
+     end,
+     fun(_) ->
+             application:stop(gproc)
+     end,
+     [
+      {spawn, ?_test(t_simple_reg())}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(t_simple_prop())}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(t_await())}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(t_simple_mreg())}
+      , ?_test(t_is_clean())
+     ]}.
+
+t_simple_reg() ->
+    ?debugFmt("self() = ~p~n", [self()]),
+    ?assert(gproc:reg({n,l,name}) =:= true),
+    ?assert(gproc:where({n,l,name}) =:= self()),
+    ?assert(gproc:unreg({n,l,name}) =:= true),
+    ?assert(gproc:where({n,l,name}) =:= undefined).
+
+
+                       
+t_simple_prop() ->
+    ?assert(gproc:reg({p,l,prop}) =:= true),
+    ?assert(t_other_proc(fun() ->
+                                 ?assert(gproc:reg({p,l,prop}) =:= true)
+                         end) =:= ok),
+    ?assert(gproc:unreg({p,l,prop}) =:= true).
+
+t_other_proc(F) ->
+    ?debugFmt("self() = ~p~n", [self()]),
+    {_Pid,Ref} = spawn_monitor(fun() -> exit(F()) end),
+    receive
+        {'DOWN',Ref,_,_,R} ->
+            R
+    after 10000 ->
+            erlang:error(timeout)
+    end.
+
+t_await() ->
+    Me = self(),
+    {_Pid,Ref} = spawn_monitor(
+                   fun() -> exit(?assert(gproc:await({n,l,t_await}) =:= {Me,val})) end),
+    ?assert(gproc:reg({n,l,t_await},val) =:= true),
+    receive
+        {'DOWN', Ref, _, _, R} ->
+            ?assertEqual(R, ok)
+    after 10000 ->
+            erlang:error(timeout)
+    end.
+
+t_is_clean() ->
+    sys:get_status(gproc), % in order to synch
+    T = ets:tab2list(gproc),
+    ?debugFmt("T = ~p~n", [T]),
+    ?assert(T =:= []).
+                                        
+
+t_simple_mreg() ->
+    ok.

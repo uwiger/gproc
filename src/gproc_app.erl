@@ -21,7 +21,7 @@
 %%          {error, Reason}
 %%----------------------------------------------------------------------
 start() ->
-    start(xxxwhocares, []).
+    start(normal, []).
 
 start(_Type, StartArgs) ->
     case gproc_sup:start_link(StartArgs) of

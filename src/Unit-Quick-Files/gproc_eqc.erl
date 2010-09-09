@@ -12,6 +12,7 @@
 
 -compile(export_all).
 
+
 %%
 %% QUESTIONS:
 %%
@@ -52,11 +53,13 @@
 
 
 %% external API
-start_test() ->
-    eqc:module({numtests, 500}, ?MODULE).
+
+%% UW: renamed to avoid confusion with eunit
+all_tests() ->
+    eqc:module({numtests, 3000}, ?MODULE).
 
 run() ->
-    run(500).
+    run(3000).
 
 run(Num) ->
     eqc:quickcheck(eqc:numtests(Num, prop_gproc())).
@@ -82,6 +85,7 @@ command(S) ->
                   %% unregister
                   , {call,?MODULE,unreg,          [elements(S#state.pids), key()]}
                   %% many register
+                  , {call, ?MODULE, mreg,         ?LET({Pid,Class,Scope}, {elements(S#state.pids),class(),scope()}, [Pid, Class, Scope, mreg_values(S, Class, Scope)])}
                   %%, {call,?MODULE,mreg,           [elements(S#state.pids), class(), scope()
                   %%                                 , list({name(), value()})]}
 
@@ -114,12 +118,19 @@ class() -> elements([n,p,c,a]).
 scope() -> l.
 
 %% generator name
-name() -> elements([x,y,z,w]).
+name() -> elements(names()).
+
+names() -> [x,y,z,w].
+    
 
 %% generator key
-key() -> #key{class=class(), scope=scope(), name=name()}.
+key() -> key(class(), scope(), name()).
 
-name_key() -> #key{class=n, scope=scope(), name=name()}.
+key(Class, Scope, Name) ->
+    #key{class=Class, scope=Scope, name=Name}.
+
+name_key() ->
+    key(n, scope(), name()).
     
 
 %% generator value
@@ -130,6 +141,18 @@ value() -> frequency([{8, int()}, {1, undefined}, {1, make_ref()}]).
 reg_value(#key{class=C}) when C == a; C == c -> int();
 reg_value(_) -> value().
 
+
+mreg_values(_S, Class, Scope) ->
+    ?LET(Names, subset(names()),
+         [?LET(K, key(Class, Scope, N), {K, reg_value(K)}) || N <- Names]).
+
+
+%% Snipped from the TrapExit QuickCheck tutorials
+%% http://trapexit.org/SubSetGenerator
+subset(Generators) ->
+   ?LET(Keep,[ {bool(),G} || G<-Generators],
+	[ G || {true,G}<-Keep]).
+
 %% helpers
 is_register_ok(_S,_Pid,#key{class=c},Value) when not is_integer(Value) ->
     false;
@@ -138,6 +161,11 @@ is_register_ok(_S,_Pid,#key{class=a},Value) ->
 is_register_ok(S,Pid,Key,_Value) ->
     [] == [ Pid1 || #reg{pid=Pid1,key=Key1}
                         <- S#state.regs, is_register_eq(Pid,Key,Pid1,Key1) ].
+
+is_mreg_ok(S, Pid, List) ->
+    lists:all(fun({Key, Value}) ->
+                      is_register_ok(S, Pid, Key, Value)
+              end, List).
 
 is_register_eq(_PidA,#key{class=Class}=KeyA,_PidB,KeyB)
   when Class == n; Class ==a ->
@@ -178,28 +206,17 @@ next_state(S,_V,{call,_,reg,[Pid,Key,Value]}) ->
         false ->
             S;
         true ->
-            case Key of
-                #key{class=a,name=Name} ->
-                    %% initialize aggr counter
-                    FunC = fun(#reg{key=#key{class=Class1,name=Name1}}) -> (Class1 == c andalso Name==Name1) end,
-                    {Regs, _Others} = lists:partition(FunC, S#state.regs),
-                    InitialValue = lists:sum([ V || #reg{value=V} <- Regs ]),
-                    S#state{regs=[#reg{pid=Pid,key=Key,value=InitialValue}|S#state.regs]};
-                #key{class=c,name=Name} ->
-                    S1 = S#state{regs=[#reg{pid=Pid,key=Key,value=Value}|S#state.regs]},
-                    %% update aggr counter
-                    FunA = fun(#reg{key=#key{class=Class1,name=Name1}}) -> (Class1 == a andalso Name==Name1) end,
-                    case lists:partition(FunA, S1#state.regs) of
-                        {[Reg], Others} ->
-                            S1#state{regs=[Reg#reg{value=Reg#reg.value+Value}|Others]};
-                        {[], _Others} ->
-                            S1
-                    end;
-                _ ->
-                    S#state{regs=[#reg{pid=Pid,key=Key,value=Value}|S#state.regs],
-                            waiters = [W || {K,_} = W <- S#state.waiters,
-                                            K =/= Key]}
-            end
+            update_state_reg(S, Pid, Key, Value)
+    end;
+next_state(S,_V,{call,_,mreg,[Pid, _Class, _Scope, List]}) ->
+    case is_mreg_ok(S, Pid, List) of
+        false ->
+            S;
+        true ->
+            lists:foldl(
+              fun({Key, Value}, Acc) ->
+                      update_state_reg(Acc, Pid, Key, Value)
+              end, S, List)
     end;
 %% unreg
 next_state(S,_V,{call,_,unreg,[Pid,Key]}) ->
@@ -284,13 +301,49 @@ next_state(S,_V,{call,_,_,_}) ->
     S.
 
 
+update_state_reg(S, Pid, Key, Value) ->
+    case Key of
+        #key{class=a,name=Name} ->
+            %% initialize aggr counter
+            FunC = fun(#reg{key=#key{class=Class1,name=Name1}}) -> (Class1 == c andalso Name==Name1) end,
+            {Regs, _Others} = lists:partition(FunC, S#state.regs),
+            InitialValue = lists:sum([ V || #reg{value=V} <- Regs ]),
+            S#state{regs=[#reg{pid=Pid,key=Key,value=InitialValue}|S#state.regs]};
+        #key{class=c,name=Name} ->
+            S1 = S#state{regs=[#reg{pid=Pid,key=Key,value=Value}|S#state.regs]},
+            %% update aggr counter
+            FunA = fun(#reg{key=#key{class=Class1,name=Name1}}) -> (Class1 == a andalso Name==Name1) end,
+            case lists:partition(FunA, S1#state.regs) of
+                {[Reg], Others} ->
+                    S1#state{regs=[Reg#reg{value=Reg#reg.value+Value}|Others]};
+                {[], _Others} ->
+                    S1
+            end;
+        _ ->
+            S#state{regs=[#reg{pid=Pid,key=Key,value=Value}|S#state.regs],
+                    waiters = [W || {K,_} = W <- S#state.waiters,
+                                    K =/= Key]}
+    end.
+
+
+
 %% Precondition, checked before command is added to the command
 %% sequence
+precondition(S, {call,_,reg, [Pid, _Key, _Value]}) ->
+    lists:member(Pid, S#state.pids);
+precondition(S, {call,_,unreg, [Pid, _Key]}) ->
+    lists:member(Pid, S#state.pids);
 precondition(S, {call,_,await_new,[#key{class=C}=Key]}) ->
     C == n andalso
         not lists:keymember(Key,#reg.key,S#state.regs);
-precondition(S, {call,_,await_existing,[#reg{key=#key{class=C}}]}) ->
-    C == n;
+precondition(S, {call,_,mreg,[Pid, Class, _Scope, List]}) ->
+    %% TODO: lift this restriction to generate all classes mreg can handle
+    Class == n andalso
+	lists:member(Pid, S#state.pids) andalso
+        lists:all(fun({#key{class=C},_}) -> C == n end, List);
+precondition(S, {call,_,await_existing,[#reg{key=#key{class=C}=Key}]}) ->
+    C == n andalso
+	lists:keymember(Key, #reg.key, S#state.regs);
 precondition(S,{call,_,get_value,[Pid,_]}) ->
 	lists:member(Pid,S#state.pids);
 precondition(_S,{call,_,_,_}) ->
@@ -333,6 +386,17 @@ postcondition(S,{call,_,reg,[Pid,Key,Value]},Res) ->
             is_unregister_ok(S,Pid,Key)
                 orelse not is_register_ok(S,Pid,Key,Value)
     end;
+postcondition(S,{call,_,mreg,[Pid,_Class,_Scope,List]},Res) ->
+    case Res of
+        true ->
+            is_mreg_ok(S,Pid,List)
+                andalso lists:all(fun({K,V}) ->
+                                          check_waiters(Pid,K,V, S#state.waiters)
+                                  end, List);
+        {'EXIT', {badarg,_}} ->
+            not is_mreg_ok(S,Pid,List)
+    end;
+    
 %% unreg
 postcondition(S,{call,_,unreg,[Pid,Key]},Res) ->
     case Res of
@@ -392,9 +456,9 @@ postcondition(S,{call,_,lookup_pids,[#key{class=Class}=Key]},Res)
     Pids = [ Pid1 || #reg{pid=Pid1,key=Key1} <- S#state.regs
                          , Key==Key1 ],
     lists:sort(Res) == lists:sort(Pids);
-postcondition(S,{call,_,await_new,[#key{}=Key]}, Pid) ->
+postcondition(S,{call,_,await_new,[#key{}]}, Pid) ->
     is_pid(Pid);
-postcondition(S,{call,_,await_existing,[#reg{key=Key,value=V}]}, {P1,V1}) ->
+postcondition(S,{call,_,await_existing,[#reg{key=Key}]}, {P1,V1}) ->
     case lists:keyfind(Key, #reg.key, S#state.regs) of
         #reg{pid=P1, value = V1} -> true;
         _ -> false
@@ -508,6 +572,10 @@ where(#key{class=Class,scope=Scope,name=Name}) ->
 reg(Pid,#key{class=Class,scope=Scope,name=Name},Value) ->
     do(Pid, fun() -> catch gproc:reg({Class,Scope,Name},Value) end).
 
+mreg(Pid, Class, Scope, List) ->
+    do(Pid, fun() -> catch gproc:mreg(Class,Scope,[{Name,Value} || {#key{name = Name}, Value} <- List]) end).
+                     
+
 %% unreg
 unreg(Pid,#key{class=Class,scope=Scope,name=Name}) ->
     do(Pid, fun() -> catch gproc:unreg({Class,Scope,Name}) end).
@@ -549,9 +617,9 @@ do(Pid, F) ->
 
 await_existing(#reg{key = #key{class=Class,scope=Scope,name=Name}}) ->
     %% short timeout, this call is expected to work
-    gproc:await({Class,Scope,Name}, 1000).
+    gproc:await({Class,Scope,Name}, 10000).
 
-await_new(#key{class=Class,scope=Scope,name=Name} = Key) ->
+await_new(#key{class=Class,scope=Scope,name=Name}) ->
     spawn(
       fun() ->
               Res = (catch gproc:await({Class,Scope,Name})),
@@ -573,7 +641,7 @@ check_waiters(Pid, Key, Value, Waiters) ->
                       end, WPids)
     end.
 
-check_waiter(WPid, Pid, Key, Value) ->   
+check_waiter(WPid, Pid, _Key, Value) ->   
     MRef = erlang:monitor(process, WPid),
     WPid ! {self(), send_result},
     receive
