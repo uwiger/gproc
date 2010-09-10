@@ -118,7 +118,7 @@
 %% @end
 start_link() ->
     create_tabs(),
-    gen_server:start({local, ?SERVER}, ?MODULE, [], []).
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 %% spec(Name::any()) -> true
 %%
@@ -959,23 +959,31 @@ process_is_down(Pid) ->
     ok.
 
 create_tabs() ->
-    ets:new(?MODULE, [ordered_set, public, named_table]).
+    case ets:info(?TAB, name) of
+	undefined ->
+	    ets:new(?TAB, [ordered_set, public, named_table]);
+	_ ->
+	    ok
+    end.
 
 
 %% @hidden
 init([]) ->
+    set_monitors(),
     {ok, #state{}}.
 
 
+set_monitors() ->
+    set_monitors(ets:select(?TAB, [{{{'$1',l}},[],['$1']}], 100)).
 
 
-%% ensure_monitor(Pid) when node(Pid) == node() ->
-%%     case ets:insert_new(?TAB, {Pid}) of
-%%         false -> ok;
-%%         true  -> erlang:monitor(process, Pid)
-%%     end;
-%% ensure_monitor(_) ->
-%%     true.
+set_monitors('$end_of_table') ->
+    ok;
+set_monitors({Pids, Cont}) ->
+    [erlang:monitor(process,Pid) || Pid <- Pids],
+    set_monitors(ets:select(Cont)).
+
+
 
 monitor_me() ->
     case ets:insert_new(?TAB, {{self(),l}}) of
@@ -1271,6 +1279,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(t_simple_mreg())}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(t_gproc_crash())}
+      , ?_test(t_is_clean())
      ]}.
 
 t_simple_reg() ->
@@ -1314,9 +1324,50 @@ t_await() ->
 t_is_clean() ->
     sys:get_status(gproc), % in order to synch
     T = ets:tab2list(gproc),
-    ?debugFmt("T = ~p~n", [T]),
     ?assert(T =:= []).
                                         
 
 t_simple_mreg() ->
     ok.
+
+
+t_gproc_crash() ->
+    P = spawn_helper(),
+    ?assert(gproc:where({n,l,P}) =:= P),
+    exit(whereis(gproc), kill),
+    give_gproc_some_time(100),
+    ?assert(whereis(gproc) =/= undefined),
+    %%
+    %% Check that the registration is still there using an ets:lookup(),
+    %% Once we've killed the process, gproc will always return undefined
+    %% if the process is not alive, regardless of whether the registration
+    %% is still there. So, here, the lookup should find something...
+    %%
+    ?assert(ets:lookup(gproc,{{n,l,P},n}) =/= []),
+    ?assert(gproc:where({n,l,P}) =:= P),
+    exit(P, kill),
+    %% ...and here, it shouldn't.
+    %% (sleep for a while first to let gproc handle the EXIT
+    give_gproc_some_time(10),
+    ?assert(ets:lookup(gproc,{{n,l,P},n}) =:= []).
+
+    
+spawn_helper() ->
+    Parent = self(),
+    P = spawn(fun() ->
+		      ?assert(gproc:reg({n,l,self()}) =:= true),
+		      Ref = erlang:monitor(process, Parent),
+		      Parent ! {ok,self()},
+		      receive 
+			  {'DOWN', Ref, _, _, _} ->
+			      ok
+		      end
+	      end),
+    receive
+	{ok,P} ->
+	     P
+    end.
+
+give_gproc_some_time(T) ->
+    timer:sleep(T),
+    sys:get_status(gproc).
