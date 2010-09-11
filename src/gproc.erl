@@ -270,6 +270,11 @@ reg(Key) ->
 default({T,_,_}) when T==c -> 0;
 default(_) -> undefined.
 
+%% @spec await(Key::key()) -> {pid(),Value}
+%% @equiv await(Key,infinity)
+%%
+await(Key) ->
+    await(Key, infinity).
 
 %% @spec await(Key::key(), Timeout) -> {pid(),Value}
 %%   Timeout = integer() | infinity
@@ -283,9 +288,6 @@ default(_) -> undefined.
 %% registered (the difference: await/2 also returns the value).
 %% @end
 %%
-await(Key) ->
-    await(Key, infinity).
-
 await({n,g,_} = Key, Timeout) ->
     ?CHK_DIST,
     request_wait(Key, Timeout);
@@ -1284,7 +1286,6 @@ reg_test_() ->
      ]}.
 
 t_simple_reg() ->
-    ?debugFmt("self() = ~p~n", [self()]),
     ?assert(gproc:reg({n,l,name}) =:= true),
     ?assert(gproc:where({n,l,name}) =:= self()),
     ?assert(gproc:unreg({n,l,name}) =:= true),
@@ -1300,7 +1301,6 @@ t_simple_prop() ->
     ?assert(gproc:unreg({p,l,prop}) =:= true).
 
 t_other_proc(F) ->
-    ?debugFmt("self() = ~p~n", [self()]),
     {_Pid,Ref} = spawn_monitor(fun() -> exit(F()) end),
     receive
         {'DOWN',Ref,_,_,R} ->

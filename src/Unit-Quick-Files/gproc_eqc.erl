@@ -7,11 +7,12 @@
 
 -module(gproc_eqc).
 
+-ifdef(EQC).
+
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eqc/include/eqc_statem.hrl").
 
 -compile(export_all).
-
 
 %%
 %% QUESTIONS:
@@ -55,6 +56,18 @@
 %% external API
 
 %% UW: renamed to avoid confusion with eunit
+
+gproc_test_() ->
+    {timeout, 60, [fun() -> run(3000) end]}.
+
+%% When run from eunit, we need to set the group leader so that EQC
+%% reporting (the dots) are made visible - that is, if that's what we want.
+verbose_run(N) ->
+    erlang:group_leader(whereis(user), self()),
+    run(N).
+
+%% 3000 tests seems like a large number, but this seems to be needed
+%% to reach enough variation in the tests.
 all_tests() ->
     eqc:module({numtests, 3000}, ?MODULE).
 
@@ -456,7 +469,7 @@ postcondition(S,{call,_,lookup_pids,[#key{class=Class}=Key]},Res)
     Pids = [ Pid1 || #reg{pid=Pid1,key=Key1} <- S#state.regs
                          , Key==Key1 ],
     lists:sort(Res) == lists:sort(Pids);
-postcondition(S,{call,_,await_new,[#key{}]}, Pid) ->
+postcondition(_S, {call,_,await_new,[#key{}]}, Pid) ->
     is_pid(Pid);
 postcondition(S,{call,_,await_existing,[#reg{key=Key}]}, {P1,V1}) ->
     case lists:keyfind(Key, #reg.key, S#state.regs) of
@@ -652,3 +665,5 @@ check_waiter(WPid, Pid, _Key, Value) ->
     after 1000 ->
             erlang:error(timeout)
     end.
+
+-endif.

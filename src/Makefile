@@ -33,7 +33,7 @@ ERLC += +debug_info
 
 #EQC ?= /host/dev/eqc-1.16
 
-EQC_ERLC = $(ERLC) -pa $(EQC)/ebin
+EQC_ERLC = $(ERLC) -pa $(EQC)/ebin -I ../include
 EQC_ERL = erl -pz ../ebin -pz $(EQC)/ebin -pz ./Unit-Quick-Files -kernel error_logger silent -sasl errlog_type error
 
 SOURCES = $(wildcard *.erl)
@@ -68,7 +68,7 @@ eunit: all
 	erl -noshell -boot start_clean -sasl errlog_type error \
 	-pa ../ebin -eval 'eunit:test("../ebin", [verbose])' -s init stop
 
-test : all ./Unit-Quick-Files/gproc_eqc.beam
+eqc : all ./Unit-Quick-Files/gproc_eqc.beam
 	$(EQC_ERL) -s gproc_eqc run -s erlang halt
 
 itest : all ./Unit-Quick-Files/gproc_eqc.beam

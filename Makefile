@@ -20,24 +20,21 @@
 ## FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 ## DEALINGS IN THE SOFTWARE.
 
+.PHONY: all compile clean eunit test eqc
+
 DIRS=src 
 
-all:
-	for D in $(DIRS) ; do \
-	(cd $$D; ${MAKE}) ; \
-	done
+all: compile eunit test
+
+compile:
+	./rebar compile
+
 
 clean:
-	for D in $(DIRS) ; do \
-	(cd $$D; ${MAKE} clean) ; \
-	done
+	./rebar clean
 
 eunit:
-	for D in $(DIRS) ; do \
-	(cd $$D; ${MAKE} eunit) ; \
-	done
+	./rebar eunit
 
-test:
-	for D in $(DIRS) ; do \
-	(cd $$D; ${MAKE} test) ; \
-	done
+test: eunit
+
