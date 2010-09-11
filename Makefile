@@ -20,11 +20,11 @@
 ## FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 ## DEALINGS IN THE SOFTWARE.
 
-.PHONY: all compile clean eunit test eqc
+.PHONY: all compile clean eunit test eqc doc
 
 DIRS=src 
 
-all: compile eunit test
+all: compile eunit test doc
 
 compile:
 	./rebar compile
@@ -38,3 +38,5 @@ eunit:
 
 test: eunit
 
+doc:
+	./rebar doc
