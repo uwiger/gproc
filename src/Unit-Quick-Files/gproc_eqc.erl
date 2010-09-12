@@ -55,10 +55,14 @@
 
 %% external API
 
-%% UW: renamed to avoid confusion with eunit
+good_number_of_tests() ->
+    3000.
 
+%% hook to run from eunit. Note: a small number of tests.
+%% I recommend running at least 3000 to get to interesting stuff.
+%%
 gproc_test_() ->
-    {timeout, 60, [fun() -> run(3000) end]}.
+    {timeout, 60, [fun() -> run(100) end]}.
 
 %% When run from eunit, we need to set the group leader so that EQC
 %% reporting (the dots) are made visible - that is, if that's what we want.
@@ -69,14 +73,14 @@ verbose_run(N) ->
 %% 3000 tests seems like a large number, but this seems to be needed
 %% to reach enough variation in the tests.
 all_tests() ->
-    eqc:module({numtests, 3000}, ?MODULE).
+    eqc:module({numtests, good_number_of_tests()}, ?MODULE).
 
 run() ->
-    run(3000).
+    run(good_number_of_tests()).
 
 run(Num) ->
+    error_logger:delete_report_handler(error_logger_tty_h),
     eqc:quickcheck(eqc:numtests(Num, prop_gproc())).
-
 
 %% Command generator, S is the state
 command(S) ->
@@ -525,7 +529,6 @@ prop_gproc() ->
 
 %% helpers
 start_app() ->
-    application:start(sasl),
     case application:start(gproc) of
         {error, {already_started,_}} ->
             stop_app(),
