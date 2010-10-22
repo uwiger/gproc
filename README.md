@@ -16,3 +16,10 @@ Gproc is a process dictionary for Erlang, which provides a number of useful feat
 Gproc has a QuickCheck test suite, covering a fairly large part of the local gproc functionality, although none of the global registry. It requires a commercial EQC license, but rebar is smart enough to detect whether EQC is available, and if it isn't, the code in gproc_eqc.erl will be "defined away".
 
 There is also an eunit suite in gproc.erl, but it covers only some of the most basic functions (local only). Lots more tests need to be written... some day. Contributions are most welcome.
+
+Building Edoc
+=============
+By default, `./rebar doc` generates Github-flavored Markdown files.
+If you want to change this, remove this line from `rebar.config`.
+
+`{edoc_opts, [{doclet, edown_doclet}]}.`
