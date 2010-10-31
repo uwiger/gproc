@@ -1,17 +1,22 @@
 
 
-#The gproc application#
+<h1>The gproc application</h1>
+
 The gproc application
 =====================
 Extended process dictionary
 
 
-##Introduction##
+<h2>Introduction</h2>
+
 .
+
 __Authors:__ Ulf Wiger ([`ulf.wiger@erlang-consulting.com`](mailto:ulf.wiger@erlang-consulting.com)), Joseph Wayne Norton ([`norton@geminimobile.com`](mailto:norton@geminimobile.com)).Extended process dictionary
 
 
-##Introduction##
+<h2>Introduction</h2>
+
+
 
 
 
@@ -19,16 +24,19 @@ Gproc was first introduced at the ACM SIGPLAN Erlang Workshop in
 Freiburg 2007 ([Paper available here](erlang07-wiger.pdf)).
 
 
+
 This application was designed to meet the following requirements:
 
 
 
+
 <li>
-  A process can register itself using any term.
-  A process can register more than one name
-  A process can publish non-unique {Key,Value} 'properties' 
-  The registry must be efficiently searchable
+A process can register itself using any term.
+A process can register more than one name
+A process can publish non-unique {Key,Value} 'properties' 
+The registry must be efficiently searchable
 </li>
+
 
 
 
@@ -40,7 +48,9 @@ continuously reflect the sum of all counters with the same name.
 _In its current state, the global registration facility is brokenand should not be used. It will be migrated over to a new version of gen_leader. This work will be done with low priority unless peopleexpress a strong urge to use this functionality._
 
 
-##Modules##
+<h2 class="indextitle">Modules</h2>
+
+
 
 <table width="100%" border="0" summary="list of modules">
 <tr><td><a href="gproc.md" class="module">gproc</a></td></tr>
@@ -49,3 +59,4 @@ _In its current state, the global registration facility is brokenand should not 
 <tr><td><a href="gproc_init.md" class="module">gproc_init</a></td></tr>
 <tr><td><a href="gproc_lib.md" class="module">gproc_lib</a></td></tr>
 <tr><td><a href="gproc_sup.md" class="module">gproc_sup</a></td></tr></table>
+
