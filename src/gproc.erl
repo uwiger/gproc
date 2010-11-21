@@ -305,15 +305,19 @@ request_wait({n,C,_} = Key, Timeout) when C==l; C==g ->
     TRef = case Timeout of
                infinity -> no_timer;
                T when is_integer(T), T > 0 ->
-                   erlang:start_timer(T, self(), timeout);
+                   erlang:start_timer(T, self(), gproc_timeout);
                _ ->
                    erlang:error(badarg, [Key, Timeout])
            end,
     WRef = call({await,Key,self()}, C),
     receive
         {gproc, WRef, registered, {_K, Pid, V}} ->
+	    case Timeout of
+		no_timer -> ignore;
+		TRef -> erlang:cancel_timer(TRef)
+	    end,
             {Pid, V};
-        {timeout, TRef, timeout} ->
+        {timeout, TRef, gproc_timeout} ->
             cancel_wait(Key, WRef),
             erlang:error(timeout, [Key, Timeout])
     end.
