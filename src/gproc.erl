@@ -534,7 +534,7 @@ where({T,_,_}=Key) ->
     if T==n orelse T==a ->
             case ets:lookup(?TAB, {Key,T}) of
                 [{_, P, _Value}] ->
-                    case is_process_alive(P) of
+                    case my_is_process_alive(P) of
 			true -> P;
 			false ->
 			    undefined
@@ -561,8 +561,19 @@ lookup_pids({T,_,_} = Key) ->
 	   true ->
 		ets:select(?TAB, [{{{Key,'_'}, '$1', '_'},[],['$1']}])
 	end,
-    [P || P <- L, is_process_alive(P)].
-	  
+    [P || P <- L, my_is_process_alive(P)].
+
+
+%% @spec (pid()) -> boolean()
+%%
+my_is_process_alive(P) when node(P) =:= node() ->
+    is_process_alive(P);
+my_is_process_alive(_) ->
+    %% remote pid - assume true (too costly to find out)
+    true.
+
+
+
 
 %% @spec (Key::key()) -> [{pid(), Value}]
 %%
@@ -579,7 +590,7 @@ lookup_values({T,_,_} = Key) ->
 	   true ->
 		ets:select(?TAB, [{{{Key,'_'}, '$1', '$2'},[],[{{'$1','$2'}}]}])
 	end,
-    [Pair || {P,_} = Pair <- L, is_process_alive(P)].
+    [Pair || {P,_} = Pair <- L, my_is_process_alive(P)].
 
 
 
