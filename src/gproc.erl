@@ -314,7 +314,7 @@ request_wait({n,C,_} = Key, Timeout) when C==l; C==g ->
         {gproc, WRef, registered, {_K, Pid, V}} ->
 	    case Timeout of
 		no_timer -> ignore;
-		TRef -> erlang:cancel_timer(TRef)
+		_ -> erlang:cancel_timer(TRef)
 	    end,
             {Pid, V};
         {timeout, TRef, gproc_timeout} ->
