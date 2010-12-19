@@ -107,7 +107,7 @@ insert_many(T, Scope, KVL, Pid) ->
      
 insert_objects(Objs) ->
     lists:foreach(
-      fun({{{Id,_} = K, Pid, V} = Obj, Existing}) ->
+      fun({{{Id,_} = _K, Pid, V} = Obj, Existing}) ->
               ets:insert(?TAB, [Obj, {{Pid, Id}, r}]),
               case Existing of
                   [] -> ok;
