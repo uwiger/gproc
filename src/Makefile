@@ -34,7 +34,7 @@ ERLC += +debug_info
 #EQC ?= /host/dev/eqc-1.16
 
 EQC_ERLC = $(ERLC) -pa $(EQC)/ebin -I ../include -DEQC
-EQC_ERL = erl -pz ../ebin -pz $(EQC)/ebin -pz ./Unit-Quick-Files
+EQC_ERL = erl -pz ../ebin -pz $(EQC)/ebin -pz ../test/eqc
 
 
 SOURCES = $(wildcard *.erl)
@@ -47,16 +47,16 @@ beams = gproc.beam \
 
 all : $(beams)
 clean :
-	rm -f  *~ ../ebin/*.beam ./Unit-Quick-Files/*.beam
+	rm -f  *~ ../ebin/*.beam ../test/eqc/*.beam
 
 ## erlc targets
 $(beams) : %.beam : %.erl
 	$(ERLC) $<
 
-./Unit-Quick-Files/gproc_eqc.beam : ./Unit-Quick-Files/gproc_eqc.erl
+../test/eqc/gproc_eqc_tests.beam : ../test/eqc/gproc_eqc_tests.erl
 	$(EQC_ERLC) $<
 
-./Unit-Quick-Files/gproc_pulse.beam : ./Unit-Quick-Files/gproc_pulse.erl
+../test/eqc/gproc_pulse.beam : ../test/eqc/gproc_pulse.erl
 	$(EQC_ERLC) $<
 
 doc: ../doc/edoc-info
@@ -69,11 +69,11 @@ eunit: all
 	erl -noshell -boot start_clean -sasl errlog_type error \
 	-pa ../ebin -eval 'eunit:test("../ebin", [verbose])' -s init stop
 
-eqc : all ./Unit-Quick-Files/gproc_eqc.beam
-	$(EQC_ERL) -s gproc_eqc run -s erlang halt
+eqc : all ../test/eqc/gproc_eqc_tests.beam
+	$(EQC_ERL) -s gproc_eqc_tests run -s erlang halt
 
-itest : all ./Unit-Quick-Files/gproc_eqc.beam
+itest : all ../test/eqc/gproc_eqc_tests.beam
 	$(EQC_ERL) -s eqc start
 
-pulsetest : all ./Unit-Quick-Files/gproc_pulse.beam
+pulsetest : all ../test/eqc/gproc_pulse.beam
 	$(EQC_ERL) -pa ../../scheduler_msg -pa -s eqc start 
