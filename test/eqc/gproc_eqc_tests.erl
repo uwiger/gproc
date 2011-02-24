@@ -1,11 +1,11 @@
-%%% File        : gproc_eqc.erl
+%%% File        : gproc_eqc_tests.erl
 %%% Author      : <norton@alum.mit.edu>
 %%%             : <Ulf.Wiger@erlang-consulting.com>
 %%%             : <John.Hughes@quviq.com>
 %%% Description : QuickCheck test model for gproc
 %%% Created     : 11 Dec 2008 by  <John Hughes@JTABLET2007>
 
--module(gproc_eqc).
+-module(gproc_eqc_tests).
 
 -ifdef(EQC).
 
