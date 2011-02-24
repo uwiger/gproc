@@ -1,2 +1,3 @@
-*.beam
 current_counterexample.eqc
+ebin/
+.eunit/
