@@ -49,6 +49,7 @@
          cancel_wait/2,
          lookup_pid/1,
          lookup_pids/1,
+         lookup_value/1,
          lookup_values/1,
          update_counter/2,
          send/2,
@@ -518,6 +519,9 @@ lookup_pid({_T,_,_} = Key) ->
         P -> P
     end.
 
+%% @spec (Key) -> Value
+%% @doc Lookup the value stored with a key.
+%%
 lookup_value({T,_,_} = Key) ->
     if T==n orelse T==a ->
             ets:lookup_element(?TAB, {Key,T}, 3);
