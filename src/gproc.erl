@@ -49,7 +49,6 @@
          cancel_wait/2,
          lookup_pid/1,
          lookup_pids/1,
-         lookup_value/1,
          lookup_values/1,
          update_counter/2,
          send/2,
@@ -78,6 +77,10 @@
          lookup_global_counters/1,
          lookup_local_aggr_counter/1,
          lookup_global_aggr_counter/1]).
+
+%% Callbacks for behaviour support
+-export([whereis_name/1,
+	 unregister_name/1]).
 
 -export([default/1]).
 
@@ -408,6 +411,10 @@ unreg(Key) ->
             end
     end.
 
+%% @equiv unreg/1
+unregister_name(Key) ->
+    unreg(Key).
+
 %% @spec (select_pattern()) -> list(sel_object())
 %% @doc
 %% @equiv select(all, Pat)
@@ -519,9 +526,6 @@ lookup_pid({_T,_,_} = Key) ->
         P -> P
     end.
 
-%% @spec (Key) -> Value
-%% @doc Lookup the value stored with a key.
-%%
 lookup_value({T,_,_} = Key) ->
     if T==n orelse T==a ->
             ets:lookup_element(?TAB, {Key,T}, 3);
@@ -553,6 +557,10 @@ where({T,_,_}=Key) ->
        true ->
             erlang:error(badarg)
     end.
+
+%% @equiv where/1
+whereis_name(Key) ->
+    where(Key).
 
 %% @spec (Key::key()) -> [pid()]
 %%
@@ -955,6 +963,10 @@ process_is_down(Pid) ->
               case ets:lookup(?TAB, Key) of
                   [{_, Pid, _}] ->
                       ets:delete(?TAB, Key);
+		  [{_, OtherPid, _}] when OtherPid =/= Pid ->
+		      %% Has been known to happen, possibly due to a lingering
+		      %% reverse mapping
+		      true;
                   [{_, Waiters}] ->
                       case [W || {P,_} = W <- Waiters,
                                  P =/= Pid] of
