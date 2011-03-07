@@ -786,15 +786,24 @@ handle_cast({monitor_me, Pid}, S) ->
     erlang:monitor(process, Pid),
     {noreply, S};
 handle_cast({cancel_wait, Pid, {T,_,_} = Key, Ref}, S) ->
+    Rev = {Pid,Key},
     case ets:lookup(?TAB, {Key,T}) of
         [{K, Waiters}] ->
-            NewWaiters = Waiters -- [{Pid,Ref}],
-            %% for now, we don't remove the reverse entry. If we should do
-            %% that, we have to make sure that Pid doesn't have another
-            %% waiter (which it shouldn't have, given that the wait is 
-            %% synchronous). Keeping it is not problematic - worst case, we
-            %% will get an unnecessary cleanup.
-            ets:insert(?TAB, {K, NewWaiters});
+            case Waiters -- [{Pid,Ref}] of
+		[] ->
+		    ets:delete(?TAB, K),
+		    ets:delete(?TAB, Rev);
+		NewWaiters ->
+		    ets:insert(?TAB, {K, NewWaiters}),
+		    case lists:keymember(Pid, 1, NewWaiters) of
+			true -> 
+			    %% should be extremely unlikely
+			    ok;
+			false ->
+			    %% delete the reverse entry
+			    ets:delete(?TAB, Rev)
+		    end
+	    end;
         _ ->
             ignore
     end,
@@ -963,10 +972,6 @@ process_is_down(Pid) ->
               case ets:lookup(?TAB, Key) of
                   [{_, Pid, _}] ->
                       ets:delete(?TAB, Key);
-		  [{_, OtherPid, _}] when OtherPid =/= Pid ->
-		      %% Has been known to happen, possibly due to a lingering
-		      %% reverse mapping
-		      true;
                   [{_, Waiters}] ->
                       case [W || {P,_} = W <- Waiters,
                                  P =/= Pid] of
@@ -1314,6 +1319,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(t_gproc_crash())}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(t_cancel_wait_and_register())}
+      , ?_test(t_is_clean())
      ]}.
 
 t_simple_reg() ->
@@ -1382,7 +1389,23 @@ t_gproc_crash() ->
     give_gproc_some_time(10),
     ?assert(ets:lookup(gproc,{{n,l,P},n}) =:= []).
 
-    
+t_cancel_wait_and_register() ->
+    Alias = {n, l, foo},
+    Me = self(),
+    P = spawn(fun() ->
+		      {'EXIT',_} = (catch gproc:await(Alias, 100)),
+		      ?assert(element(1,sys:get_status(gproc)) == status),
+		      Me ! {self(), go_ahead},
+		      timer:sleep(infinity)
+	      end),
+    receive
+	{P, go_ahead} ->
+	    ?assertEqual(gproc:reg(Alias, undefined), true),
+	    exit(P, kill),
+	    timer:sleep(500),
+	    ?assert(element(1,sys:get_status(gproc)) == status)
+    end.
+
 spawn_helper() ->
     Parent = self(),
     P = spawn(fun() ->
