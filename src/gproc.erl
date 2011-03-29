@@ -52,6 +52,7 @@
 	 lookup_value/1,
          lookup_values/1,
          update_counter/2,
+	 surrender/2,
          send/2,
          info/1, info/2,
          select/1, select/2, select/3,
@@ -631,7 +632,31 @@ update_counter({c,g,_} = Key, Incr) when is_integer(Incr) ->
 update_counter(_, _) ->
     erlang:error(badarg).
 
-
+%% @spec (From::key(), To::pid() | key()) -> undefined | pid()
+%%
+%% @doc Atomically transfers the key `From' to the process identified by `To'.
+%%
+%% This function transfers any gproc key (name, property, counter, aggr. counter)
+%% from one process to another, and returns the pid of the new owner.
+%%
+%% `To' must be either a pid or a unique name (name or aggregated counter), but
+%% does not necessarily have to resolve to an existing process. If there is 
+%% no process registered with the `To' key, `surrender/2' returns `undefined',
+%% and the `From' key is effectively unregistered.
+%%
+%% It is allowed to surrender a key to oneself, but of course, this operation
+%% will have no effect.
+%%
+%% Fails with `badarg' if the calling process does not have a `From' key 
+%% registered.
+%% @end
+surrender({_,l,_} = Key, ToPid) when is_pid(ToPid), node(ToPid) == node() ->
+    call({surrender, Key, ToPid});
+surrender({_,l,_} = Key, {n,l,_} = ToKey) ->
+    call({surrender, Key, ToKey});
+surrender({_,g,_} = Key, To) ->
+    ?CHK_DIST,
+    gproc_dist:surrender(Key, To).
 
 %% @spec (Key::key(), Msg::any()) -> Msg
 %%
@@ -840,23 +865,6 @@ handle_call({await, {_,l,_} = Key, Pid}, {_, Ref}, S) ->
         {reply, Reply, _} ->
             {reply, Reply, S}
     end;
-%%     Rev = {{Pid,Key}, r},
-%%     case ets:lookup(?TAB, {Key,T}) of
-%%         [{_, P, Value}] ->
-%%             %% for symmetry, we always reply with Ref and then send a message
-%%             gen_server:reply(From, Ref),
-%%             Pid ! {gproc, Ref, registered, {Key, P, Value}},
-%%             {noreply, S};
-%%         [{K, Waiters}] ->
-%%             NewWaiters = [{Pid,Ref} | Waiters],
-%%             ets:insert(?TAB, [{K, NewWaiters}, Rev]),
-%%             gproc_lib:ensure_monitor(Pid,l),
-%%             {reply, Ref, S};
-%%         [] ->
-%%             ets:insert(?TAB, [{{Key,T}, [{Pid,Ref}]}, Rev]),
-%%             gproc_lib:ensure_monitor(Pid,l),
-%%             {reply, Ref, S}
-%%     end;
 handle_call({mreg, T, l, L}, {Pid,_}, S) ->
     try gproc_lib:insert_many(T, l, L, Pid) of
         {true,_} -> {reply, true, S};
@@ -879,6 +887,9 @@ handle_call({audit_process, Pid}, _, S) ->
 	    ignore
     end,
     {reply, ok, S};
+handle_call({surrender, Key, To}, {Pid,_}, S) ->
+    Reply = do_surrender(Key, To, Pid),
+    {reply, Reply, S};
 handle_call(_, _, S) ->
     {reply, badarg, S}.
 
@@ -999,6 +1010,61 @@ process_is_down(Pid) ->
       end, Revs),
     ets:select_delete(?TAB, [{{{Pid,{'_',l,'_'}},'_'}, [], [true]}]),
     ok.
+
+do_surrender({T,l,_} = K, To, Pid) when T==n; T==a ->
+    Key = {K, T},
+    case ets:lookup(?TAB, Key) of
+	[{_, Pid, Value}] ->
+	    %% Pid owns the reg; allowed to surrender
+	    case pid_to_surrender_to(To) of
+		Pid ->
+		    %% Surrender to ourselves? Why not? We'll allow it,
+		    %% but nothing needs to be done.
+		    Pid;
+		ToPid when is_pid(ToPid) ->
+		    ets:insert(?TAB, [{Key, ToPid, Value},
+				      {{ToPid, K}, r}]),
+		    ets:delete(?TAB, {Pid, K}),
+		    gproc_lib:ensure_monitor(ToPid, l),
+		    ToPid;
+		undefined ->
+		    gproc_lib:remove_reg(K, Pid),
+		    undefined
+	    end;
+	_ ->
+	    badarg
+    end;
+do_surrender({T,l,_} = K, To, Pid) when T==c; T==p ->
+    Key = {K, Pid},
+    case ets:lookup(?TAB, Key) of
+	[{_, Pid, Value}] ->
+	    case pid_to_surrender_to(To) of
+		ToPid when is_pid(ToPid) ->
+		    ToKey = {K, ToPid},
+		    ets:insert(?TAB, [{ToKey, ToPid, Value},
+				      {{ToPid, K}, r}]),
+		    ets:delete(?TAB, {Pid, K}),
+		    ets:delete(?TAB, Key),
+		    gproc_lib:ensure_monitor(ToPid, l),
+		    ToPid;
+		undefined ->
+		    gproc_lib:remove_reg(K, Pid),
+		    undefined
+	    end;
+	_ ->
+	    badarg
+    end.
+			
+
+pid_to_surrender_to(P) when is_pid(P), node(P) == node() ->		    
+    P;
+pid_to_surrender_to({T,l,_} = Key) when T==n; T==a ->
+    case ets:lookup(?TAB, {Key, T}) of
+	[{_, Pid, _}] ->
+	    Pid;
+	_ ->
+	    undefined
+    end.
 
 create_tabs() ->
     case ets:info(?TAB, name) of

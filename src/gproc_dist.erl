@@ -26,6 +26,7 @@
 	 reg/1, reg/2, unreg/1,
 	 mreg/2,
 	 set_value/2,
+	 surrender/2,
 	 update_counter/2]).
 
 -export([leader_call/1, leader_cast/1]).
@@ -57,6 +58,8 @@
 start_link() ->
     start_link({[node()|nodes()], []}).
 
+start_link(all) ->
+    start_link({[node()|nodes()], []});
 start_link(Nodes) when is_list(Nodes) ->
     start_link({Nodes, []});
 start_link({Nodes, Opts}) ->
@@ -107,7 +110,8 @@ set_value({_,g,_} = Key, Value) ->
 set_value(_, _) ->
     erlang:error(badarg).
 
-
+surrender({_,g,_} = Key, To) ->
+    leader_call({surrender, Key, To, self()}).
 
 
 update_counter({c,g,_} = Key, Incr) when is_integer(Incr) ->
@@ -216,15 +220,37 @@ handle_leader_call({unreg, {T,g,Name} = K, Pid}, _From, S, _E) ->
 		    case ets:lookup(?TAB, {{a,g,Name},a}) of
 			[Aggr] ->
 			    %% updated by remove_reg/2
-			    {reply, true, [{delete,[{K,Pid}]},
+			    {reply, true, [{delete,[Key, {Pid,K}]},
 					   {insert, [Aggr]}], S};
 			[] ->
-			    {reply, true, [{delete, [{K, Pid}]}], S}
+			    {reply, true, [{delete, [Key, {Pid,K}]}], S}
 		    end;
 	       true ->
-		    {reply, true, [{delete, [{K,Pid}]}], S}
+		    {reply, true, [{delete, [Key]}], S}
 	    end;
 	false ->
+	    {reply, badarg, S}
+    end;
+handle_leader_call({surrender, {T,g,_} = K, To, Pid}, _From, S, _E)
+  when T == a; T == n ->
+    Key = {K, T},
+    case ets:lookup(?TAB, Key) of
+	[{_, Pid, Value}] ->
+	    case pid_to_surrender_to(To) of 
+		Pid ->
+		    {reply, Pid, S};
+		ToPid when is_pid(ToPid) ->
+		    ets:insert(?TAB, [{Key, ToPid, Value},
+				      {{ToPid,K}, r}]),
+		    gproc_lib:ensure_monitor(ToPid, g),
+		    {reply, ToPid, [{delete, [Key, {Pid,K}]},
+				   {insert, [{Key, ToPid, Value}]}], S};
+		undefined ->
+		    ets:delete(?TAB, Key),
+		    ets:delete(?TAB, {Pid, K}),
+		    {reply, undefined, [{delete, [Key, {Pid,K}]}], S}
+	    end;
+	_ ->
 	    {reply, badarg, S}
     end;
 handle_leader_call({mreg, T, g, L, Pid}, _From, S, _E) ->
@@ -346,15 +372,19 @@ from_leader(Ops, S, _E) ->
 
 delete_globals(Globals) ->
     lists:foreach(
-      fun({Key, Pid}) ->
+      fun({{_,g,_},T} = K) when is_atom(T) ->
+	      ets:delete(?TAB, K);
+	 ({Key, Pid}) when is_pid(Pid) ->
               K = ets_key(Key,Pid),
 	      ets:delete(?TAB, K),
-	      ets:delete(?TAB, {Pid, Key}),
-		  case node(Pid) =:= node() of
-			  true ->
-				  ets:delete(?TAB, {Pid,g});
-			  _ -> ok
-		  end
+	      ets:delete(?TAB, {Pid, Key});
+	 ({Pid, K}) when is_pid(Pid) ->
+	      ets:delete(?TAB, {Pid, K})
+	      %% case node(Pid) =:= node() of
+	      %% 	  true ->
+	      %% 	      ets:delete(?TAB, {Pid,g});
+	      %% 	  _ -> ok
+	      %% end
       end, Globals).
 
 ets_key({T,_,_} = K, _) when T==n; T==a ->
@@ -427,4 +457,14 @@ update_aggr_counter({c,g,Ctr}, Incr) ->
             New = {K, Pid, Prev+Incr},
             ets:insert(?TAB, New),
             [New]
+    end.
+
+pid_to_surrender_to(P) when is_pid(P) ->                 
+    P;
+pid_to_surrender_to({T,g,_} = Key) when T==n; T==a ->
+    case ets:lookup(?TAB, {Key, T}) of
+        [{_, Pid, _}] ->
+            Pid;
+        _ ->
+            undefined
     end.
