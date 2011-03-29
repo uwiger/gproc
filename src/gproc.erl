@@ -1391,6 +1391,16 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(t_cancel_wait_and_register())}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(t_surrender_to_pid())}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(t_surrender_to_self())}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(t_surrender_badarg())}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(t_surrender_to_unknown())}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(t_surrender_and_back())}
+      , ?_test(t_is_clean())
      ]}.
 
 t_simple_reg() ->
@@ -1474,6 +1484,72 @@ t_cancel_wait_and_register() ->
 	    exit(P, kill),
 	    timer:sleep(500),
 	    ?assert(element(1,sys:get_status(gproc)) == status)
+    end.
+
+
+t_surrender_to_pid() ->
+    From = {n, l, foo},
+    Me = self(),
+    P = spawn_link(fun t_loop/0),
+    ?assertEqual(true, gproc:reg(From, undefined)),
+    ?assertEqual(Me, gproc:where(From)),
+    ?assertEqual(P, gproc:surrender(From, P)),
+    ?assertEqual(P, gproc:where(From)),
+    ?assertEqual(ok, t_call(P, die)).
+
+t_surrender_to_self() ->
+    From = {n, l, foo},
+    Me = self(),
+    ?assertEqual(true, gproc:reg(From, undefined)),
+    ?assertEqual(Me, gproc:where(From)),
+    ?assertEqual(Me, gproc:surrender(From, Me)),
+    ?assertEqual(Me, gproc:where(From)),
+    ?assertEqual(true, gproc:unreg(From)).
+
+t_surrender_badarg() ->
+    From = {n, l, foo},
+    Me = self(),
+    ?assertEqual(undefined, gproc:where(From)),
+    ?assertError(badarg, gproc:surrender(From, Me)).
+
+t_surrender_to_unknown() ->
+    From = {n, l, foo},
+    Unknown = {n, l, unknown},
+    Me = self(),
+    ?assertEqual(true, gproc:reg(From, undefined)),
+    ?assertEqual(Me, gproc:where(From)),
+    ?assertEqual(undefined, gproc:where(Unknown)),
+    ?assertEqual(undefined, gproc:surrender(From, Unknown)),
+    ?assertEqual(undefined, gproc:where(From)).
+
+t_surrender_and_back() ->
+    From = {n, l, foo},
+    Me = self(),
+    P = spawn_link(fun t_loop/0),
+    ?assertEqual(true, gproc:reg(From, undefined)),
+    ?assertEqual(Me, gproc:where(From)),
+    ?assertEqual(P, gproc:surrender(From, P)),
+    ?assertEqual(P, gproc:where(From)),
+    ?assertEqual(ok, t_call(P, {surrender, From})),
+    ?assertEqual(Me, gproc:where(From)),
+    ?assertEqual(ok, t_call(P, die)).
+
+t_loop() ->
+    receive
+	{From, {surrender, Key}} ->
+	    ?assertEqual(From, gproc:surrender(Key, From)),
+	    From ! {self(), ok},
+	    t_loop();
+	{From, die} ->
+	    From ! {self(), ok}
+    end.
+    
+
+t_call(P, Msg) ->
+    P ! {self(), Msg},
+    receive
+	{P, Reply} ->
+	    Reply
     end.
 
 spawn_helper() ->
