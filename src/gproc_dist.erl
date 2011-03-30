@@ -26,7 +26,7 @@
 	 reg/1, reg/2, unreg/1,
 	 mreg/2,
 	 set_value/2,
-	 surrender/2,
+	 give_away/2,
 	 update_counter/2]).
 
 -export([leader_call/1, leader_cast/1]).
@@ -47,6 +47,11 @@
 	 terminate/2]).
 
 -include("gproc.hrl").
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-export([t_spawn/1, t_spawn_reg/2]).
+-endif.
 
 -define(SERVER, ?MODULE).
 
@@ -110,8 +115,8 @@ set_value({_,g,_} = Key, Value) ->
 set_value(_, _) ->
     erlang:error(badarg).
 
-surrender({_,g,_} = Key, To) ->
-    leader_call({surrender, Key, To, self()}).
+give_away({_,g,_} = Key, To) ->
+    leader_call({give_away, Key, To, self()}).
 
 
 update_counter({c,g,_} = Key, Incr) when is_integer(Incr) ->
@@ -231,12 +236,12 @@ handle_leader_call({unreg, {T,g,Name} = K, Pid}, _From, S, _E) ->
 	false ->
 	    {reply, badarg, S}
     end;
-handle_leader_call({surrender, {T,g,_} = K, To, Pid}, _From, S, _E)
+handle_leader_call({give_away, {T,g,_} = K, To, Pid}, _From, S, _E)
   when T == a; T == n ->
     Key = {K, T},
     case ets:lookup(?TAB, Key) of
 	[{_, Pid, Value}] ->
-	    case pid_to_surrender_to(To) of 
+	    case pid_to_give_away_to(To) of 
 		Pid ->
 		    {reply, Pid, S};
 		ToPid when is_pid(ToPid) ->
@@ -459,12 +464,158 @@ update_aggr_counter({c,g,Ctr}, Incr) ->
             [New]
     end.
 
-pid_to_surrender_to(P) when is_pid(P) ->                 
+pid_to_give_away_to(P) when is_pid(P) ->                 
     P;
-pid_to_surrender_to({T,g,_} = Key) when T==n; T==a ->
+pid_to_give_away_to({T,g,_} = Key) when T==n; T==a ->
     case ets:lookup(?TAB, {Key, T}) of
         [{_, Pid, _}] ->
             Pid;
         _ ->
             undefined
     end.
+
+-ifdef(TEST).
+
+dist_test_() ->
+    {foreach,
+     fun() ->
+	     Ns = start_slaves([n1, n2, n3]),
+	     %% dbg:tracer(),
+	     %% [dbg:n(N) || N <- Ns],
+	     %% dbg:tpl(gproc_dist, x),
+	     %% dbg:p(all,[c]),
+	     Ns
+     end,
+     fun(Ns) ->
+	     ?debugVal([rpc:call(N, init, stop, []) || N <- Ns])
+     end,
+     [
+      {with, [fun t_simple_reg/1,
+	      fun t_await_reg/1,
+	      fun t_give_away/1]}
+     ]}.
+
+t_simple_reg([H|_] = Ns) ->
+    ?debugMsg(t_simple_reg),
+    Name = {n, g, foo},
+    P = t_spawn_reg(H, Name),
+    ?assertMatch(ok, t_lookup_everywhere(Name, Ns, P)),
+    ?assertMatch(true, t_call(P, {apply, gproc, unreg, [Name]})),
+    ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
+    ?assertMatch(ok, t_call(P, die)).
+
+t_await_reg([A,B|_]) ->
+    ?debugMsg(t_await_reg),
+    Name = {n, g, foo},
+    P = t_spawn(A),
+    P ! {self(), {apply, gproc, await, [Name]}},
+    P1 = t_spawn_reg(B, Name),
+    ?assert(P1 == receive
+		      {P, Res} ->
+			  element(1, Res)
+		  end),
+    ?assertMatch(ok, t_call(P, die)),
+    ?assertMatch(ok, t_call(P1, die)).
+
+t_give_away([A,B|_] = Ns) ->
+    ?debugMsg(t_give_away),
+    Na = {n, g, a},
+    Nb = {n, g, b},
+    Pa = t_spawn_reg(A, Na),
+    Pb = t_spawn_reg(B, Nb),
+    ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pa)),
+    ?assertMatch(ok, t_lookup_everywhere(Nb, Ns, Pb)),
+    ?debugHere,
+    ?assertMatch(Pb, ?debugVal(
+			t_call(Pa, {apply, {gproc, give_away, [Na, Nb]}}))),
+    ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pb)),
+    ?debugHere,
+    ?assertMatch(Pa, t_call(Pa, {apply, {gproc, give_away, [Na, Pa]}})),
+    ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pa)),
+    ?debugHere,
+    ?assertMatch(ok, t_call(Pa, die)),
+    ?assertMatch(ok, t_call(Pb, die)).
+    
+t_sleep() ->
+    timer:sleep(1000).
+
+t_lookup_everywhere(Key, Nodes, Exp) ->
+    t_lookup_everywhere(Key, Nodes, Exp, 3).
+
+t_lookup_everywhere(Key, _, Exp, 0) ->
+    {lookup_failed, Key, Exp};
+t_lookup_everywhere(Key, Nodes, Exp, I) ->
+    Expected = [{N, Exp} || N <- Nodes],
+    Found = [{N,rpc:call(N, gproc, where, [Key])} || N <- Nodes],
+    if Expected =/= Found ->
+	    ?debugFmt("lookup ~p failed (~p), retrying...~n", [Key, Found]),
+	    t_sleep(),
+	    t_lookup_everywhere(Key, Nodes, Exp, I-1);
+       true ->
+	    ok
+    end.
+				  
+
+t_spawn(Node) ->
+    Me = self(),
+    P = spawn(Node, fun() ->
+			    Me ! {self(), ok},
+			    t_loop()
+		    end),
+    receive
+	{P, ok} -> P
+    end.
+
+t_spawn_reg(Node, Name) ->
+    Me = self(),
+    spawn(Node, fun() ->
+			?assertMatch(true, gproc:reg(Name)),
+			Me ! {self(), ok},
+			t_loop()
+		end),
+    receive
+	{P, ok} -> P
+    end.
+
+t_call(P, Req) ->
+    P ! {self(), Req},
+    receive
+	{P, Res} ->
+	    Res
+    end.
+
+t_loop() ->
+    receive
+	{From, die} ->
+	    From ! {self(), ok};
+	{From, {apply, M, F, A}} ->
+	    From ! {self(), apply(M, F, A)},
+	    t_loop()
+    end.
+
+start_slaves(Ns) ->
+    [H|T] = Nodes = [start_slave(N) || N <- Ns],
+    ?debugVal([pong = rpc:call(H, net, ping, [N]) || N <- T]),
+    ?debugVal(rpc:multicall(Nodes, application, start, [gproc])),
+    Nodes.
+	       
+start_slave(Name) ->
+    case node() of
+        nonode@nohost ->
+            os:cmd("epmd -daemon"),
+            {ok, _} = net_kernel:start([gproc_master, shortnames]);
+        _ ->
+            ok
+    end,
+    {ok, Node} = slave:start(
+		   host(), Name,
+		   "-pa . -pz ../ebin -pa ../deps/gen_leader/ebin "
+		   "-gproc gproc_dist all"),
+    io:fwrite(user, "Slave node: ~p~n", [Node]),
+    Node.
+
+host() ->
+    [Name, Host] = re:split(atom_to_list(node()), "@", [{return, list}]),
+    list_to_atom(Host).
+
+-endif.

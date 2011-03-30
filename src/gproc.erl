@@ -52,7 +52,7 @@
 	 lookup_value/1,
          lookup_values/1,
          update_counter/2,
-	 surrender/2,
+	 give_away/2,
          send/2,
          info/1, info/2,
          select/1, select/2, select/3,
@@ -641,22 +641,22 @@ update_counter(_, _) ->
 %%
 %% `To' must be either a pid or a unique name (name or aggregated counter), but
 %% does not necessarily have to resolve to an existing process. If there is 
-%% no process registered with the `To' key, `surrender/2' returns `undefined',
+%% no process registered with the `To' key, `give_away/2' returns `undefined',
 %% and the `From' key is effectively unregistered.
 %%
-%% It is allowed to surrender a key to oneself, but of course, this operation
+%% It is allowed to give away a key to oneself, but of course, this operation
 %% will have no effect.
 %%
 %% Fails with `badarg' if the calling process does not have a `From' key 
 %% registered.
 %% @end
-surrender({_,l,_} = Key, ToPid) when is_pid(ToPid), node(ToPid) == node() ->
-    call({surrender, Key, ToPid});
-surrender({_,l,_} = Key, {n,l,_} = ToKey) ->
-    call({surrender, Key, ToKey});
-surrender({_,g,_} = Key, To) ->
+give_away({_,l,_} = Key, ToPid) when is_pid(ToPid), node(ToPid) == node() ->
+    call({give_away, Key, ToPid});
+give_away({_,l,_} = Key, {n,l,_} = ToKey) ->
+    call({give_away, Key, ToKey});
+give_away({_,g,_} = Key, To) ->
     ?CHK_DIST,
-    gproc_dist:surrender(Key, To).
+    gproc_dist:give_away(Key, To).
 
 %% @spec (Key::key(), Msg::any()) -> Msg
 %%
@@ -887,8 +887,8 @@ handle_call({audit_process, Pid}, _, S) ->
 	    ignore
     end,
     {reply, ok, S};
-handle_call({surrender, Key, To}, {Pid,_}, S) ->
-    Reply = do_surrender(Key, To, Pid),
+handle_call({give_away, Key, To}, {Pid,_}, S) ->
+    Reply = do_give_away(Key, To, Pid),
     {reply, Reply, S};
 handle_call(_, _, S) ->
     {reply, badarg, S}.
@@ -1011,14 +1011,14 @@ process_is_down(Pid) ->
     ets:select_delete(?TAB, [{{{Pid,{'_',l,'_'}},'_'}, [], [true]}]),
     ok.
 
-do_surrender({T,l,_} = K, To, Pid) when T==n; T==a ->
+do_give_away({T,l,_} = K, To, Pid) when T==n; T==a ->
     Key = {K, T},
     case ets:lookup(?TAB, Key) of
 	[{_, Pid, Value}] ->
-	    %% Pid owns the reg; allowed to surrender
-	    case pid_to_surrender_to(To) of
+	    %% Pid owns the reg; allowed to give_away
+	    case pid_to_give_away_to(To) of
 		Pid ->
-		    %% Surrender to ourselves? Why not? We'll allow it,
+		    %% Give away to ourselves? Why not? We'll allow it,
 		    %% but nothing needs to be done.
 		    Pid;
 		ToPid when is_pid(ToPid) ->
@@ -1034,19 +1034,24 @@ do_surrender({T,l,_} = K, To, Pid) when T==n; T==a ->
 	_ ->
 	    badarg
     end;
-do_surrender({T,l,_} = K, To, Pid) when T==c; T==p ->
+do_give_away({T,l,_} = K, To, Pid) when T==c; T==p ->
     Key = {K, Pid},
     case ets:lookup(?TAB, Key) of
 	[{_, Pid, Value}] ->
-	    case pid_to_surrender_to(To) of
+	    case pid_to_give_away_to(To) of
 		ToPid when is_pid(ToPid) ->
 		    ToKey = {K, ToPid},
-		    ets:insert(?TAB, [{ToKey, ToPid, Value},
-				      {{ToPid, K}, r}]),
-		    ets:delete(?TAB, {Pid, K}),
-		    ets:delete(?TAB, Key),
-		    gproc_lib:ensure_monitor(ToPid, l),
-		    ToPid;
+		    case ets:member(?TAB, ToKey) of
+			true ->
+			    badarg;
+			false ->
+			    ets:insert(?TAB, [{ToKey, ToPid, Value},
+					      {{ToPid, K}, r}]),
+			    ets:delete(?TAB, {Pid, K}),
+			    ets:delete(?TAB, Key),
+			    gproc_lib:ensure_monitor(ToPid, l),
+			    ToPid
+		    end;
 		undefined ->
 		    gproc_lib:remove_reg(K, Pid),
 		    undefined
@@ -1056,9 +1061,9 @@ do_surrender({T,l,_} = K, To, Pid) when T==c; T==p ->
     end.
 			
 
-pid_to_surrender_to(P) when is_pid(P), node(P) == node() ->		    
+pid_to_give_away_to(P) when is_pid(P), node(P) == node() ->		    
     P;
-pid_to_surrender_to({T,l,_} = Key) when T==n; T==a ->
+pid_to_give_away_to({T,l,_} = Key) when T==n; T==a ->
     case ets:lookup(?TAB, {Key, T}) of
 	[{_, Pid, _}] ->
 	    Pid;
@@ -1391,15 +1396,15 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(t_cancel_wait_and_register())}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_surrender_to_pid())}
+      , {spawn, ?_test(t_give_away_to_pid())}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_surrender_to_self())}
+      , {spawn, ?_test(t_give_away_to_self())}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_surrender_badarg())}
+      , {spawn, ?_test(t_give_away_badarg())}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_surrender_to_unknown())}
+      , {spawn, ?_test(t_give_away_to_unknown())}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_surrender_and_back())}
+      , {spawn, ?_test(t_give_away_and_back())}
       , ?_test(t_is_clean())
      ]}.
 
@@ -1487,57 +1492,57 @@ t_cancel_wait_and_register() ->
     end.
 
 
-t_surrender_to_pid() ->
+t_give_away_to_pid() ->
     From = {n, l, foo},
     Me = self(),
     P = spawn_link(fun t_loop/0),
     ?assertEqual(true, gproc:reg(From, undefined)),
     ?assertEqual(Me, gproc:where(From)),
-    ?assertEqual(P, gproc:surrender(From, P)),
+    ?assertEqual(P, gproc:give_away(From, P)),
     ?assertEqual(P, gproc:where(From)),
     ?assertEqual(ok, t_call(P, die)).
 
-t_surrender_to_self() ->
+t_give_away_to_self() ->
     From = {n, l, foo},
     Me = self(),
     ?assertEqual(true, gproc:reg(From, undefined)),
     ?assertEqual(Me, gproc:where(From)),
-    ?assertEqual(Me, gproc:surrender(From, Me)),
+    ?assertEqual(Me, gproc:give_away(From, Me)),
     ?assertEqual(Me, gproc:where(From)),
     ?assertEqual(true, gproc:unreg(From)).
 
-t_surrender_badarg() ->
+t_give_away_badarg() ->
     From = {n, l, foo},
     Me = self(),
     ?assertEqual(undefined, gproc:where(From)),
-    ?assertError(badarg, gproc:surrender(From, Me)).
+    ?assertError(badarg, gproc:give_away(From, Me)).
 
-t_surrender_to_unknown() ->
+t_give_away_to_unknown() ->
     From = {n, l, foo},
     Unknown = {n, l, unknown},
     Me = self(),
     ?assertEqual(true, gproc:reg(From, undefined)),
     ?assertEqual(Me, gproc:where(From)),
     ?assertEqual(undefined, gproc:where(Unknown)),
-    ?assertEqual(undefined, gproc:surrender(From, Unknown)),
+    ?assertEqual(undefined, gproc:give_away(From, Unknown)),
     ?assertEqual(undefined, gproc:where(From)).
 
-t_surrender_and_back() ->
+t_give_away_and_back() ->
     From = {n, l, foo},
     Me = self(),
     P = spawn_link(fun t_loop/0),
     ?assertEqual(true, gproc:reg(From, undefined)),
     ?assertEqual(Me, gproc:where(From)),
-    ?assertEqual(P, gproc:surrender(From, P)),
+    ?assertEqual(P, gproc:give_away(From, P)),
     ?assertEqual(P, gproc:where(From)),
-    ?assertEqual(ok, t_call(P, {surrender, From})),
+    ?assertEqual(ok, t_call(P, {give_away, From})),
     ?assertEqual(Me, gproc:where(From)),
     ?assertEqual(ok, t_call(P, die)).
 
 t_loop() ->
     receive
-	{From, {surrender, Key}} ->
-	    ?assertEqual(From, gproc:surrender(Key, From)),
+	{From, {give_away, Key}} ->
+	    ?assertEqual(From, gproc:give_away(Key, From)),
 	    From ! {self(), ok},
 	    t_loop();
 	{From, die} ->
