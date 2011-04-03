@@ -129,7 +129,7 @@ a = aggregate_counter
 
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_global_aggr_counter-1">add_global_aggr_counter/1</a></td><td>Registers a global (unique) aggregated counter.</td></tr><tr><td valign="top"><a href="#add_global_counter-2">add_global_counter/2</a></td><td>Registers a global (non-unique) counter.</td></tr><tr><td valign="top"><a href="#add_global_name-1">add_global_name/1</a></td><td>Registers a global (unique) name.</td></tr><tr><td valign="top"><a href="#add_global_property-2">add_global_property/2</a></td><td>Registers a global (non-unique) property.</td></tr><tr><td valign="top"><a href="#add_local_aggr_counter-1">add_local_aggr_counter/1</a></td><td>Registers a local (unique) aggregated counter.</td></tr><tr><td valign="top"><a href="#add_local_counter-2">add_local_counter/2</a></td><td>Registers a local (non-unique) counter.</td></tr><tr><td valign="top"><a href="#add_local_name-1">add_local_name/1</a></td><td>Registers a local (unique) name.</td></tr><tr><td valign="top"><a href="#add_local_property-2">add_local_property/2</a></td><td>Registers a local (non-unique) property.</td></tr><tr><td valign="top"><a href="#audit_process-1">audit_process/1</a></td><td></td></tr><tr><td valign="top"><a href="#await-1">await/1</a></td><td>Equivalent to <a href="#await-2"><tt>await(Key, infinity)</tt></a>.</td></tr><tr><td valign="top"><a href="#await-2">await/2</a></td><td>Wait for a local name to be registered.</td></tr><tr><td valign="top"><a href="#cancel_wait-2">cancel_wait/2</a></td><td></td></tr><tr><td valign="top"><a href="#default-1">default/1</a></td><td></td></tr><tr><td valign="top"><a href="#first-1">first/1</a></td><td>Behaves as ets:first(Tab) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#get_value-1">get_value/1</a></td><td>Read the value stored with a key registered to the current process.</td></tr><tr><td valign="top"><a href="#info-1">info/1</a></td><td>Similar to <code>process_info(Pid)</code> but with additional gproc info.</td></tr><tr><td valign="top"><a href="#info-2">info/2</a></td><td>Similar to process_info(Pid, Item), but with additional gproc info.</td></tr><tr><td valign="top"><a href="#last-1">last/1</a></td><td>Behaves as ets:last(Tab) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#lookup_global_aggr_counter-1">lookup_global_aggr_counter/1</a></td><td>Lookup a global (unique) aggregated counter and returns its value.</td></tr><tr><td valign="top"><a href="#lookup_global_counters-1">lookup_global_counters/1</a></td><td>Look up all global (non-unique) instances of a given Counter.</td></tr><tr><td valign="top"><a href="#lookup_global_name-1">lookup_global_name/1</a></td><td>Lookup a global unique name.</td></tr><tr><td valign="top"><a href="#lookup_global_properties-1">lookup_global_properties/1</a></td><td>Look up all global (non-unique) instances of a given Property.</td></tr><tr><td valign="top"><a href="#lookup_local_aggr_counter-1">lookup_local_aggr_counter/1</a></td><td>Lookup a local (unique) aggregated counter and returns its value.</td></tr><tr><td valign="top"><a href="#lookup_local_counters-1">lookup_local_counters/1</a></td><td>Look up all local (non-unique) instances of a given Counter.</td></tr><tr><td valign="top"><a href="#lookup_local_name-1">lookup_local_name/1</a></td><td>Lookup a local unique name.</td></tr><tr><td valign="top"><a href="#lookup_local_properties-1">lookup_local_properties/1</a></td><td>Look up all local (non-unique) instances of a given Property.</td></tr><tr><td valign="top"><a href="#lookup_pid-1">lookup_pid/1</a></td><td>Lookup the Pid stored with a key.</td></tr><tr><td valign="top"><a href="#lookup_pids-1">lookup_pids/1</a></td><td>Returns a list of pids with the published key Key.</td></tr><tr><td valign="top"><a href="#lookup_value-1">lookup_value/1</a></td><td>Lookup the value stored with a key.</td></tr><tr><td valign="top"><a href="#lookup_values-1">lookup_values/1</a></td><td>Retrieve the <code>{Pid,Value}</code> pairs corresponding to Key.</td></tr><tr><td valign="top"><a href="#mreg-3">mreg/3</a></td><td>Register multiple {Key,Value} pairs of a given type and scope.</td></tr><tr><td valign="top"><a href="#nb_wait-1">nb_wait/1</a></td><td>Wait for a local name to be registered.</td></tr><tr><td valign="top"><a href="#next-2">next/2</a></td><td>Behaves as ets:next(Tab,Key) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#prev-2">prev/2</a></td><td>Behaves as ets:prev(Tab,Key) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#reg-1">reg/1</a></td><td>Equivalent to <a href="#reg-2"><tt>reg(Key, default(Key))</tt></a>.</td></tr><tr><td valign="top"><a href="#reg-2">reg/2</a></td><td>Register a name or property for the current process.</td></tr><tr><td valign="top"><a href="#select-1">select/1</a></td><td>Equivalent to <a href="#select-2"><tt>select(all, Pat)</tt></a>.</td></tr><tr><td valign="top"><a href="#select-2">select/2</a></td><td>Perform a select operation on the process registry.</td></tr><tr><td valign="top"><a href="#select-3">select/3</a></td><td>Like <a href="#select-2"><code>select/2</code></a> but returns Limit objects at a time.</td></tr><tr><td valign="top"><a href="#send-2">send/2</a></td><td>Sends a message to the process, or processes, corresponding to Key.</td></tr><tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td>Sets the value of the registeration entry given by Key.</td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the gproc server.</td></tr><tr><td valign="top"><a href="#surrender-2">surrender/2</a></td><td>Atomically transfers the key <code>From</code> to the process identified by <code>To</code>.</td></tr><tr><td valign="top"><a href="#table-1">table/1</a></td><td>Equivalent to <a href="#table-2"><tt>table(Context, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#table-2">table/2</a></td><td>QLC table generator for the gproc registry.</td></tr><tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td>Unregister a name or property.</td></tr><tr><td valign="top"><a href="#unregister_name-1">unregister_name/1</a></td><td>Equivalent to <tt>unreg / 1</tt>.</td></tr><tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td>Updates the counter registered as Key for the current process.</td></tr><tr><td valign="top"><a href="#where-1">where/1</a></td><td>Returns the pid registered as Key.</td></tr><tr><td valign="top"><a href="#whereis_name-1">whereis_name/1</a></td><td>Equivalent to <tt>where / 1</tt>.</td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_global_aggr_counter-1">add_global_aggr_counter/1</a></td><td>Registers a global (unique) aggregated counter.</td></tr><tr><td valign="top"><a href="#add_global_counter-2">add_global_counter/2</a></td><td>Registers a global (non-unique) counter.</td></tr><tr><td valign="top"><a href="#add_global_name-1">add_global_name/1</a></td><td>Registers a global (unique) name.</td></tr><tr><td valign="top"><a href="#add_global_property-2">add_global_property/2</a></td><td>Registers a global (non-unique) property.</td></tr><tr><td valign="top"><a href="#add_local_aggr_counter-1">add_local_aggr_counter/1</a></td><td>Registers a local (unique) aggregated counter.</td></tr><tr><td valign="top"><a href="#add_local_counter-2">add_local_counter/2</a></td><td>Registers a local (non-unique) counter.</td></tr><tr><td valign="top"><a href="#add_local_name-1">add_local_name/1</a></td><td>Registers a local (unique) name.</td></tr><tr><td valign="top"><a href="#add_local_property-2">add_local_property/2</a></td><td>Registers a local (non-unique) property.</td></tr><tr><td valign="top"><a href="#audit_process-1">audit_process/1</a></td><td></td></tr><tr><td valign="top"><a href="#await-1">await/1</a></td><td>Equivalent to <a href="#await-2"><tt>await(Key, infinity)</tt></a>.</td></tr><tr><td valign="top"><a href="#await-2">await/2</a></td><td>Wait for a local name to be registered.</td></tr><tr><td valign="top"><a href="#cancel_wait-2">cancel_wait/2</a></td><td></td></tr><tr><td valign="top"><a href="#default-1">default/1</a></td><td></td></tr><tr><td valign="top"><a href="#first-1">first/1</a></td><td>Behaves as ets:first(Tab) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#get_value-1">get_value/1</a></td><td>Read the value stored with a key registered to the current process.</td></tr><tr><td valign="top"><a href="#give_away-2">give_away/2</a></td><td>Atomically transfers the key <code>From</code> to the process identified by <code>To</code>.</td></tr><tr><td valign="top"><a href="#info-1">info/1</a></td><td>Similar to <code>process_info(Pid)</code> but with additional gproc info.</td></tr><tr><td valign="top"><a href="#info-2">info/2</a></td><td>Similar to process_info(Pid, Item), but with additional gproc info.</td></tr><tr><td valign="top"><a href="#last-1">last/1</a></td><td>Behaves as ets:last(Tab) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#lookup_global_aggr_counter-1">lookup_global_aggr_counter/1</a></td><td>Lookup a global (unique) aggregated counter and returns its value.</td></tr><tr><td valign="top"><a href="#lookup_global_counters-1">lookup_global_counters/1</a></td><td>Look up all global (non-unique) instances of a given Counter.</td></tr><tr><td valign="top"><a href="#lookup_global_name-1">lookup_global_name/1</a></td><td>Lookup a global unique name.</td></tr><tr><td valign="top"><a href="#lookup_global_properties-1">lookup_global_properties/1</a></td><td>Look up all global (non-unique) instances of a given Property.</td></tr><tr><td valign="top"><a href="#lookup_local_aggr_counter-1">lookup_local_aggr_counter/1</a></td><td>Lookup a local (unique) aggregated counter and returns its value.</td></tr><tr><td valign="top"><a href="#lookup_local_counters-1">lookup_local_counters/1</a></td><td>Look up all local (non-unique) instances of a given Counter.</td></tr><tr><td valign="top"><a href="#lookup_local_name-1">lookup_local_name/1</a></td><td>Lookup a local unique name.</td></tr><tr><td valign="top"><a href="#lookup_local_properties-1">lookup_local_properties/1</a></td><td>Look up all local (non-unique) instances of a given Property.</td></tr><tr><td valign="top"><a href="#lookup_pid-1">lookup_pid/1</a></td><td>Lookup the Pid stored with a key.</td></tr><tr><td valign="top"><a href="#lookup_pids-1">lookup_pids/1</a></td><td>Returns a list of pids with the published key Key.</td></tr><tr><td valign="top"><a href="#lookup_value-1">lookup_value/1</a></td><td>Lookup the value stored with a key.</td></tr><tr><td valign="top"><a href="#lookup_values-1">lookup_values/1</a></td><td>Retrieve the <code>{Pid,Value}</code> pairs corresponding to Key.</td></tr><tr><td valign="top"><a href="#mreg-3">mreg/3</a></td><td>Register multiple {Key,Value} pairs of a given type and scope.</td></tr><tr><td valign="top"><a href="#nb_wait-1">nb_wait/1</a></td><td>Wait for a local name to be registered.</td></tr><tr><td valign="top"><a href="#next-2">next/2</a></td><td>Behaves as ets:next(Tab,Key) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#prev-2">prev/2</a></td><td>Behaves as ets:prev(Tab,Key) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#reg-1">reg/1</a></td><td>Equivalent to <a href="#reg-2"><tt>reg(Key, default(Key))</tt></a>.</td></tr><tr><td valign="top"><a href="#reg-2">reg/2</a></td><td>Register a name or property for the current process.</td></tr><tr><td valign="top"><a href="#select-1">select/1</a></td><td>Equivalent to <a href="#select-2"><tt>select(all, Pat)</tt></a>.</td></tr><tr><td valign="top"><a href="#select-2">select/2</a></td><td>Perform a select operation on the process registry.</td></tr><tr><td valign="top"><a href="#select-3">select/3</a></td><td>Like <a href="#select-2"><code>select/2</code></a> but returns Limit objects at a time.</td></tr><tr><td valign="top"><a href="#send-2">send/2</a></td><td>Sends a message to the process, or processes, corresponding to Key.</td></tr><tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td>Sets the value of the registeration entry given by Key.</td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the gproc server.</td></tr><tr><td valign="top"><a href="#table-1">table/1</a></td><td>Equivalent to <a href="#table-2"><tt>table(Context, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#table-2">table/2</a></td><td>QLC table generator for the gproc registry.</td></tr><tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td>Unregister a name or property.</td></tr><tr><td valign="top"><a href="#unregister_name-1">unregister_name/1</a></td><td>Equivalent to <tt>unreg / 1</tt>.</td></tr><tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td>Updates the counter registered as Key for the current process.</td></tr><tr><td valign="top"><a href="#where-1">where/1</a></td><td>Returns the pid registered as Key.</td></tr><tr><td valign="top"><a href="#whereis_name-1">whereis_name/1</a></td><td>Equivalent to <tt>where / 1</tt>.</td></tr></table>
 
 
 
@@ -145,7 +145,7 @@ a = aggregate_counter
 
 
 
-`add_global_aggr_counter(Name) -> any()`
+`add_global_aggr_counter(Name) -&gt; any()`
 
 
 
@@ -159,7 +159,7 @@ Registers a global (unique) aggregated counter.<a name="add_global_counter-2"></
 
 
 
-`add_global_counter(Name, Initial) -> any()`
+`add_global_counter(Name, Initial) -&gt; any()`
 
 
 
@@ -171,7 +171,7 @@ Registers a global (non-unique) counter. @equiv reg({c,g,Name},Value)<a name="ad
 
 
 
-`add_global_name(Name) -> any()`
+`add_global_name(Name) -&gt; any()`
 
 
 
@@ -183,7 +183,7 @@ Registers a global (unique) name. @equiv reg({n,g,Name})<a name="add_global_prop
 
 
 
-`add_global_property(Name, Value) -> any()`
+`add_global_property(Name, Value) -&gt; any()`
 
 
 
@@ -195,7 +195,7 @@ Registers a global (non-unique) property. @equiv reg({p,g,Name},Value)<a name="a
 
 
 
-`add_local_aggr_counter(Name) -> any()`
+`add_local_aggr_counter(Name) -&gt; any()`
 
 
 
@@ -209,7 +209,7 @@ Registers a local (unique) aggregated counter.<a name="add_local_counter-2"></a>
 
 
 
-`add_local_counter(Name, Initial) -> any()`
+`add_local_counter(Name, Initial) -&gt; any()`
 
 
 
@@ -221,7 +221,7 @@ Registers a local (non-unique) counter. @equiv reg({c,l,Name},Value)<a name="add
 
 
 
-`add_local_name(Name) -> any()`
+`add_local_name(Name) -&gt; any()`
 
 
 
@@ -233,7 +233,7 @@ Registers a local (unique) name. @equiv reg({n,l,Name})<a name="add_local_proper
 
 
 
-`add_local_property(Name, Value) -> any()`
+`add_local_property(Name, Value) -&gt; any()`
 
 
 
@@ -245,7 +245,9 @@ Registers a local (non-unique) property. @equiv reg({p,l,Name},Value)<a name="au
 
 
 
-`audit_process(Pid) -> any()`
+<pre>audit_process(Pid::pid()) -&gt; ok</pre>
+<br></br>
+
 
 <a name="await-1"></a>
 
@@ -255,9 +257,7 @@ Registers a local (non-unique) property. @equiv reg({p,l,Name},Value)<a name="au
 
 
 
-
-<pre>await(Key::<a href="#type-key">key()</a>) -> {pid(), Value}</pre>
-
+<pre>await(Key::<a href="#type-key">key()</a>) -&gt; {pid(), Value}</pre>
 <br></br>
 
 
@@ -271,16 +271,14 @@ Equivalent to [`await(Key, infinity)`](#await-2).<a name="await-2"></a>
 
 
 
-
-<pre>await(Key::<a href="#type-key">key()</a>, Timeout) -> {pid(), Value}</pre>
-
+<pre>await(Key::<a href="#type-key">key()</a>, Timeout) -&gt; {pid(), Value}</pre>
 <ul class="definitions"><li><tt>Timeout = integer() | infinity</tt></li></ul>
 
 
 
 Wait for a local name to be registered.
 The function raises an exception if the timeout expires. Timeout must be
-either an interger > 0 or 'infinity'.
+either an interger &gt; 0 or 'infinity'.
 A small optimization: we first perform a lookup, to see if the name
 is already registered. This way, the cost of the operation will be
 roughly the same as of where/1 in the case where the name is already
@@ -292,7 +290,7 @@ registered (the difference: await/2 also returns the value).<a name="cancel_wait
 
 
 
-`cancel_wait(Key, Ref) -> any()`
+`cancel_wait(Key, Ref) -&gt; any()`
 
 <a name="default-1"></a>
 
@@ -302,7 +300,7 @@ registered (the difference: await/2 also returns the value).<a name="cancel_wait
 
 
 
-`default(X1) -> any()`
+`default(X1) -&gt; any()`
 
 <a name="first-1"></a>
 
@@ -312,9 +310,7 @@ registered (the difference: await/2 also returns the value).<a name="cancel_wait
 
 
 
-
-<pre>first(Type::<a href="#type-type">type()</a>) -> <a href="#type-key">key()</a> | '$end_of_table'</pre>
-
+<pre>first(Type::<a href="#type-type">type()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'</pre>
 <br></br>
 
 
@@ -333,9 +329,7 @@ The registry behaves as an ordered_set table.<a name="get_value-1"></a>
 
 
 
-
-<pre>get_value(Key) -> Value</pre>
-
+<pre>get_value(Key) -&gt; Value</pre>
 <br></br>
 
 
@@ -345,7 +339,43 @@ The registry behaves as an ordered_set table.<a name="get_value-1"></a>
 
 Read the value stored with a key registered to the current process.
 
-If no such key is registered to the current process, this function exits.<a name="info-1"></a>
+If no such key is registered to the current process, this function exits.<a name="give_away-2"></a>
+
+<h3>give_away/2</h3>
+
+
+
+
+
+<pre>give_away(From::<a href="#type-key">key()</a>, To::pid() | <a href="#type-key">key()</a>) -&gt; undefined | pid()</pre>
+<br></br>
+
+
+
+
+
+
+Atomically transfers the key `From` to the process identified by `To`.
+
+
+
+This function transfers any gproc key (name, property, counter, aggr. counter)  
+from one process to another, and returns the pid of the new owner.
+
+
+
+`To` must be either a pid or a unique name (name or aggregated counter), but
+does not necessarily have to resolve to an existing process. If there is
+no process registered with the `To` key, `give_away/2` returns `undefined`,
+and the `From` key is effectively unregistered.
+
+
+
+It is allowed to give away a key to oneself, but of course, this operation  
+will have no effect.
+
+Fails with `badarg` if the calling process does not have a `From` key
+registered.<a name="info-1"></a>
 
 <h3>info/1</h3>
 
@@ -353,9 +383,7 @@ If no such key is registered to the current process, this function exits.<a name
 
 
 
-
-<pre>info(Pid::pid()) -> ProcessInfo</pre>
-
+<pre>info(Pid::pid()) -&gt; ProcessInfo</pre>
 <ul class="definitions"><li><tt>ProcessInfo = [{gproc, [{Key, Value}]} | ProcessInfo]</tt></li></ul>
 
 
@@ -374,9 +402,7 @@ pairs registered to the process.<a name="info-2"></a>
 
 
 
-
-<pre>info(Pid::pid(), Item::atom()) -> {Item, Info}</pre>
-
+<pre>info(Pid::pid(), Item::atom()) -&gt; {Item, Info}</pre>
 <br></br>
 
 
@@ -396,9 +422,7 @@ same as [`http://www.erlang.org/doc/man/erlang.html#process_info-2`](http://www.
 
 
 
-
-<pre>last(Context::<a href="#type-context">context()</a>) -> <a href="#type-key">key()</a> | '$end_of_table'</pre>
-
+<pre>last(Context::<a href="#type-context">context()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'</pre>
 <br></br>
 
 
@@ -417,9 +441,7 @@ The registry behaves as an ordered_set table.<a name="lookup_global_aggr_counter
 
 
 
-
-<pre>lookup_global_aggr_counter(Name::any()) -> integer()</pre>
-
+<pre>lookup_global_aggr_counter(Name::any()) -&gt; integer()</pre>
 <br></br>
 
 
@@ -436,9 +458,7 @@ Fails if there is no such object.<a name="lookup_global_counters-1"></a>
 
 
 
-
-<pre>lookup_global_counters(Counter::any()) -> [{pid(), Value::integer()}]</pre>
-
+<pre>lookup_global_counters(Counter::any()) -&gt; [{pid(), Value::integer()}]</pre>
 <br></br>
 
 
@@ -455,9 +475,7 @@ Returns a list of {Pid, Value} tuples for all matching objects.<a name="lookup_g
 
 
 
-
-<pre>lookup_global_name(Name::any()) -> pid()</pre>
-
+<pre>lookup_global_name(Name::any()) -&gt; pid()</pre>
 <br></br>
 
 
@@ -473,9 +491,7 @@ Lookup a global unique name. Fails if there is no such name.<a name="lookup_glob
 
 
 
-
-<pre>lookup_global_properties(Property::any()) -> [{pid(), Value}]</pre>
-
+<pre>lookup_global_properties(Property::any()) -&gt; [{pid(), Value}]</pre>
 <br></br>
 
 
@@ -492,9 +508,7 @@ Returns a list of {Pid, Value} tuples for all matching objects.<a name="lookup_l
 
 
 
-
-<pre>lookup_local_aggr_counter(Name::any()) -> integer()</pre>
-
+<pre>lookup_local_aggr_counter(Name::any()) -&gt; integer()</pre>
 <br></br>
 
 
@@ -511,9 +525,7 @@ Fails if there is no such object.<a name="lookup_local_counters-1"></a>
 
 
 
-
-<pre>lookup_local_counters(Counter::any()) -> [{pid(), Value::integer()}]</pre>
-
+<pre>lookup_local_counters(Counter::any()) -&gt; [{pid(), Value::integer()}]</pre>
 <br></br>
 
 
@@ -530,9 +542,7 @@ Returns a list of {Pid, Value} tuples for all matching objects.<a name="lookup_l
 
 
 
-
-<pre>lookup_local_name(Name::any()) -> pid()</pre>
-
+<pre>lookup_local_name(Name::any()) -&gt; pid()</pre>
 <br></br>
 
 
@@ -548,9 +558,7 @@ Lookup a local unique name. Fails if there is no such name.<a name="lookup_local
 
 
 
-
-<pre>lookup_local_properties(Property::any()) -> [{pid(), Value}]</pre>
-
+<pre>lookup_local_properties(Property::any()) -&gt; [{pid(), Value}]</pre>
 <br></br>
 
 
@@ -567,9 +575,7 @@ Returns a list of {Pid, Value} tuples for all matching objects.<a name="lookup_p
 
 
 
-
-<pre>lookup_pid(Key) -> Pid</pre>
-
+<pre>lookup_pid(Key) -&gt; Pid</pre>
 <br></br>
 
 
@@ -584,9 +590,7 @@ Lookup the Pid stored with a key.
 
 
 
-
-<pre>lookup_pids(Key::<a href="#type-key">key()</a>) -> [pid()]</pre>
-
+<pre>lookup_pids(Key::<a href="#type-key">key()</a>) -&gt; [pid()]</pre>
 <br></br>
 
 
@@ -606,9 +610,7 @@ For non-unique types, the return value can be a list of any length.<a name="look
 
 
 
-
-<pre>lookup_value(Key) -> Value</pre>
-
+<pre>lookup_value(Key) -&gt; Value</pre>
 <br></br>
 
 
@@ -623,9 +625,7 @@ Lookup the value stored with a key.
 
 
 
-
-<pre>lookup_values(Key::<a href="#type-key">key()</a>) -> [{pid(), Value}]</pre>
-
+<pre>lookup_values(Key::<a href="#type-key">key()</a>) -&gt; [{pid(), Value}]</pre>
 <br></br>
 
 
@@ -645,9 +645,7 @@ object, the return value can be a list of any length.<a name="mreg-3"></a>
 
 
 
-
-<pre>mreg(T::<a href="#type-type">type()</a>, X2::<a href="#type-scope">scope()</a>, KVL::[{Key::any(), Value::any()}]) -> true</pre>
-
+<pre>mreg(T::<a href="#type-type">type()</a>, X2::<a href="#type-scope">scope()</a>, KVL::[{Key::any(), Value::any()}]) -&gt; true</pre>
 <br></br>
 
 
@@ -665,9 +663,7 @@ This function is more efficient than calling [`reg/2`](#reg-2) repeatedly.<a nam
 
 
 
-
-<pre>nb_wait(Key::<a href="#type-key">key()</a>) -> Ref</pre>
-
+<pre>nb_wait(Key::<a href="#type-key">key()</a>) -&gt; Ref</pre>
 <br></br>
 
 
@@ -683,9 +679,7 @@ The caller can expect to receive a message,
 
 
 
-
-<pre>next(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -> <a href="#type-key">key()</a> | '$end_of_table'</pre>
-
+<pre>next(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'</pre>
 <br></br>
 
 
@@ -704,9 +698,7 @@ The registry behaves as an ordered_set table.<a name="prev-2"></a>
 
 
 
-
-<pre>prev(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -> <a href="#type-key">key()</a> | '$end_of_table'</pre>
-
+<pre>prev(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'</pre>
 <br></br>
 
 
@@ -725,9 +717,7 @@ The registry behaves as an ordered_set table.<a name="reg-1"></a>
 
 
 
-
-<pre>reg(Key::<a href="#type-key">key()</a>) -> true</pre>
-
+<pre>reg(Key::<a href="#type-key">key()</a>) -&gt; true</pre>
 <br></br>
 
 
@@ -741,9 +731,7 @@ Equivalent to [`reg(Key, default(Key))`](#reg-2).<a name="reg-2"></a>
 
 
 
-
-<pre>reg(Key::<a href="#type-key">key()</a>, Value) -> true</pre>
-
+<pre>reg(Key::<a href="#type-key">key()</a>, Value) -&gt; true</pre>
 <br></br>
 
 
@@ -761,9 +749,7 @@ Register a name or property for the current process
 
 
 
-
-<pre>select(Pat::<a href="#type-select_pattern">select_pattern()</a>) -> list(<a href="#type-sel_object">sel_object()</a>)</pre>
-
+<pre>select(Pat::<a href="#type-select_pattern">select_pattern()</a>) -&gt; [<a href="#type-sel_object">sel_object()</a>]</pre>
 <br></br>
 
 
@@ -777,9 +763,7 @@ Equivalent to [`select(all, Pat)`](#select-2).<a name="select-2"></a>
 
 
 
-
-<pre>select(Type::<a href="#type-sel_type">sel_type()</a>, Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -> [{Key, Pid, Value}]</pre>
-
+<pre>select(Type::<a href="#type-sel_type">sel_type()</a>, Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -&gt; [{Key, Pid, Value}]</pre>
 <br></br>
 
 
@@ -798,9 +782,7 @@ but the select patterns are transformed appropriately.<a name="select-3"></a>
 
 
 
-
-<pre>select(Type::<a href="#type-sel_type">sel_type()</a>, Pat::<a href="#type-sel_patten">sel_patten()</a>, Limit::integer()) -> [{Key, Pid, Value}]</pre>
-
+<pre>select(Type::<a href="#type-sel_type">sel_type()</a>, Pat::<a href="#type-sel_patten">sel_patten()</a>, Limit::integer()) -&gt; [{Key, Pid, Value}]</pre>
 <br></br>
 
 
@@ -818,9 +800,7 @@ See [`http://www.erlang.org/doc/man/ets.html#select-3`](http://www.erlang.org/do
 
 
 
-
-<pre>send(Key::<a href="#type-key">key()</a>, Msg::any()) -> Msg</pre>
-
+<pre>send(Key::<a href="#type-key">key()</a>, Msg::any()) -&gt; Msg</pre>
 <br></br>
 
 
@@ -841,9 +821,7 @@ property), Msg will be send to all processes that have such an object.<a name="s
 
 
 
-
-<pre>set_value(Key::<a href="#type-key">key()</a>, Value) -> true</pre>
-
+<pre>set_value(Key::<a href="#type-key">key()</a>, Value) -&gt; true</pre>
 <br></br>
 
 
@@ -867,9 +845,7 @@ it must be an integer.<a name="start_link-0"></a>
 
 
 
-
-<pre>start_link() -> {ok, pid()}</pre>
-
+<pre>start_link() -&gt; {ok, pid()}</pre>
 <br></br>
 
 
@@ -880,45 +856,7 @@ it must be an integer.<a name="start_link-0"></a>
 Starts the gproc server.
 
 This function is intended to be called from gproc_sup, as part of
-starting the gproc application.<a name="surrender-2"></a>
-
-<h3>surrender/2</h3>
-
-
-
-
-
-
-<pre>surrender(From::<a href="#type-key">key()</a>, To::pid() | <a href="#type-key">key()</a>) -> undefined | pid()</pre>
-
-<br></br>
-
-
-
-
-
-
-Atomically transfers the key `From` to the process identified by `To`.
-
-
-
-This function transfers any gproc key (name, property, counter, aggr. counter)  
-from one process to another, and returns the pid of the new owner.
-
-
-
-`To` must be either a pid or a unique name (name or aggregated counter), but
-does not necessarily have to resolve to an existing process. If there is
-no process registered with the `To` key, `surrender/2` returns `undefined`,
-and the `From` key is effectively unregistered.
-
-
-
-It is allowed to surrender a key to oneself, but of course, this operation  
-will have no effect.
-
-Fails with `badarg` if the calling process does not have a `From` key
-registered.<a name="table-1"></a>
+starting the gproc application.<a name="table-1"></a>
 
 <h3>table/1</h3>
 
@@ -926,9 +864,7 @@ registered.<a name="table-1"></a>
 
 
 
-
-<pre>table(Context::<a href="#type-context">context()</a>) -> any()</pre>
-
+<pre>table(Context::<a href="#type-context">context()</a>) -&gt; any()</pre>
 <br></br>
 
 
@@ -942,9 +878,7 @@ Equivalent to [`table(Context, [])`](#table-2).<a name="table-2"></a>
 
 
 
-
-<pre>table(Context::<a href="#type-context">context()</a>, Opts) -> any()</pre>
-
+<pre>table(Context::<a href="#type-context">context()</a>, Opts) -&gt; any()</pre>
 <br></br>
 
 
@@ -960,9 +894,7 @@ See [`http://www.erlang.org/doc/man/qlc.html`](http://www.erlang.org/doc/man/qlc
 
 
 
-
-<pre>unreg(Key::<a href="#type-key">key()</a>) -> true</pre>
-
+<pre>unreg(Key::<a href="#type-key">key()</a>) -&gt; true</pre>
 <br></br>
 
 
@@ -976,7 +908,7 @@ Unregister a name or property.<a name="unregister_name-1"></a>
 
 
 
-`unregister_name(Key) -> any()`
+`unregister_name(Key) -&gt; any()`
 
 
 
@@ -988,9 +920,7 @@ Equivalent to `unreg / 1`.<a name="update_counter-2"></a>
 
 
 
-
-<pre>update_counter(Key::<a href="#type-key">key()</a>, Incr::integer()) -> integer()</pre>
-
+<pre>update_counter(Key::<a href="#type-key">key()</a>, Incr::integer()) -&gt; integer()</pre>
 <br></br>
 
 
@@ -1010,9 +940,7 @@ will fail if the type of object referred to by Key is not a counter.<a name="whe
 
 
 
-
-<pre>where(Key::<a href="#type-key">key()</a>) -> pid()</pre>
-
+<pre>where(Key::<a href="#type-key">key()</a>) -&gt; pid()</pre>
 <br></br>
 
 
@@ -1032,10 +960,8 @@ cases.<a name="whereis_name-1"></a>
 
 
 
-`whereis_name(Key) -> any()`
+`whereis_name(Key) -&gt; any()`
 
 
 
 Equivalent to `where / 1`.
-
-_Generated by EDoc, Mar 29 2011, 14:24:55._

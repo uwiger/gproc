@@ -15,7 +15,7 @@ Extended process registry.
 
 __Behaviours:__ [`gen_leader`](/Users/uwiger/ETC/git/gproc/deps/gen_leader/doc/gen_leader.md).
 
-__Authors:__ Ulf Wiger ([`ulf.wiger@ericsson.com`](mailto:ulf.wiger@ericsson.com)).
+__Authors:__ Ulf Wiger ([`ulf.wiger@erlang-solutions.com`](mailto:ulf.wiger@erlang-solutions.com)).
 
 <h2><a name="description">Description</a></h2>
 
@@ -30,12 +30,12 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.
 
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#code_change-4">code_change/4</a></td><td></td></tr><tr><td valign="top"><a href="#elected-2">elected/2</a></td><td></td></tr><tr><td valign="top"><a href="#elected-3">elected/3</a></td><td></td></tr><tr><td valign="top"><a href="#from_leader-3">from_leader/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_DOWN-3">handle_DOWN/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_call-4">handle_call/4</a></td><td></td></tr><tr><td valign="top"><a href="#handle_cast-3">handle_cast/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_info-2">handle_info/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_leader_call-4">handle_leader_call/4</a></td><td></td></tr><tr><td valign="top"><a href="#handle_leader_cast-3">handle_leader_cast/3</a></td><td></td></tr><tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr><tr><td valign="top"><a href="#leader_call-1">leader_call/1</a></td><td></td></tr><tr><td valign="top"><a href="#leader_cast-1">leader_cast/1</a></td><td></td></tr><tr><td valign="top"><a href="#mreg-2">mreg/2</a></td><td></td></tr><tr><td valign="top"><a href="#reg-1">reg/1</a></td><td></td></tr><tr><td valign="top"><a href="#reg-2">reg/2</a></td><td>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#code_change-4">code_change/4</a></td><td></td></tr><tr><td valign="top"><a href="#elected-2">elected/2</a></td><td></td></tr><tr><td valign="top"><a href="#elected-3">elected/3</a></td><td></td></tr><tr><td valign="top"><a href="#from_leader-3">from_leader/3</a></td><td></td></tr><tr><td valign="top"><a href="#give_away-2">give_away/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_DOWN-3">handle_DOWN/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_call-4">handle_call/4</a></td><td></td></tr><tr><td valign="top"><a href="#handle_cast-3">handle_cast/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_info-2">handle_info/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_leader_call-4">handle_leader_call/4</a></td><td></td></tr><tr><td valign="top"><a href="#handle_leader_cast-3">handle_leader_cast/3</a></td><td></td></tr><tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr><tr><td valign="top"><a href="#leader_call-1">leader_call/1</a></td><td></td></tr><tr><td valign="top"><a href="#leader_cast-1">leader_cast/1</a></td><td></td></tr><tr><td valign="top"><a href="#mreg-2">mreg/2</a></td><td></td></tr><tr><td valign="top"><a href="#reg-1">reg/1</a></td><td></td></tr><tr><td valign="top"><a href="#reg-2">reg/2</a></td><td>
 Class = n  - unique name
 | p  - non-unique property
 | c  - counter
 | a  - aggregated counter
-Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-1">start_link/1</a></td><td></td></tr><tr><td valign="top"><a href="#surrender-2">surrender/2</a></td><td></td></tr><tr><td valign="top"><a href="#surrendered-3">surrendered/3</a></td><td></td></tr><tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr><tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td></td></tr><tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td></td></tr></table>
+Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-1">start_link/1</a></td><td></td></tr><tr><td valign="top"><a href="#surrendered-3">surrendered/3</a></td><td></td></tr><tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr><tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td></td></tr><tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td></td></tr></table>
 
 
 
@@ -51,7 +51,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`code_change(FromVsn, S, Extra, E) -> any()`
+`code_change(FromVsn, S, Extra, E) -&gt; any()`
 
 <a name="elected-2"></a>
 
@@ -61,7 +61,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`elected(S, E) -> any()`
+`elected(S, E) -&gt; any()`
 
 <a name="elected-3"></a>
 
@@ -71,7 +71,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`elected(S, E, Node) -> any()`
+`elected(S, E, Node) -&gt; any()`
 
 <a name="from_leader-3"></a>
 
@@ -81,7 +81,17 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`from_leader(Ops, S, E) -> any()`
+`from_leader(Ops, S, E) -&gt; any()`
+
+<a name="give_away-2"></a>
+
+<h3>give_away/2</h3>
+
+
+
+
+
+`give_away(Key, To) -&gt; any()`
 
 <a name="handle_DOWN-3"></a>
 
@@ -91,7 +101,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`handle_DOWN(Node, S, E) -> any()`
+`handle_DOWN(Node, S, E) -&gt; any()`
 
 <a name="handle_call-4"></a>
 
@@ -101,7 +111,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`handle_call(X1, X2, S, X4) -> any()`
+`handle_call(X1, X2, S, X4) -&gt; any()`
 
 <a name="handle_cast-3"></a>
 
@@ -111,7 +121,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`handle_cast(Msg, S, X3) -> any()`
+`handle_cast(Msg, S, X3) -&gt; any()`
 
 <a name="handle_info-2"></a>
 
@@ -121,7 +131,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`handle_info(X1, S) -> any()`
+`handle_info(X1, S) -&gt; any()`
 
 <a name="handle_leader_call-4"></a>
 
@@ -131,7 +141,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`handle_leader_call(X1, From, S, E) -> any()`
+`handle_leader_call(X1, From, S, E) -&gt; any()`
 
 <a name="handle_leader_cast-3"></a>
 
@@ -141,7 +151,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`handle_leader_cast(X1, S, E) -> any()`
+`handle_leader_cast(X1, S, E) -&gt; any()`
 
 <a name="init-1"></a>
 
@@ -151,7 +161,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`init(Opts) -> any()`
+`init(Opts) -&gt; any()`
 
 <a name="leader_call-1"></a>
 
@@ -161,7 +171,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`leader_call(Req) -> any()`
+`leader_call(Req) -&gt; any()`
 
 <a name="leader_cast-1"></a>
 
@@ -171,7 +181,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`leader_cast(Msg) -> any()`
+`leader_cast(Msg) -&gt; any()`
 
 <a name="mreg-2"></a>
 
@@ -181,7 +191,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`mreg(T, KVL) -> any()`
+`mreg(T, KVL) -&gt; any()`
 
 <a name="reg-1"></a>
 
@@ -191,7 +201,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`reg(Key) -> any()`
+`reg(Key) -&gt; any()`
 
 <a name="reg-2"></a>
 
@@ -201,7 +211,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`reg(Key, Value) -> any()`
+`reg(Key, Value) -&gt; any()`
 
 
 
@@ -219,7 +229,7 @@ Scope = l | g (global or local)
 
 
 
-`set_value(Key, Value) -> any()`
+`set_value(Key, Value) -&gt; any()`
 
 <a name="start_link-0"></a>
 
@@ -229,7 +239,7 @@ Scope = l | g (global or local)
 
 
 
-`start_link() -> any()`
+`start_link() -&gt; any()`
 
 <a name="start_link-1"></a>
 
@@ -239,17 +249,7 @@ Scope = l | g (global or local)
 
 
 
-`start_link(Nodes) -> any()`
-
-<a name="surrender-2"></a>
-
-<h3>surrender/2</h3>
-
-
-
-
-
-`surrender(Key, To) -> any()`
+`start_link(Nodes) -&gt; any()`
 
 <a name="surrendered-3"></a>
 
@@ -259,7 +259,7 @@ Scope = l | g (global or local)
 
 
 
-`surrendered(S, X2, E) -> any()`
+`surrendered(S, X2, E) -&gt; any()`
 
 <a name="terminate-2"></a>
 
@@ -269,7 +269,7 @@ Scope = l | g (global or local)
 
 
 
-`terminate(Reason, S) -> any()`
+`terminate(Reason, S) -&gt; any()`
 
 <a name="unreg-1"></a>
 
@@ -279,7 +279,7 @@ Scope = l | g (global or local)
 
 
 
-`unreg(Key) -> any()`
+`unreg(Key) -&gt; any()`
 
 <a name="update_counter-2"></a>
 
@@ -289,8 +289,5 @@ Scope = l | g (global or local)
 
 
 
-`update_counter(Key, Incr) -> any()`
+`update_counter(Key, Incr) -&gt; any()`
 
-
-
-_Generated by EDoc, Mar 29 2011, 14:24:55._

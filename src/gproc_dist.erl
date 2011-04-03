@@ -13,7 +13,7 @@
 %% Portions created by Ericsson are Copyright 1999, Ericsson Utvecklings
 %% AB. All Rights Reserved.''
 %%
-%% @author Ulf Wiger <ulf.wiger@ericsson.com>
+%% @author Ulf Wiger <ulf.wiger@erlang-solutions.com>
 %% 
 %% @doc Extended process registry
 %% <p>This module implements an extended process registry</p>
@@ -48,11 +48,6 @@
 
 -include("gproc.hrl").
 
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--export([t_spawn/1, t_spawn_reg/2]).
--endif.
-
 -define(SERVER, ?MODULE).
 
 -record(state, {
@@ -74,6 +69,8 @@ start_link({Nodes, Opts}) ->
 %%       ?SERVER, Nodes, [],?MODULE, [], [{debug,[trace]}]).
 
 
+%% {@see gproc:reg/1}
+%%
 reg(Key) ->
     reg(Key, gproc:default(Key)).
 
@@ -474,148 +471,153 @@ pid_to_give_away_to({T,g,_} = Key) when T==n; T==a ->
             undefined
     end.
 
--ifdef(TEST).
+%% -ifdef(TEST).
 
-dist_test_() ->
-    {foreach,
-     fun() ->
-	     Ns = start_slaves([n1, n2, n3]),
-	     %% dbg:tracer(),
-	     %% [dbg:n(N) || N <- Ns],
-	     %% dbg:tpl(gproc_dist, x),
-	     %% dbg:p(all,[c]),
-	     Ns
-     end,
-     fun(Ns) ->
-	     ?debugVal([rpc:call(N, init, stop, []) || N <- Ns])
-     end,
-     [
-      {with, [fun t_simple_reg/1,
-	      fun t_await_reg/1,
-	      fun t_give_away/1]}
-     ]}.
+%% dist_test_() ->
+%%     {timeout, 60,
+%%      [{foreach,
+%%        fun() ->
+%% 	       Ns = start_slaves([n1, n2]),
+%% 	       %% dbg:tracer(),
+%% 	       %% [dbg:n(N) || N <- Ns],
+%% 	       %% dbg:tpl(gproc_dist, x),
+%% 	       %% dbg:p(all,[c]),
+%% 	       Ns
+%%        end,
+%%        fun(Ns) ->
+%% 	       [rpc:call(N, init, stop, []) || N <- Ns]
+%%        end,
+%%        [
+%% 	{with, [fun(Ns) -> {in_parallel, [fun(X) -> t_simple_reg(X) end,
+%% 					  fun(X) -> t_await_reg(X) end,
+%% 					  fun(X) -> t_give_away(X) end]
+%% 			   }
+%% 		end]}
+%%        ]}
+%%      ]}.
 
-t_simple_reg([H|_] = Ns) ->
-    ?debugMsg(t_simple_reg),
-    Name = {n, g, foo},
-    P = t_spawn_reg(H, Name),
-    ?assertMatch(ok, t_lookup_everywhere(Name, Ns, P)),
-    ?assertMatch(true, t_call(P, {apply, gproc, unreg, [Name]})),
-    ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
-    ?assertMatch(ok, t_call(P, die)).
+%% -define(T_NAME, {n, g, {?MODULE, ?LINE}}).
 
-t_await_reg([A,B|_]) ->
-    ?debugMsg(t_await_reg),
-    Name = {n, g, foo},
-    P = t_spawn(A),
-    P ! {self(), {apply, gproc, await, [Name]}},
-    P1 = t_spawn_reg(B, Name),
-    ?assert(P1 == receive
-		      {P, Res} ->
-			  element(1, Res)
-		  end),
-    ?assertMatch(ok, t_call(P, die)),
-    ?assertMatch(ok, t_call(P1, die)).
+%% t_simple_reg([H|_] = Ns) ->
+%%     ?debugMsg(t_simple_reg),
+%%     Name = ?T_NAME,
+%%     P = t_spawn_reg(H, Name),
+%%     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, P)),
+%%     ?assertMatch(true, t_call(P, {apply, gproc, unreg, [Name]})),
+%%     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
+%%     ?assertMatch(ok, t_call(P, die)).
 
-t_give_away([A,B|_] = Ns) ->
-    ?debugMsg(t_give_away),
-    Na = {n, g, a},
-    Nb = {n, g, b},
-    Pa = t_spawn_reg(A, Na),
-    Pb = t_spawn_reg(B, Nb),
-    ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pa)),
-    ?assertMatch(ok, t_lookup_everywhere(Nb, Ns, Pb)),
-    ?debugHere,
-    ?assertMatch(Pb, ?debugVal(
-			t_call(Pa, {apply, {gproc, give_away, [Na, Nb]}}))),
-    ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pb)),
-    ?debugHere,
-    ?assertMatch(Pa, t_call(Pa, {apply, {gproc, give_away, [Na, Pa]}})),
-    ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pa)),
-    ?debugHere,
-    ?assertMatch(ok, t_call(Pa, die)),
-    ?assertMatch(ok, t_call(Pb, die)).
+%% t_await_reg([A,B|_]) ->
+%%     ?debugMsg(t_await_reg),
+%%     Name = ?T_NAME,
+%%     P = t_spawn(A),
+%%     P ! {self(), {apply, gproc, await, [Name]}},
+%%     P1 = t_spawn_reg(B, Name),
+%%     ?assert(P1 == receive
+%% 		      {P, Res} ->
+%% 			  element(1, Res)
+%% 		  end),
+%%     ?assertMatch(ok, t_call(P, die)),
+%%     ?assertMatch(ok, t_call(P1, die)).
+
+%% t_give_away([A,B|_] = Ns) ->
+%%     ?debugMsg(t_give_away),
+%%     Na = ?T_NAME,
+%%     Nb = ?T_NAME,
+%%     Pa = t_spawn_reg(A, Na),
+%%     Pb = t_spawn_reg(B, Nb),
+%%     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pa)),
+%%     ?assertMatch(ok, t_lookup_everywhere(Nb, Ns, Pb)),
+%%     %% ?debugHere,
+%%     ?assertMatch(Pb, t_call(Pa, {apply, {gproc, give_away, [Na, Nb]}})),
+%%     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pb)),
+%%     %% ?debugHere,
+%%     ?assertMatch(Pa, t_call(Pa, {apply, {gproc, give_away, [Na, Pa]}})),
+%%     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pa)),
+%%     %% ?debugHere,
+%%     ?assertMatch(ok, t_call(Pa, die)),
+%%     ?assertMatch(ok, t_call(Pb, die)).
     
-t_sleep() ->
-    timer:sleep(1000).
+%% t_sleep() ->
+%%     timer:sleep(1000).
 
-t_lookup_everywhere(Key, Nodes, Exp) ->
-    t_lookup_everywhere(Key, Nodes, Exp, 3).
+%% t_lookup_everywhere(Key, Nodes, Exp) ->
+%%     t_lookup_everywhere(Key, Nodes, Exp, 3).
 
-t_lookup_everywhere(Key, _, Exp, 0) ->
-    {lookup_failed, Key, Exp};
-t_lookup_everywhere(Key, Nodes, Exp, I) ->
-    Expected = [{N, Exp} || N <- Nodes],
-    Found = [{N,rpc:call(N, gproc, where, [Key])} || N <- Nodes],
-    if Expected =/= Found ->
-	    ?debugFmt("lookup ~p failed (~p), retrying...~n", [Key, Found]),
-	    t_sleep(),
-	    t_lookup_everywhere(Key, Nodes, Exp, I-1);
-       true ->
-	    ok
-    end.
+%% t_lookup_everywhere(Key, _, Exp, 0) ->
+%%     {lookup_failed, Key, Exp};
+%% t_lookup_everywhere(Key, Nodes, Exp, I) ->
+%%     Expected = [{N, Exp} || N <- Nodes],
+%%     Found = [{N,rpc:call(N, gproc, where, [Key])} || N <- Nodes],
+%%     if Expected =/= Found ->
+%% 	    ?debugFmt("lookup ~p failed (~p), retrying...~n", [Key, Found]),
+%% 	    t_sleep(),
+%% 	    t_lookup_everywhere(Key, Nodes, Exp, I-1);
+%%        true ->
+%% 	    ok
+%%     end.
 				  
 
-t_spawn(Node) ->
-    Me = self(),
-    P = spawn(Node, fun() ->
-			    Me ! {self(), ok},
-			    t_loop()
-		    end),
-    receive
-	{P, ok} -> P
-    end.
+%% t_spawn(Node) ->
+%%     Me = self(),
+%%     P = spawn(Node, fun() ->
+%% 			    Me ! {self(), ok},
+%% 			    t_loop()
+%% 		    end),
+%%     receive
+%% 	{P, ok} -> P
+%%     end.
 
-t_spawn_reg(Node, Name) ->
-    Me = self(),
-    spawn(Node, fun() ->
-			?assertMatch(true, gproc:reg(Name)),
-			Me ! {self(), ok},
-			t_loop()
-		end),
-    receive
-	{P, ok} -> P
-    end.
+%% t_spawn_reg(Node, Name) ->
+%%     Me = self(),
+%%     spawn(Node, fun() ->
+%% 			?assertMatch(true, gproc:reg(Name)),
+%% 			Me ! {self(), ok},
+%% 			t_loop()
+%% 		end),
+%%     receive
+%% 	{P, ok} -> P
+%%     end.
 
-t_call(P, Req) ->
-    P ! {self(), Req},
-    receive
-	{P, Res} ->
-	    Res
-    end.
+%% t_call(P, Req) ->
+%%     P ! {self(), Req},
+%%     receive
+%% 	{P, Res} ->
+%% 	    Res
+%%     end.
 
-t_loop() ->
-    receive
-	{From, die} ->
-	    From ! {self(), ok};
-	{From, {apply, M, F, A}} ->
-	    From ! {self(), apply(M, F, A)},
-	    t_loop()
-    end.
+%% t_loop() ->
+%%     receive
+%% 	{From, die} ->
+%% 	    From ! {self(), ok};
+%% 	{From, {apply, M, F, A}} ->
+%% 	    From ! {self(), apply(M, F, A)},
+%% 	    t_loop()
+%%     end.
 
-start_slaves(Ns) ->
-    [H|T] = Nodes = [start_slave(N) || N <- Ns],
-    ?debugVal([pong = rpc:call(H, net, ping, [N]) || N <- T]),
-    ?debugVal(rpc:multicall(Nodes, application, start, [gproc])),
-    Nodes.
+%% start_slaves(Ns) ->
+%%     [H|T] = Nodes = [start_slave(N) || N <- Ns],
+%%     %% ?debugVal([pong = rpc:call(H, net, ping, [N]) || N <- T]),
+%%     %% ?debugVal(rpc:multicall(Nodes, application, start, [gproc])),
+%%     Nodes.
 	       
-start_slave(Name) ->
-    case node() of
-        nonode@nohost ->
-            os:cmd("epmd -daemon"),
-            {ok, _} = net_kernel:start([gproc_master, shortnames]);
-        _ ->
-            ok
-    end,
-    {ok, Node} = slave:start(
-		   host(), Name,
-		   "-pa . -pz ../ebin -pa ../deps/gen_leader/ebin "
-		   "-gproc gproc_dist all"),
-    io:fwrite(user, "Slave node: ~p~n", [Node]),
-    Node.
+%% start_slave(Name) ->
+%%     case node() of
+%%         nonode@nohost ->
+%%             os:cmd("epmd -daemon"),
+%%             {ok, _} = net_kernel:start([gproc_master, shortnames]);
+%%         _ ->
+%%             ok
+%%     end,
+%%     {ok, Node} = slave:start(
+%% 		   host(), Name,
+%% 		   "-pa . -pz ../ebin -pa ../deps/gen_leader/ebin "
+%% 		   "-gproc gproc_dist all"),
+%%     %% io:fwrite(user, "Slave node: ~p~n", [Node]),
+%%     Node.
 
-host() ->
-    [Name, Host] = re:split(atom_to_list(node()), "@", [{return, list}]),
-    list_to_atom(Host).
+%% host() ->
+%%     [Name, Host] = re:split(atom_to_list(node()), "@", [{return, list}]),
+%%     list_to_atom(Host).
 
--endif.
+%% -endif.

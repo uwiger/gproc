@@ -1,29 +1,51 @@
-@author Ulf Wiger <ulf.wiger@erlang-consulting.com>
+@author Ulf Wiger <ulf.wiger@erlang-solutions.com>
 @author Joseph Wayne Norton <norton@geminimobile.com>
 
 @doc Extended process dictionary
-<h2>Introduction</h2>
+
+== Introduction ==
+
+Gproc is a process dictionary for Erlang, which provides a number of useful features beyond what the built-in dictionary has:
+
+<ul>
+<li>Use any term as a process alias</li>
+<li>Register a process under several aliases</li>
+<li>Non-unique properties can be registered simultaneously by many processes</li>
+<li>QLC and match specification interface for efficient queries on the 
+  dictionary</li>
+<li>Await registration, let's you wait until a process registers itself</li>
+<li>Atomically give away registered names and properties to another process</li>
+<li>Counters, and aggregated counters, which automatically maintain the 
+  total of all counters with a given name</li>
+<li>Global registry, with all the above functions applied to a network of nodes</li>
+</ul>
+
+An interesting application of gproc is building publish/subscribe patterns.
+Example:
+
+<pre>
+subscribe(EventType) ->
+    %% Gproc notation: {p, l, Name} means {(p)roperty, (l)ocal, Name}
+    gproc:reg({p, l, {?MODULE, EventType}}).
+
+notify(EventType, Msg) ->
+    Key = {?MODULE, EventType},
+    gproc:send({p, l, Key}, {self(), Key, Msg}).
+</pre>
+
+Gproc has a QuickCheck test suite, covering a fairly large part of the local 
+gproc functionality, although none of the global registry. It requires a 
+commercial EQC license, but rebar is smart enough to detect whether EQC is 
+available, and if it isn't, the code in gproc_eqc.erl will be "defined away".
+
+There is also an eunit suite, covering the basic operations for local and 
+global gproc.
+
+== Building Edoc ==
+By default, `./rebar doc` generates Github-flavored Markdown files.
+If you want to change this, remove the `edoc_opts' line from `rebar.config'.
 
 Gproc was first introduced at the ACM SIGPLAN Erlang Workshop in
 Freiburg 2007 (<a href="erlang07-wiger.pdf">Paper available here</a>).
-
-This application was designed to meet the following requirements:
-
-<li>
-  <ul>A process can register itself using any term.</ul>
-  <ul>A process can register more than one name</ul>
-  <ul>A process can publish non-unique {Key,Value} 'properties' </ul>
-  <ul>The registry must be efficiently searchable</ul>
-</li>
-
-As additional features, the registry was designed to allow global
-registration, and a special {Key,Value} property called a counter.
-It is also possible to create an 'aggregate counter', which will
-continuously reflect the sum of all counters with the same name.
-
-<em>In its current state, the global registration facility is broken
-and should not be used. It will be migrated over to a new version of 
-gen_leader. This work will be done with low priority unless people
-express a strong urge to use this functionality.</em>
 
 @end
