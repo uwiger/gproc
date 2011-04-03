@@ -117,24 +117,30 @@ insert_objects(Objs) ->
       end, Objs).
 
 
-await({T,C,_} = Key, {Pid, Ref} = From) ->
-    Rev = {{Pid,Key}, r},
+await({T,C,_} = Key, WPid, {_Pid, Ref} = From) ->
+    Rev = {{WPid,Key}, r},
     case ets:lookup(?TAB, {Key,T}) of
         [{_, P, Value}] ->
             %% for symmetry, we always reply with Ref and then send a message
-            gen_server:reply(From, Ref),
-            Pid ! {gproc, Ref, registered, {Key, P, Value}},
-            noreply;
+	    if C == g ->
+		    %% in the global case, we bundle the reply, since otherwise
+		    %% the messages can pass each other
+		    {reply, {Ref, {Key, P, Value}}};
+	       true ->
+		    gen_server:reply(From, Ref),
+		    WPid ! {gproc, Ref, registered, {Key, P, Value}},
+		    noreply
+	    end;
         [{K, Waiters}] ->
-            NewWaiters = [{Pid,Ref} | Waiters],
+            NewWaiters = [{WPid,Ref} | Waiters],
             W = {K, NewWaiters},
             ets:insert(?TAB, [W, Rev]),
-            gproc_lib:ensure_monitor(Pid,C),
+            gproc_lib:ensure_monitor(WPid,C),
             {reply, Ref, [W,Rev]};
         [] ->
-            W = {{Key,T}, [{Pid,Ref}]},
+            W = {{Key,T}, [{WPid,Ref}]},
             ets:insert(?TAB, [W, Rev]),
-            gproc_lib:ensure_monitor(Pid,C),
+            gproc_lib:ensure_monitor(WPid,C),
             {reply, Ref, [W,Rev]}
     end.
 

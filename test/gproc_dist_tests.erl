@@ -22,32 +22,44 @@
 -export([t_spawn/1, t_spawn_reg/2]).
 
 dist_test_() ->
-    {timeout, 60,
-     [{foreach,
+    {timeout, 90,
+     [{setup,
        fun() ->
 	       Ns = start_slaves([n1, n2]),
-	       %% dbg:tracer(),
-	       %% [dbg:n(N) || N <- Ns],
-	       %% dbg:tpl(gproc_dist, x),
-	       %% dbg:p(all,[c]),
-	       Ns
+	       ?assertMatch({[ok,ok],[]},
+			    rpc:multicall(Ns, application, start, [gproc])),
+	       %% Without this trace output, the test times out on my Mac...
+	       dbg:tracer(),
+	       dbg:tpl(?MODULE, x),
+	       dbg:p(all,[c]),
+	       ?debugVal(Ns)
        end,
        fun(Ns) ->
 	       [rpc:call(N, init, stop, []) || N <- Ns]
        end,
-       [
-	{with, [fun(_) -> {in_parallel, [fun(X) ->
-						 ?debugVal(t_simple_reg(X)) end,
-					 fun(X) ->
-						 ?debugVal(t_await_reg(X))
-					 end,
-					 fun(X) ->
-						 ?debugVal(t_give_away(X))
-					 end]
-			  }
-		end]}
-       ]}
-     ]}.
+       fun(Ns) ->
+	       {inorder,
+		[
+		 {inparallel, [fun() ->
+				       ?debugVal(t_simple_reg(Ns))
+			       end,
+			       fun() ->
+			       	       ?debugVal(t_await_reg(Ns))
+			       end,
+			       fun() ->
+			       	       ?debugVal(t_await_reg_exists(Ns))
+			       end,
+			       fun() ->
+				       ?debugVal(t_give_away(Ns))
+			       end
+			      ]
+		 },
+		 {timeout, 60, [fun() ->
+					?debugVal(t_fail_node(Ns))
+				end]}
+		]}
+       end
+      }]}.
 
 -define(T_NAME, {n, g, {?MODULE, ?LINE}}).
 
@@ -64,11 +76,40 @@ t_await_reg([A,B|_]) ->
     ?debugMsg(t_await_reg),
     Name = ?T_NAME,
     P = t_spawn(A),
-    P ! {self(), {apply, gproc, await, [Name]}},
+    Ref = erlang:monitor(process, P),
+    P ! {self(), Ref, {apply, gproc, await, [Name]}},
+    t_sleep(),
     P1 = t_spawn_reg(B, Name),
     ?assert(P1 == receive
-		      {P, Res} ->
-			  element(1, Res)
+		      {P, Ref, Res} ->
+			  element(1, Res);
+		      {'DOWN', Ref, _, _, Reason} ->
+			  erlang:error(Reason);
+		      Other ->
+			  erlang:error({received,Other})
+		  end),
+    ?assertMatch(ok, t_call(P, die)),
+    ?assertMatch(ok, t_call(P1, die)).
+
+t_await_reg_exists([A,B|_]) ->
+    ?debugMsg(t_await_reg_exists),
+    Name = ?T_NAME,
+    P = t_spawn(A),
+    Ref = erlang:monitor(process, P),
+     %% dbg:tracer(),
+     %% [dbg:n(N) || N <- Ns],
+     %% dbg:tpl(gproc_dist,x),
+     %% dbg:tpl(gproc_lib,await,x),
+     %% dbg:p(all,[c]),
+    P1 = t_spawn_reg(B, Name),
+    P ! {self(), Ref, {apply, gproc, await, [Name]}},
+    ?assert(P1 == receive
+		      {P, Ref, Res} ->
+			  element(1, Res);
+		      {'DOWN', Ref, _, _, Reason} ->
+			  erlang:error(Reason);
+		      Other ->
+			  erlang:error({received,Other})
 		  end),
     ?assertMatch(ok, t_call(P, die)),
     ?assertMatch(ok, t_call(P1, die)).
@@ -81,18 +122,31 @@ t_give_away([A,B|_] = Ns) ->
     Pb = t_spawn_reg(B, Nb),
     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pa)),
     ?assertMatch(ok, t_lookup_everywhere(Nb, Ns, Pb)),
-    %% ?debugHere,
     ?assertMatch(Pb, t_call(Pa, {apply, {gproc, give_away, [Na, Nb]}})),
     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pb)),
-    %% ?debugHere,
     ?assertMatch(Pa, t_call(Pa, {apply, {gproc, give_away, [Na, Pa]}})),
     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pa)),
-    %% ?debugHere,
+    ?assertMatch(ok, t_call(Pa, die)),
+    ?assertMatch(ok, t_call(Pb, die)).
+
+t_fail_node([A,B|_] = Ns) ->
+    ?debugMsg(t_fail_node),
+    Na = ?T_NAME,
+    Nb = ?T_NAME,
+    Pa = t_spawn_reg(A, Na),
+    Pb = t_spawn_reg(B, Nb),
+    ?assertMatch(ok, rpc:call(A, application, stop, [gproc])),
+    ?assertMatch(ok, t_lookup_everywhere(Na, Ns -- [A], undefined)),
+    ?assertMatch(ok, t_lookup_everywhere(Nb, Ns -- [A], Pb)),
+    ?assertMatch(ok, rpc:call(A, application, start, [gproc])),
+    ?assertMatch(ok, t_lookup_everywhere(Na, Ns, undefined)),
+    ?assertMatch(ok, t_lookup_everywhere(Nb, Ns, Pb)),
     ?assertMatch(ok, t_call(Pa, die)),
     ?assertMatch(ok, t_call(Pb, die)).
     
+    
 t_sleep() ->
-    timer:sleep(1000).
+    timer:sleep(500).
 
 t_lookup_everywhere(Key, Nodes, Exp) ->
     t_lookup_everywhere(Key, Nodes, Exp, 3).
@@ -133,29 +187,35 @@ t_spawn_reg(Node, Name) ->
     end.
 
 t_call(P, Req) ->
-    P ! {self(), Req},
+    Ref = erlang:monitor(process, P),
+    P ! {self(), Ref, Req},
     receive
-	{P, Res} ->
-	    Res
+	{P, Ref, Res} ->
+	    erlang:demonitor(Ref),
+	    Res;
+	{'DOWN', Ref, _, _, Error} ->
+	    erlang:error({'DOWN', P, Error})
     end.
 
 t_loop() ->
     receive
-	{From, die} ->
-	    From ! {self(), ok};
-	{From, {apply, M, F, A}} ->
-	    From ! {self(), apply(M, F, A)},
+	{From, Ref, die} ->
+	    From ! {self(), Ref, ok};
+	{From, Ref, {apply, M, F, A}} ->
+	    From ! {self(), Ref, apply(M, F, A)},
 	    t_loop()
     end.
 
 start_slaves(Ns) ->
-    [start_slave(N) || N <- Ns].
+    [H|T] = Nodes = [start_slave(N) || N <- Ns],
+    _ = [{N, rpc:call(H, net, ping, [N])} || N <- T],
+    Nodes.
 	       
 start_slave(Name) ->
     case node() of
         nonode@nohost ->
             os:cmd("epmd -daemon"),
-            {ok, _} = net_kernel:start([gproc_master, shortnames]);
+            {ok, _} = net_kernel:start([gproc_master, longnames]);
         _ ->
             ok
     end,

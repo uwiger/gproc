@@ -293,12 +293,13 @@ handle_leader_call({set,{T,g,N} =K,V,Pid}, _From, S, _E) ->
 		    {reply, badarg, S}
 	    end
     end;
-handle_leader_call({await, Key, Pid}, {_,Ref} = _From, S, _E) ->
+handle_leader_call({await, Key, Pid}, {_,Ref} = From, S, _E) ->
     %% The pid in _From is of the gen_leader instance that forwarded the
     %% call - not of the client. This is why the Pid is explicitly passed.
-    case gproc_lib:await(Key, {Pid,Ref}) of
-        noreply ->
-            {noreply, S};
+    %% case gproc_lib:await(Key, {Pid,Ref}) of
+    case gproc_lib:await(Key, Pid, From) of
+	{reply, {Ref, {K, P, V}}} ->
+	    {reply, {Ref, {K, P, V}}, S};
         {reply, Reply, Insert} ->
             {reply, Reply, [{insert, Insert}], S}
     end;
