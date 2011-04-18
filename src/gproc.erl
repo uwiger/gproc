@@ -1132,9 +1132,10 @@ pattern([{{A,B,C},Gs,As}], Scope) ->
     [{HeadPat, rewrite(Gs,Vars), rewrite(As,Vars)}];
 pattern([{Head, Gs, As}], Scope) ->
     ?l,
+    {S, T} = get_s_t(Scope),
     case is_var(Head) of
         {true,_N} ->
-            HeadPat = {{{type(Scope),'_','_'},'_'},'_','_'},
+            HeadPat = {{{T,S,'_'},'_'},'_','_'},
             Vs = [{Head, obj_prod()}],
 %%            {HeadPat, Vs} = headpat(Scope, A,B,C),
             %% the headpat function should somehow verify that Head is

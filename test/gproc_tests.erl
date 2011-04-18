@@ -20,6 +20,7 @@
 -ifdef(TEST).
 
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("stdlib/include/qlc.hrl").
 
 reg_test_() ->
     {setup,
@@ -53,6 +54,8 @@ reg_test_() ->
       , {spawn, ?_test(t_give_away_and_back())}
       , ?_test(t_is_clean())
       , {spawn, ?_test(t_select())}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(t_qlc())}
       , ?_test(t_is_clean())
      ]}.
 
@@ -223,6 +226,42 @@ t_select() ->
 	    {all,all},
 	    [{{'_',self(),'_'},[],['$_']}])).
 
+t_qlc() ->
+    ?assertEqual(true, gproc:reg({n, l, {n,1}}, x)),
+    ?assertEqual(true, gproc:reg({n, l, {n,2}}, y)),
+    ?assertEqual(true, gproc:reg({p, l, {p,1}}, x)),
+    ?assertEqual(true, gproc:reg({p, l, {p,2}}, y)),
+    ?assertEqual(true, gproc:reg({c, l, {c,1}}, 1)),
+    ?assertEqual(true, gproc:reg({a, l, {c,1}}, undefined)),
+    %% local names
+    Exp1 = [{{n,l,{n,1}},self(),x},
+	    {{n,l,{n,2}},self(),y}],
+    ?assertEqual(Exp1,
+		 qlc:e(qlc:q([N || N <- gproc:table(names)]))),
+    ?assertEqual(Exp1,
+		 qlc:e(qlc:q([N || {{n,l,_},_,_} = N <- gproc:table(names)]))),
+
+    %% mactch local names on value
+    Exp2 = [{{n,l,{n,1}},self(),x}],
+    ?assertEqual(Exp2,
+		 qlc:e(qlc:q([N || {{n,l,_},_,x} = N <- gproc:table(names)]))),
+
+    %% match all on value
+    Exp3 = [{{n,l,{n,1}},self(),x},
+	    {{p,l,{p,1}},self(),x}],
+    ?assertEqual(Exp3,
+		 qlc:e(qlc:q([N || {_,_,x} = N <- gproc:table(all)]))),
+
+    %% match all on pid
+    Exp4 = [{{a,l,{c,1}},self(),1},
+	    {{c,l,{c,1}},self(),1},
+	    {{n,l,{n,1}},self(),x},
+	    {{n,l,{n,2}},self(),y},
+	    {{p,l,{p,1}},self(),x},
+	    {{p,l,{p,2}},self(),y}
+	   ],
+    ?assertEqual(Exp4,
+		 qlc:e(qlc:q([X || X <- gproc:table(all)]))).
 
 t_loop() ->
     receive
