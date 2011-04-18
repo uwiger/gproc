@@ -41,6 +41,9 @@ dist_test_() ->
 			       	       ?debugVal(t_simple_reg(Ns))
 			       end,
 			       fun() ->
+			       	       ?debugVal(t_mreg(Ns))
+			       end,
+			       fun() ->
 			       	       ?debugVal(t_await_reg(Ns))
 			       end,
 			       fun() ->
@@ -59,6 +62,7 @@ dist_test_() ->
       }]}.
 
 -define(T_NAME, {n, g, {?MODULE, ?LINE}}).
+-define(T_KVL, [{foo, "foo"}, {bar, "bar"}]).
 
 t_simple_reg([H|_] = Ns) ->
     Name = ?T_NAME,
@@ -66,6 +70,11 @@ t_simple_reg([H|_] = Ns) ->
     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, P)),
     ?assertMatch(true, t_call(P, {apply, gproc, unreg, [Name]})),
     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
+    ?assertMatch(ok, t_call(P, die)).
+
+t_mreg([H|_] = Ns) ->
+    Kvl = ?T_KVL,
+    P = t_spawn_mreg(H, Kvl),
     ?assertMatch(ok, t_call(P, die)).
 
 t_await_reg([A,B|_]) ->
@@ -166,6 +175,17 @@ t_spawn_reg(Node, Name) ->
     Me = self(),
     spawn(Node, fun() ->
 			?assertMatch(true, gproc:reg(Name)),
+			Me ! {self(), ok},
+			t_loop()
+		end),
+    receive
+	{P, ok} -> P
+    end.
+
+t_spawn_mreg(Node, KVL) ->
+    Me = self(),
+    spawn(Node, fun() ->
+			?assertMatch(true, gproc:mreg(p, g, KVL)),
 			Me ! {self(), ok},
 			t_loop()
 		end),
