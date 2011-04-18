@@ -102,8 +102,12 @@ t_is_clean() ->
                                         
 
 t_simple_mreg() ->
-    ok.
-
+    P = self(),
+    ?assertEqual(true, gproc:mreg(n, l, [{foo, foo_val},
+					 {bar, bar_val}])),
+    ?assertEqual(P, gproc:where({n,l,foo})),
+    ?assertEqual(P, gproc:where({n,l,bar})).
+    
 
 t_gproc_crash() ->
     P = spawn_helper(),

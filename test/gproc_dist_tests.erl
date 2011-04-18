@@ -72,7 +72,7 @@ t_simple_reg([H|_] = Ns) ->
     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
     ?assertMatch(ok, t_call(P, die)).
 
-t_mreg([H|_] = Ns) ->
+t_mreg([H|_]) ->
     Kvl = ?T_KVL,
     P = t_spawn_mreg(H, Kvl),
     ?assertMatch(ok, t_call(P, die)).
