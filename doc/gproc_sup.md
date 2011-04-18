@@ -34,7 +34,7 @@ __Behaviours:__ [`supervisor`](supervisor.md).
 
 
 
-`init(Args) -&gt; any()`
+`init(Args) -> any()`
 
 
 
@@ -46,5 +46,5 @@ The main GPROC supervisor.<a name="start_link-1"></a>
 
 
 
-`start_link(Args) -&gt; any()`
+`start_link(Args) -> any()`
 

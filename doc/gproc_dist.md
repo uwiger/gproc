@@ -51,7 +51,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`code_change(FromVsn, S, Extra, E) -&gt; any()`
+`code_change(FromVsn, S, Extra, E) -> any()`
 
 <a name="elected-2"></a>
 
@@ -61,7 +61,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`elected(S, E) -&gt; any()`
+`elected(S, E) -> any()`
 
 <a name="elected-3"></a>
 
@@ -71,7 +71,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`elected(S, E, Node) -&gt; any()`
+`elected(S, E, Node) -> any()`
 
 <a name="from_leader-3"></a>
 
@@ -81,7 +81,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`from_leader(Ops, S, E) -&gt; any()`
+`from_leader(Ops, S, E) -> any()`
 
 <a name="give_away-2"></a>
 
@@ -91,7 +91,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`give_away(Key, To) -&gt; any()`
+`give_away(Key, To) -> any()`
 
 <a name="handle_DOWN-3"></a>
 
@@ -101,7 +101,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`handle_DOWN(Node, S, E) -&gt; any()`
+`handle_DOWN(Node, S, E) -> any()`
 
 <a name="handle_call-4"></a>
 
@@ -111,7 +111,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`handle_call(X1, X2, S, X4) -&gt; any()`
+`handle_call(X1, X2, S, X4) -> any()`
 
 <a name="handle_cast-3"></a>
 
@@ -121,7 +121,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`handle_cast(Msg, S, X3) -&gt; any()`
+`handle_cast(Msg, S, X3) -> any()`
 
 <a name="handle_info-2"></a>
 
@@ -131,7 +131,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`handle_info(X1, S) -&gt; any()`
+`handle_info(X1, S) -> any()`
 
 <a name="handle_leader_call-4"></a>
 
@@ -141,7 +141,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`handle_leader_call(X1, From, S, E) -&gt; any()`
+`handle_leader_call(X1, From, S, E) -> any()`
 
 <a name="handle_leader_cast-3"></a>
 
@@ -151,7 +151,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`handle_leader_cast(X1, S, E) -&gt; any()`
+`handle_leader_cast(X1, S, E) -> any()`
 
 <a name="init-1"></a>
 
@@ -161,7 +161,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`init(Opts) -&gt; any()`
+`init(Opts) -> any()`
 
 <a name="leader_call-1"></a>
 
@@ -171,7 +171,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`leader_call(Req) -&gt; any()`
+`leader_call(Req) -> any()`
 
 <a name="leader_cast-1"></a>
 
@@ -181,7 +181,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`leader_cast(Msg) -&gt; any()`
+`leader_cast(Msg) -> any()`
 
 <a name="mreg-2"></a>
 
@@ -191,7 +191,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`mreg(T, KVL) -&gt; any()`
+`mreg(T, KVL) -> any()`
 
 <a name="reg-1"></a>
 
@@ -201,7 +201,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`reg(Key) -&gt; any()`
+`reg(Key) -> any()`
 
 <a name="reg-2"></a>
 
@@ -211,7 +211,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`reg(Key, Value) -&gt; any()`
+`reg(Key, Value) -> any()`
 
 
 
@@ -229,7 +229,7 @@ Scope = l | g (global or local)
 
 
 
-`set_value(Key, Value) -&gt; any()`
+`set_value(Key, Value) -> any()`
 
 <a name="start_link-0"></a>
 
@@ -239,7 +239,7 @@ Scope = l | g (global or local)
 
 
 
-`start_link() -&gt; any()`
+`start_link() -> any()`
 
 <a name="start_link-1"></a>
 
@@ -249,7 +249,7 @@ Scope = l | g (global or local)
 
 
 
-`start_link(Nodes) -&gt; any()`
+`start_link(Nodes) -> any()`
 
 <a name="surrendered-3"></a>
 
@@ -259,7 +259,7 @@ Scope = l | g (global or local)
 
 
 
-`surrendered(S, X2, E) -&gt; any()`
+`surrendered(S, X2, E) -> any()`
 
 <a name="terminate-2"></a>
 
@@ -269,7 +269,7 @@ Scope = l | g (global or local)
 
 
 
-`terminate(Reason, S) -&gt; any()`
+`terminate(Reason, S) -> any()`
 
 <a name="unreg-1"></a>
 
@@ -279,7 +279,7 @@ Scope = l | g (global or local)
 
 
 
-`unreg(Key) -&gt; any()`
+`unreg(Key) -> any()`
 
 <a name="update_counter-2"></a>
 
@@ -289,5 +289,5 @@ Scope = l | g (global or local)
 
 
 
-`update_counter(Key, Incr) -&gt; any()`
+`update_counter(Key, Incr) -> any()`
 

@@ -20,12 +20,18 @@
 %% <p>For a detailed description, see
 %% <a href="erlang07-wiger.pdf">erlang07-wiger.pdf</a>.</p>
 %%
+%% Type and scope for registration and lookup:
+%%
 %% @type type()  = n | p | c | a. n = name; p = property; c = counter; 
 %%                                a = aggregate_counter
 %% @type scope() = l | g. l = local registration; g = global registration
-%% @type context() = {scope(), type()} | type(). Local scope is the default
-%% @type sel_type() = n | p | c | a |
-%%                    names | props | counters | aggr_counters.
+%%
+%% Type and scope for select(), qlc() and stepping:
+%%
+%% @type sel_scope() = scope | all | global | local.
+%% @type sel_type() = type() | names | props | counters | aggr_counters.
+%% @type context() = {scope(), type()} | type(). {'all','all'} is the default
+%%
 %% @type headpat() = {keypat(),pidpat(),ValPat}.
 %% @type keypat() = {sel_type() | sel_var(),
 %%                   l | g | sel_var(),
@@ -49,10 +55,10 @@
          cancel_wait/2,
          lookup_pid/1,
          lookup_pids/1,
-	 lookup_value/1,
+         lookup_value/1,
          lookup_values/1,
          update_counter/2,
-	 give_away/2,
+         give_away/2,
          send/2,
          info/1, info/2,
          select/1, select/2, select/3,
@@ -82,7 +88,7 @@
 
 %% Callbacks for behaviour support
 -export([whereis_name/1,
-	 unregister_name/1]).
+         unregister_name/1]).
 
 -export([default/1]).
 
@@ -123,7 +129,7 @@
 %% starting the gproc application.
 %% @end
 start_link() ->
-    create_tabs(),
+    _ = create_tabs(),
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 %% spec(Name::any()) -> true
@@ -316,18 +322,18 @@ request_wait({n,C,_} = Key, Timeout) when C==l; C==g ->
                    erlang:error(badarg, [Key, Timeout])
            end,
     WRef = case {call({await,Key,self()}, C), C} of
-	       {{R, {Kg,Pg,Vg}}, g} ->
-		   self() ! {gproc, R, registered, {Kg,Pg,Vg}},
-		   R;
-	       {R,_} ->
-		   R
-	   end,
+               {{R, {Kg,Pg,Vg}}, g} ->
+                   self() ! {gproc, R, registered, {Kg,Pg,Vg}},
+                   R;
+               {R,_} ->
+                   R
+           end,
     receive
         {gproc, WRef, registered, {_K, Pid, V}} ->
-	    case TRef of
-		no_timer -> ignore;
-		_ -> erlang:cancel_timer(TRef)
-	    end,
+            case TRef of
+                no_timer -> ignore;
+                _ -> erlang:cancel_timer(TRef)
+            end,
             {Pid, V};
         {timeout, TRef, gproc_timeout} ->
             cancel_wait(Key, WRef),
@@ -430,24 +436,24 @@ unregister_name(Key) ->
 select(Pat) ->
     select(all, Pat).
 
-%% @spec (Type::sel_type(), Pat::sel_pattern()) -> [{Key, Pid, Value}]
+%% @spec (Context::context(), Pat::sel_pattern()) -> [{Key, Pid, Value}]
 %%
 %% @doc Perform a select operation on the process registry.
 %%
 %% The physical representation in the registry may differ from the above,
 %% but the select patterns are transformed appropriately.
 %% @end
-select(Type, Pat) ->
-    ets:select(?TAB, pattern(Pat, Type)).
+select(Context, Pat) ->
+    ets:select(?TAB, pattern(Pat, Context)).
 
-%% @spec (Type::sel_type(), Pat::sel_patten(), Limit::integer()) ->
+%% @spec (Context::context(), Pat::sel_patten(), Limit::integer()) ->
 %%          [{Key, Pid, Value}]
 %% @doc Like {@link select/2} but returns Limit objects at a time.
 %%
 %% See [http://www.erlang.org/doc/man/ets.html#select-3].
 %% @end
-select(Type, Pat, Limit) ->
-    ets:select(?TAB, pattern(Pat, Type), Limit).
+select(Context, Pat, Limit) ->
+    ets:select(?TAB, pattern(Pat, Context), Limit).
 
 
 %%% Local properties can be registered in the local process, since
@@ -558,10 +564,10 @@ where({T,_,_}=Key) ->
             case ets:lookup(?TAB, {Key,T}) of
                 [{_, P, _Value}] ->
                     case my_is_process_alive(P) of
-			true -> P;
-			false ->
-			    undefined
-		    end;
+                        true -> P;
+                        false ->
+                            undefined
+                    end;
                 _ ->  % may be [] or [{Key,Waiters}]
                     undefined
             end;
@@ -584,10 +590,10 @@ whereis_name(Key) ->
 %%
 lookup_pids({T,_,_} = Key) ->
     L = if T==n orelse T==a ->
-		ets:select(?TAB, [{{{Key,T}, '$1', '_'},[],['$1']}]);
-	   true ->
-		ets:select(?TAB, [{{{Key,'_'}, '$1', '_'},[],['$1']}])
-	end,
+                ets:select(?TAB, [{{{Key,T}, '$1', '_'},[],['$1']}]);
+           true ->
+                ets:select(?TAB, [{{{Key,'_'}, '$1', '_'},[],['$1']}])
+        end,
     [P || P <- L, my_is_process_alive(P)].
 
 
@@ -613,10 +619,10 @@ my_is_process_alive(_) ->
 %%
 lookup_values({T,_,_} = Key) ->
     L = if T==n orelse T==a ->
-		ets:select(?TAB, [{{{Key,T}, '$1', '$2'},[],[{{'$1','$2'}}]}]);
-	   true ->
-		ets:select(?TAB, [{{{Key,'_'}, '$1', '$2'},[],[{{'$1','$2'}}]}])
-	end,
+                ets:select(?TAB, [{{{Key,T}, '$1', '$2'},[],[{{'$1','$2'}}]}]);
+           true ->
+                ets:select(?TAB, [{{{Key,'_'}, '$1', '$2'},[],[{{'$1','$2'}}]}])
+        end,
     [Pair || {P,_} = Pair <- L, my_is_process_alive(P)].
 
 
@@ -696,7 +702,7 @@ send(_, _) ->
     erlang:error(badarg).
 
 
-%% @spec (Type :: type()) -> key() | '$end_of_table'
+%% @spec (Context :: context()) -> key() | '$end_of_table'
 %%
 %% @doc Behaves as ets:first(Tab) for a given type of registration object.
 %%
@@ -704,8 +710,9 @@ send(_, _) ->
 %%  The registry behaves as an ordered_set table.
 %% @end
 %%
-first(Type) ->
-    {HeadPat,_} = headpat(Type, '_', '_', '_'),
+first(Context) ->
+    {S, T} = get_s_t(Context),
+    {HeadPat,_} = headpat({S, T}, '_', '_', '_'),
     case ets:select(?TAB, [{HeadPat,[],[{element,1,'$_'}]}], 1) of
         {[First], _} ->
             First;
@@ -723,8 +730,8 @@ first(Type) ->
 %%
 last(Context) ->
     {S, T} = get_s_t(Context),
-    S1 = if S == '_'; S == l -> m;
-            S == g -> h
+    S1 = if S == '_'; S == l -> m;              % 'm' comes after 'l'
+            S == g -> h                         % 'h' comes between 'g' & 'l'
          end,
     Beyond = {{T,S1,[]},[]},
     step(ets:prev(?TAB, Beyond), S, T).
@@ -825,20 +832,20 @@ handle_cast({cancel_wait, Pid, {T,_,_} = Key, Ref}, S) ->
     case ets:lookup(?TAB, {Key,T}) of
         [{K, Waiters}] ->
             case Waiters -- [{Pid,Ref}] of
-		[] ->
-		    ets:delete(?TAB, K),
-		    ets:delete(?TAB, Rev);
-		NewWaiters ->
-		    ets:insert(?TAB, {K, NewWaiters}),
-		    case lists:keymember(Pid, 1, NewWaiters) of
-			true -> 
-			    %% should be extremely unlikely
-			    ok;
-			false ->
-			    %% delete the reverse entry
-			    ets:delete(?TAB, Rev)
-		    end
-	    end;
+                [] ->
+                    ets:delete(?TAB, K),
+                    ets:delete(?TAB, Rev);
+                NewWaiters ->
+                    ets:insert(?TAB, {K, NewWaiters}),
+                    case lists:keymember(Pid, 1, NewWaiters) of
+                        true -> 
+                            %% should be extremely unlikely
+                            ok;
+                        false ->
+                            %% delete the reverse entry
+                            ets:delete(?TAB, Rev)
+                    end
+            end;
         _ ->
             ignore
     end,
@@ -887,10 +894,10 @@ handle_call({set, {_,l,_} = Key, Value}, {Pid,_}, S) ->
     end;
 handle_call({audit_process, Pid}, _, S) ->
     case is_process_alive(Pid) of
-	false ->
-	    process_is_down(Pid);
-	true ->
-	    ignore
+        false ->
+            process_is_down(Pid);
+        true ->
+            ignore
     end,
     {reply, ok, S};
 handle_call({give_away, Key, To}, {Pid,_}, S) ->
@@ -1020,69 +1027,69 @@ process_is_down(Pid) ->
 do_give_away({T,l,_} = K, To, Pid) when T==n; T==a ->
     Key = {K, T},
     case ets:lookup(?TAB, Key) of
-	[{_, Pid, Value}] ->
-	    %% Pid owns the reg; allowed to give_away
-	    case pid_to_give_away_to(To) of
-		Pid ->
-		    %% Give away to ourselves? Why not? We'll allow it,
-		    %% but nothing needs to be done.
-		    Pid;
-		ToPid when is_pid(ToPid) ->
-		    ets:insert(?TAB, [{Key, ToPid, Value},
-				      {{ToPid, K}, r}]),
-		    ets:delete(?TAB, {Pid, K}),
-		    gproc_lib:ensure_monitor(ToPid, l),
-		    ToPid;
-		undefined ->
-		    gproc_lib:remove_reg(K, Pid),
-		    undefined
-	    end;
-	_ ->
-	    badarg
+        [{_, Pid, Value}] ->
+            %% Pid owns the reg; allowed to give_away
+            case pid_to_give_away_to(To) of
+                Pid ->
+                    %% Give away to ourselves? Why not? We'll allow it,
+                    %% but nothing needs to be done.
+                    Pid;
+                ToPid when is_pid(ToPid) ->
+                    ets:insert(?TAB, [{Key, ToPid, Value},
+                                      {{ToPid, K}, r}]),
+                    ets:delete(?TAB, {Pid, K}),
+                    gproc_lib:ensure_monitor(ToPid, l),
+                    ToPid;
+                undefined ->
+                    gproc_lib:remove_reg(K, Pid),
+                    undefined
+            end;
+        _ ->
+            badarg
     end;
 do_give_away({T,l,_} = K, To, Pid) when T==c; T==p ->
     Key = {K, Pid},
     case ets:lookup(?TAB, Key) of
-	[{_, Pid, Value}] ->
-	    case pid_to_give_away_to(To) of
-		ToPid when is_pid(ToPid) ->
-		    ToKey = {K, ToPid},
-		    case ets:member(?TAB, ToKey) of
-			true ->
-			    badarg;
-			false ->
-			    ets:insert(?TAB, [{ToKey, ToPid, Value},
-					      {{ToPid, K}, r}]),
-			    ets:delete(?TAB, {Pid, K}),
-			    ets:delete(?TAB, Key),
-			    gproc_lib:ensure_monitor(ToPid, l),
-			    ToPid
-		    end;
-		undefined ->
-		    gproc_lib:remove_reg(K, Pid),
-		    undefined
-	    end;
-	_ ->
-	    badarg
+        [{_, Pid, Value}] ->
+            case pid_to_give_away_to(To) of
+                ToPid when is_pid(ToPid) ->
+                    ToKey = {K, ToPid},
+                    case ets:member(?TAB, ToKey) of
+                        true ->
+                            badarg;
+                        false ->
+                            ets:insert(?TAB, [{ToKey, ToPid, Value},
+                                              {{ToPid, K}, r}]),
+                            ets:delete(?TAB, {Pid, K}),
+                            ets:delete(?TAB, Key),
+                            gproc_lib:ensure_monitor(ToPid, l),
+                            ToPid
+                    end;
+                undefined ->
+                    gproc_lib:remove_reg(K, Pid),
+                    undefined
+            end;
+        _ ->
+            badarg
     end.
-			
+                        
 
-pid_to_give_away_to(P) when is_pid(P), node(P) == node() ->		    
+pid_to_give_away_to(P) when is_pid(P), node(P) == node() ->                 
     P;
 pid_to_give_away_to({T,l,_} = Key) when T==n; T==a ->
     case ets:lookup(?TAB, {Key, T}) of
-	[{_, Pid, _}] ->
-	    Pid;
-	_ ->
-	    undefined
+        [{_, Pid, _}] ->
+            Pid;
+        _ ->
+            undefined
     end.
 
 create_tabs() ->
     case ets:info(?TAB, name) of
-	undefined ->
-	    ets:new(?TAB, [ordered_set, public, named_table]);
-	_ ->
-	    ok
+        undefined ->
+            ets:new(?TAB, [ordered_set, public, named_table]);
+        _ ->
+            ok
     end.
 
 
@@ -1150,7 +1157,7 @@ obj_prod_l() ->
       {element,3,'$_'} ].
 
 
-headpat({S, T}, V1,V2,V3) when S==global; S==local; S==all ->
+headpat({S, T}, V1,V2,V3) ->
     headpat(type(T), scope(S), V1,V2,V3);
 headpat(T, V1, V2, V3) when is_atom(T) ->
     headpat(type(T), l, V1, V2, V3);
@@ -1198,10 +1205,13 @@ subst(X, V, F, Vs) ->
             {V, Vs}
     end.
 
+scope('_')    -> '_';
 scope(all)    -> '_';
 scope(global) -> g;
-scope(local)  -> l.
+scope(local)  -> l;
+scope(S) when S==l; S==g -> S.
 
+type('_')   -> '_';
 type(all)   -> '_';
 type(T) when T==n; T==p; T==c; T==a -> T;
 type(names) -> n;
@@ -1217,7 +1227,7 @@ keypat(Context) ->
 
 get_s_t({S,T}) -> {scope(S), type(T)};
 get_s_t(T) when is_atom(T) ->
-    {l, type(T)}.
+    {scope(all), type(T)}.
 
 is_var('$1') -> {true,1};
 is_var('$2') -> {true,2};
@@ -1285,7 +1295,8 @@ table(Context) ->
 %% Context specifies which subset of the registry should be queried.
 %% See [http://www.erlang.org/doc/man/qlc.html].
 %% @end
-table(Ctxt, Opts) ->
+table(Context, Opts) ->
+    Ctxt = get_s_t(Context),
     [Traverse, NObjs] = [proplists:get_value(K,Opts,Def) ||
                             {K,Def} <- [{traverse,select}, {n_objects,100}]],
     TF = case Traverse of

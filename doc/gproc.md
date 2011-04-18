@@ -28,6 +28,8 @@ This module implements an extended process registry
 For a detailed description, see
 [erlang07-wiger.pdf](erlang07-wiger.pdf).
 
+Type and scope for registration and lookup:
+
 
 
 <h2><a name="types">Data Types</a></h2>
@@ -41,10 +43,11 @@ For a detailed description, see
 
 
 
-`context() = {[scope()](#type-scope), [type()](#type-type)} | [type()](#type-type)`
+<pre>context() = {<a href="#type-scope">scope()</a>, <a href="#type-type">type()</a>} | <a href="#type-type">type()</a></pre>
 
 
-Local scope is the default
+{'all','all'} is the default
+
 
 
 <h3 class="typedecl"><a name="type-headpat">headpat()</a></h3>
@@ -52,7 +55,7 @@ Local scope is the default
 
 
 
-`headpat() = {[keypat()](#type-keypat), [pidpat()](#type-pidpat), ValPat}`
+<pre>headpat() = {<a href="#type-keypat">keypat()</a>, <a href="#type-pidpat">pidpat()</a>, ValPat}</pre>
 
 
 
@@ -61,7 +64,7 @@ Local scope is the default
 
 
 
-`key() = {[type()](#type-type), [scope()](#type-scope), any()}`
+<pre>key() = {<a href="#type-type">type()</a>, <a href="#type-scope">scope()</a>, any()}</pre>
 
 
 
@@ -70,7 +73,7 @@ Local scope is the default
 
 
 
-`keypat() = {[sel_type()](#type-sel_type) | [sel_var()](#type-sel_var), l | g | [sel_var()](#type-sel_var), any()}`
+<pre>keypat() = {<a href="#type-sel_type">sel_type()</a> | <a href="#type-sel_var">sel_var()</a>, l | g | <a href="#type-sel_var">sel_var()</a>, any()}</pre>
 
 
 
@@ -79,7 +82,7 @@ Local scope is the default
 
 
 
-`pidpat() = pid() | [sel_var()](#type-sel_var)`
+<pre>pidpat() = pid() | <a href="#type-sel_var">sel_var()</a></pre>
 
 
 sel_var() = DollarVar | '_'.
@@ -90,10 +93,15 @@ sel_var() = DollarVar | '_'.
 
 
 
-`scope() = l | g`
+<pre>scope() = l | g</pre>
+
+
 
 
 l = local registration; g = global registration
+
+Type and scope for select(), qlc() and stepping:
+
 
 
 <h3 class="typedecl"><a name="type-sel_pattern">sel_pattern()</a></h3>
@@ -101,7 +109,16 @@ l = local registration; g = global registration
 
 
 
-`sel_pattern() = [{[headpat()](#type-headpat), Guards, Prod}]`
+<pre>sel_pattern() = [{<a href="#type-headpat">headpat()</a>, Guards, Prod}]</pre>
+
+
+
+<h3 class="typedecl"><a name="type-sel_scope">sel_scope()</a></h3>
+
+
+
+
+<pre>sel_scope() = scope | all | global | local</pre>
 
 
 
@@ -110,7 +127,7 @@ l = local registration; g = global registration
 
 
 
-`sel_type() = n | p | c | a | names | props | counters | aggr_counters`
+<pre>sel_type() = <a href="#type-type">type()</a> | names | props | counters | aggr_counters</pre>
 
 
 
@@ -119,7 +136,7 @@ l = local registration; g = global registration
 
 
 
-`type() = n | p | c | a`
+<pre>type() = n | p | c | a</pre>
 
 
 n = name; p = property; c = counter;
@@ -145,7 +162,7 @@ a = aggregate_counter
 
 
 
-`add_global_aggr_counter(Name) -&gt; any()`
+`add_global_aggr_counter(Name) -> any()`
 
 
 
@@ -159,7 +176,7 @@ Registers a global (unique) aggregated counter.<a name="add_global_counter-2"></
 
 
 
-`add_global_counter(Name, Initial) -&gt; any()`
+`add_global_counter(Name, Initial) -> any()`
 
 
 
@@ -171,7 +188,7 @@ Registers a global (non-unique) counter. @equiv reg({c,g,Name},Value)<a name="ad
 
 
 
-`add_global_name(Name) -&gt; any()`
+`add_global_name(Name) -> any()`
 
 
 
@@ -183,7 +200,7 @@ Registers a global (unique) name. @equiv reg({n,g,Name})<a name="add_global_prop
 
 
 
-`add_global_property(Name, Value) -&gt; any()`
+`add_global_property(Name, Value) -> any()`
 
 
 
@@ -195,7 +212,7 @@ Registers a global (non-unique) property. @equiv reg({p,g,Name},Value)<a name="a
 
 
 
-`add_local_aggr_counter(Name) -&gt; any()`
+`add_local_aggr_counter(Name) -> any()`
 
 
 
@@ -209,7 +226,7 @@ Registers a local (unique) aggregated counter.<a name="add_local_counter-2"></a>
 
 
 
-`add_local_counter(Name, Initial) -&gt; any()`
+`add_local_counter(Name, Initial) -> any()`
 
 
 
@@ -221,7 +238,7 @@ Registers a local (non-unique) counter. @equiv reg({c,l,Name},Value)<a name="add
 
 
 
-`add_local_name(Name) -&gt; any()`
+`add_local_name(Name) -> any()`
 
 
 
@@ -233,7 +250,7 @@ Registers a local (unique) name. @equiv reg({n,l,Name})<a name="add_local_proper
 
 
 
-`add_local_property(Name, Value) -&gt; any()`
+`add_local_property(Name, Value) -> any()`
 
 
 
@@ -245,7 +262,7 @@ Registers a local (non-unique) property. @equiv reg({p,l,Name},Value)<a name="au
 
 
 
-<pre>audit_process(Pid::pid()) -&gt; ok</pre>
+<pre>audit_process(Pid::pid()) -> ok</pre>
 <br></br>
 
 
@@ -257,7 +274,7 @@ Registers a local (non-unique) property. @equiv reg({p,l,Name},Value)<a name="au
 
 
 
-<pre>await(Key::<a href="#type-key">key()</a>) -&gt; {pid(), Value}</pre>
+<pre>await(Key::<a href="#type-key">key()</a>) -> {pid(), Value}</pre>
 <br></br>
 
 
@@ -271,14 +288,14 @@ Equivalent to [`await(Key, infinity)`](#await-2).<a name="await-2"></a>
 
 
 
-<pre>await(Key::<a href="#type-key">key()</a>, Timeout) -&gt; {pid(), Value}</pre>
-<ul class="definitions"><li><tt>Timeout = integer() | infinity</tt></li></ul>
+<pre>await(Key::<a href="#type-key">key()</a>, Timeout) -> {pid(), Value}</pre>
+<ul class="definitions"><li><pre>Timeout = integer() | infinity</pre></li></ul>
 
 
 
 Wait for a local name to be registered.
 The function raises an exception if the timeout expires. Timeout must be
-either an interger &gt; 0 or 'infinity'.
+either an interger > 0 or 'infinity'.
 A small optimization: we first perform a lookup, to see if the name
 is already registered. This way, the cost of the operation will be
 roughly the same as of where/1 in the case where the name is already
@@ -290,7 +307,7 @@ registered (the difference: await/2 also returns the value).<a name="cancel_wait
 
 
 
-`cancel_wait(Key, Ref) -&gt; any()`
+`cancel_wait(Key, Ref) -> any()`
 
 <a name="default-1"></a>
 
@@ -300,7 +317,7 @@ registered (the difference: await/2 also returns the value).<a name="cancel_wait
 
 
 
-`default(X1) -&gt; any()`
+`default(X1) -> any()`
 
 <a name="first-1"></a>
 
@@ -310,7 +327,7 @@ registered (the difference: await/2 also returns the value).<a name="cancel_wait
 
 
 
-<pre>first(Type::<a href="#type-type">type()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'</pre>
+<pre>first(Context::<a href="#type-context">context()</a>) -> <a href="#type-key">key()</a> | '$end_of_table'</pre>
 <br></br>
 
 
@@ -329,7 +346,7 @@ The registry behaves as an ordered_set table.<a name="get_value-1"></a>
 
 
 
-<pre>get_value(Key) -&gt; Value</pre>
+<pre>get_value(Key) -> Value</pre>
 <br></br>
 
 
@@ -347,7 +364,7 @@ If no such key is registered to the current process, this function exits.<a name
 
 
 
-<pre>give_away(From::<a href="#type-key">key()</a>, To::pid() | <a href="#type-key">key()</a>) -&gt; undefined | pid()</pre>
+<pre>give_away(From::<a href="#type-key">key()</a>, To::pid() | <a href="#type-key">key()</a>) -> undefined | pid()</pre>
 <br></br>
 
 
@@ -383,8 +400,8 @@ registered.<a name="info-1"></a>
 
 
 
-<pre>info(Pid::pid()) -&gt; ProcessInfo</pre>
-<ul class="definitions"><li><tt>ProcessInfo = [{gproc, [{Key, Value}]} | ProcessInfo]</tt></li></ul>
+<pre>info(Pid::pid()) -> ProcessInfo</pre>
+<ul class="definitions"><li><pre>ProcessInfo = [{gproc, [{Key, Value}]} | ProcessInfo]</pre></li></ul>
 
 
 
@@ -402,7 +419,7 @@ pairs registered to the process.<a name="info-2"></a>
 
 
 
-<pre>info(Pid::pid(), Item::atom()) -&gt; {Item, Info}</pre>
+<pre>info(Pid::pid(), Item::atom()) -> {Item, Info}</pre>
 <br></br>
 
 
@@ -422,7 +439,7 @@ same as [`http://www.erlang.org/doc/man/erlang.html#process_info-2`](http://www.
 
 
 
-<pre>last(Context::<a href="#type-context">context()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'</pre>
+<pre>last(Context::<a href="#type-context">context()</a>) -> <a href="#type-key">key()</a> | '$end_of_table'</pre>
 <br></br>
 
 
@@ -441,7 +458,7 @@ The registry behaves as an ordered_set table.<a name="lookup_global_aggr_counter
 
 
 
-<pre>lookup_global_aggr_counter(Name::any()) -&gt; integer()</pre>
+<pre>lookup_global_aggr_counter(Name::any()) -> integer()</pre>
 <br></br>
 
 
@@ -458,7 +475,7 @@ Fails if there is no such object.<a name="lookup_global_counters-1"></a>
 
 
 
-<pre>lookup_global_counters(Counter::any()) -&gt; [{pid(), Value::integer()}]</pre>
+<pre>lookup_global_counters(Counter::any()) -> [{pid(), Value::integer()}]</pre>
 <br></br>
 
 
@@ -475,7 +492,7 @@ Returns a list of {Pid, Value} tuples for all matching objects.<a name="lookup_g
 
 
 
-<pre>lookup_global_name(Name::any()) -&gt; pid()</pre>
+<pre>lookup_global_name(Name::any()) -> pid()</pre>
 <br></br>
 
 
@@ -491,7 +508,7 @@ Lookup a global unique name. Fails if there is no such name.<a name="lookup_glob
 
 
 
-<pre>lookup_global_properties(Property::any()) -&gt; [{pid(), Value}]</pre>
+<pre>lookup_global_properties(Property::any()) -> [{pid(), Value}]</pre>
 <br></br>
 
 
@@ -508,7 +525,7 @@ Returns a list of {Pid, Value} tuples for all matching objects.<a name="lookup_l
 
 
 
-<pre>lookup_local_aggr_counter(Name::any()) -&gt; integer()</pre>
+<pre>lookup_local_aggr_counter(Name::any()) -> integer()</pre>
 <br></br>
 
 
@@ -525,7 +542,7 @@ Fails if there is no such object.<a name="lookup_local_counters-1"></a>
 
 
 
-<pre>lookup_local_counters(Counter::any()) -&gt; [{pid(), Value::integer()}]</pre>
+<pre>lookup_local_counters(Counter::any()) -> [{pid(), Value::integer()}]</pre>
 <br></br>
 
 
@@ -542,7 +559,7 @@ Returns a list of {Pid, Value} tuples for all matching objects.<a name="lookup_l
 
 
 
-<pre>lookup_local_name(Name::any()) -&gt; pid()</pre>
+<pre>lookup_local_name(Name::any()) -> pid()</pre>
 <br></br>
 
 
@@ -558,7 +575,7 @@ Lookup a local unique name. Fails if there is no such name.<a name="lookup_local
 
 
 
-<pre>lookup_local_properties(Property::any()) -&gt; [{pid(), Value}]</pre>
+<pre>lookup_local_properties(Property::any()) -> [{pid(), Value}]</pre>
 <br></br>
 
 
@@ -575,7 +592,7 @@ Returns a list of {Pid, Value} tuples for all matching objects.<a name="lookup_p
 
 
 
-<pre>lookup_pid(Key) -&gt; Pid</pre>
+<pre>lookup_pid(Key) -> Pid</pre>
 <br></br>
 
 
@@ -590,7 +607,7 @@ Lookup the Pid stored with a key.
 
 
 
-<pre>lookup_pids(Key::<a href="#type-key">key()</a>) -&gt; [pid()]</pre>
+<pre>lookup_pids(Key::<a href="#type-key">key()</a>) -> [pid()]</pre>
 <br></br>
 
 
@@ -610,7 +627,7 @@ For non-unique types, the return value can be a list of any length.<a name="look
 
 
 
-<pre>lookup_value(Key) -&gt; Value</pre>
+<pre>lookup_value(Key) -> Value</pre>
 <br></br>
 
 
@@ -625,7 +642,7 @@ Lookup the value stored with a key.
 
 
 
-<pre>lookup_values(Key::<a href="#type-key">key()</a>) -&gt; [{pid(), Value}]</pre>
+<pre>lookup_values(Key::<a href="#type-key">key()</a>) -> [{pid(), Value}]</pre>
 <br></br>
 
 
@@ -645,7 +662,7 @@ object, the return value can be a list of any length.<a name="mreg-3"></a>
 
 
 
-<pre>mreg(T::<a href="#type-type">type()</a>, X2::<a href="#type-scope">scope()</a>, KVL::[{Key::any(), Value::any()}]) -&gt; true</pre>
+<pre>mreg(T::<a href="#type-type">type()</a>, X2::<a href="#type-scope">scope()</a>, KVL::[{Key::any(), Value::any()}]) -> true</pre>
 <br></br>
 
 
@@ -663,7 +680,7 @@ This function is more efficient than calling [`reg/2`](#reg-2) repeatedly.<a nam
 
 
 
-<pre>nb_wait(Key::<a href="#type-key">key()</a>) -&gt; Ref</pre>
+<pre>nb_wait(Key::<a href="#type-key">key()</a>) -> Ref</pre>
 <br></br>
 
 
@@ -679,7 +696,7 @@ The caller can expect to receive a message,
 
 
 
-<pre>next(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'</pre>
+<pre>next(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -> <a href="#type-key">key()</a> | '$end_of_table'</pre>
 <br></br>
 
 
@@ -698,7 +715,7 @@ The registry behaves as an ordered_set table.<a name="prev-2"></a>
 
 
 
-<pre>prev(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'</pre>
+<pre>prev(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -> <a href="#type-key">key()</a> | '$end_of_table'</pre>
 <br></br>
 
 
@@ -717,7 +734,7 @@ The registry behaves as an ordered_set table.<a name="reg-1"></a>
 
 
 
-<pre>reg(Key::<a href="#type-key">key()</a>) -&gt; true</pre>
+<pre>reg(Key::<a href="#type-key">key()</a>) -> true</pre>
 <br></br>
 
 
@@ -731,7 +748,7 @@ Equivalent to [`reg(Key, default(Key))`](#reg-2).<a name="reg-2"></a>
 
 
 
-<pre>reg(Key::<a href="#type-key">key()</a>, Value) -&gt; true</pre>
+<pre>reg(Key::<a href="#type-key">key()</a>, Value) -> true</pre>
 <br></br>
 
 
@@ -749,7 +766,7 @@ Register a name or property for the current process
 
 
 
-<pre>select(Pat::<a href="#type-select_pattern">select_pattern()</a>) -&gt; [<a href="#type-sel_object">sel_object()</a>]</pre>
+<pre>select(Pat::<a href="#type-select_pattern">select_pattern()</a>) -> [<a href="#type-sel_object">sel_object()</a>]</pre>
 <br></br>
 
 
@@ -763,7 +780,7 @@ Equivalent to [`select(all, Pat)`](#select-2).<a name="select-2"></a>
 
 
 
-<pre>select(Type::<a href="#type-sel_type">sel_type()</a>, Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -&gt; [{Key, Pid, Value}]</pre>
+<pre>select(Context::<a href="#type-context">context()</a>, Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -> [{Key, Pid, Value}]</pre>
 <br></br>
 
 
@@ -782,7 +799,7 @@ but the select patterns are transformed appropriately.<a name="select-3"></a>
 
 
 
-<pre>select(Type::<a href="#type-sel_type">sel_type()</a>, Pat::<a href="#type-sel_patten">sel_patten()</a>, Limit::integer()) -&gt; [{Key, Pid, Value}]</pre>
+<pre>select(Context::<a href="#type-context">context()</a>, Pat::<a href="#type-sel_patten">sel_patten()</a>, Limit::integer()) -> [{Key, Pid, Value}]</pre>
 <br></br>
 
 
@@ -800,7 +817,7 @@ See [`http://www.erlang.org/doc/man/ets.html#select-3`](http://www.erlang.org/do
 
 
 
-<pre>send(Key::<a href="#type-key">key()</a>, Msg::any()) -&gt; Msg</pre>
+<pre>send(Key::<a href="#type-key">key()</a>, Msg::any()) -> Msg</pre>
 <br></br>
 
 
@@ -821,7 +838,7 @@ property), Msg will be send to all processes that have such an object.<a name="s
 
 
 
-<pre>set_value(Key::<a href="#type-key">key()</a>, Value) -&gt; true</pre>
+<pre>set_value(Key::<a href="#type-key">key()</a>, Value) -> true</pre>
 <br></br>
 
 
@@ -845,7 +862,7 @@ it must be an integer.<a name="start_link-0"></a>
 
 
 
-<pre>start_link() -&gt; {ok, pid()}</pre>
+<pre>start_link() -> {ok, pid()}</pre>
 <br></br>
 
 
@@ -864,7 +881,7 @@ starting the gproc application.<a name="table-1"></a>
 
 
 
-<pre>table(Context::<a href="#type-context">context()</a>) -&gt; any()</pre>
+<pre>table(Context::<a href="#type-context">context()</a>) -> any()</pre>
 <br></br>
 
 
@@ -878,7 +895,7 @@ Equivalent to [`table(Context, [])`](#table-2).<a name="table-2"></a>
 
 
 
-<pre>table(Context::<a href="#type-context">context()</a>, Opts) -&gt; any()</pre>
+<pre>table(Context::<a href="#type-context">context()</a>, Opts) -> any()</pre>
 <br></br>
 
 
@@ -894,7 +911,7 @@ See [`http://www.erlang.org/doc/man/qlc.html`](http://www.erlang.org/doc/man/qlc
 
 
 
-<pre>unreg(Key::<a href="#type-key">key()</a>) -&gt; true</pre>
+<pre>unreg(Key::<a href="#type-key">key()</a>) -> true</pre>
 <br></br>
 
 
@@ -908,7 +925,7 @@ Unregister a name or property.<a name="unregister_name-1"></a>
 
 
 
-`unregister_name(Key) -&gt; any()`
+`unregister_name(Key) -> any()`
 
 
 
@@ -920,7 +937,7 @@ Equivalent to `unreg / 1`.<a name="update_counter-2"></a>
 
 
 
-<pre>update_counter(Key::<a href="#type-key">key()</a>, Incr::integer()) -&gt; integer()</pre>
+<pre>update_counter(Key::<a href="#type-key">key()</a>, Incr::integer()) -> integer()</pre>
 <br></br>
 
 
@@ -940,7 +957,7 @@ will fail if the type of object referred to by Key is not a counter.<a name="whe
 
 
 
-<pre>where(Key::<a href="#type-key">key()</a>) -&gt; pid()</pre>
+<pre>where(Key::<a href="#type-key">key()</a>) -> pid()</pre>
 <br></br>
 
 
@@ -960,7 +977,7 @@ cases.<a name="whereis_name-1"></a>
 
 
 
-`whereis_name(Key) -&gt; any()`
+`whereis_name(Key) -> any()`
 
 
 

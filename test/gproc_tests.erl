@@ -52,6 +52,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(t_give_away_and_back())}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(t_select())}
+      , ?_test(t_is_clean())
      ]}.
 
 t_simple_reg() ->
@@ -184,6 +186,43 @@ t_give_away_and_back() ->
     ?assertEqual(ok, t_call(P, {give_away, From})),
     ?assertEqual(Me, gproc:where(From)),
     ?assertEqual(ok, t_call(P, die)).
+
+t_select() ->
+    ?assertEqual(true, gproc:reg({n, l, {n,1}}, x)),
+    ?assertEqual(true, gproc:reg({n, l, {n,2}}, y)),
+    ?assertEqual(true, gproc:reg({p, l, {p,1}}, x)),
+    ?assertEqual(true, gproc:reg({p, l, {p,2}}, y)),
+    ?assertEqual(true, gproc:reg({c, l, {c,1}}, 1)),
+    ?assertEqual(true, gproc:reg({a, l, {c,1}}, undefined)),
+    %% local names
+    ?assertEqual(
+       [{{n,l,{n,1}},self(),x},
+	{{n,l,{n,2}},self(),y}], gproc:select(
+				   {local,names},
+				   [{{{n,l,'_'},'_','_'},[],['$_']}])),
+    %% mactch local names on value
+    ?assertEqual(
+       [{{n,l,{n,1}},self(),x}], gproc:select(
+				   {local,names},
+				   [{{{n,l,'_'},'_',x},[],['$_']}])),
+    %% match all on value
+    ?assertEqual(
+       [{{n,l,{n,1}},self(),x},
+	{{p,l,{p,1}},self(),x}], gproc:select(
+				   {all,all},
+				   [{{{'_',l,'_'},'_',x},[],['$_']}])),
+    %% match all on pid
+    ?assertEqual(
+       [{{a,l,{c,1}},self(),1},
+	{{c,l,{c,1}},self(),1},
+	{{n,l,{n,1}},self(),x},
+	{{n,l,{n,2}},self(),y},
+	{{p,l,{p,1}},self(),x},
+	{{p,l,{p,2}},self(),y}
+       ], gproc:select(
+	    {all,all},
+	    [{{'_',self(),'_'},[],['$_']}])).
+
 
 t_loop() ->
     receive

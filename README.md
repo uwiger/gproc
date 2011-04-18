@@ -47,11 +47,11 @@ An interesting application of gproc is building publish/subscribe patterns.
 Example:
 
 <pre>
-subscribe(EventType) -&gt;
+subscribe(EventType) ->
     %% Gproc notation: {p, l, Name} means {(p)roperty, (l)ocal, Name}
     gproc:reg({p, l, {?MODULE, EventType}}).
 
-notify(EventType, Msg) -&gt;
+notify(EventType, Msg) ->
     Key = {?MODULE, EventType},
     gproc:send({p, l, Key}, {self(), Key, Msg}).
 </pre>

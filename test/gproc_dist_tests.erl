@@ -22,16 +22,12 @@
 -export([t_spawn/1, t_spawn_reg/2]).
 
 dist_test_() ->
-    {timeout, 90,
+    {timeout, 120,
      [{setup,
        fun() ->
-	       Ns = start_slaves([n1, n2]),
+	       Ns = start_slaves([dist_test_n1, dist_test_n2]),
 	       ?assertMatch({[ok,ok],[]},
 			    rpc:multicall(Ns, application, start, [gproc])),
-	       %% Without this trace output, the test times out on my Mac...
-	       dbg:tracer(),
-	       dbg:tpl(?MODULE, x),
-	       dbg:p(all,[c]),
 	       ?debugVal(Ns)
        end,
        fun(Ns) ->
@@ -40,8 +36,9 @@ dist_test_() ->
        fun(Ns) ->
 	       {inorder,
 		[
-		 {inparallel, [fun() ->
-				       ?debugVal(t_simple_reg(Ns))
+		 {inparallel, [
+			       fun() ->
+			       	       ?debugVal(t_simple_reg(Ns))
 			       end,
 			       fun() ->
 			       	       ?debugVal(t_await_reg(Ns))
@@ -54,9 +51,9 @@ dist_test_() ->
 			       end
 			      ]
 		 },
-		 {timeout, 60, [fun() ->
-					?debugVal(t_fail_node(Ns))
-				end]}
+		 {timeout, 90, [fun() ->
+		 			?debugVal(t_fail_node(Ns))
+		 		end]}
 		]}
        end
       }]}.
@@ -64,7 +61,6 @@ dist_test_() ->
 -define(T_NAME, {n, g, {?MODULE, ?LINE}}).
 
 t_simple_reg([H|_] = Ns) ->
-    ?debugMsg(t_simple_reg),
     Name = ?T_NAME,
     P = t_spawn_reg(H, Name),
     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, P)),
@@ -73,7 +69,6 @@ t_simple_reg([H|_] = Ns) ->
     ?assertMatch(ok, t_call(P, die)).
 
 t_await_reg([A,B|_]) ->
-    ?debugMsg(t_await_reg),
     Name = ?T_NAME,
     P = t_spawn(A),
     Ref = erlang:monitor(process, P),
@@ -92,15 +87,9 @@ t_await_reg([A,B|_]) ->
     ?assertMatch(ok, t_call(P1, die)).
 
 t_await_reg_exists([A,B|_]) ->
-    ?debugMsg(t_await_reg_exists),
     Name = ?T_NAME,
     P = t_spawn(A),
     Ref = erlang:monitor(process, P),
-     %% dbg:tracer(),
-     %% [dbg:n(N) || N <- Ns],
-     %% dbg:tpl(gproc_dist,x),
-     %% dbg:tpl(gproc_lib,await,x),
-     %% dbg:p(all,[c]),
     P1 = t_spawn_reg(B, Name),
     P ! {self(), Ref, {apply, gproc, await, [Name]}},
     ?assert(P1 == receive
@@ -115,22 +104,20 @@ t_await_reg_exists([A,B|_]) ->
     ?assertMatch(ok, t_call(P1, die)).
 
 t_give_away([A,B|_] = Ns) ->
-    ?debugMsg(t_give_away),
     Na = ?T_NAME,
     Nb = ?T_NAME,
     Pa = t_spawn_reg(A, Na),
     Pb = t_spawn_reg(B, Nb),
     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pa)),
     ?assertMatch(ok, t_lookup_everywhere(Nb, Ns, Pb)),
-    ?assertMatch(Pb, t_call(Pa, {apply, {gproc, give_away, [Na, Nb]}})),
+    ?assertMatch(Pb, t_call(Pa, {apply, gproc, give_away, [Na, Nb]})),
     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pb)),
-    ?assertMatch(Pa, t_call(Pa, {apply, {gproc, give_away, [Na, Pa]}})),
+    ?assertMatch(Pa, t_call(Pb, {apply, gproc, give_away, [Na, Pa]})),
     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pa)),
     ?assertMatch(ok, t_call(Pa, die)),
     ?assertMatch(ok, t_call(Pb, die)).
 
 t_fail_node([A,B|_] = Ns) ->
-    ?debugMsg(t_fail_node),
     Na = ?T_NAME,
     Nb = ?T_NAME,
     Pa = t_spawn_reg(A, Na),
@@ -203,12 +190,15 @@ t_loop() ->
 	    From ! {self(), Ref, ok};
 	{From, Ref, {apply, M, F, A}} ->
 	    From ! {self(), Ref, apply(M, F, A)},
-	    t_loop()
+	    t_loop();
+	Other ->
+	    ?debugFmt("got unknown msg: ~p~n", [Other]),
+	    exit({unknown_msg, Other})
     end.
 
 start_slaves(Ns) ->
     [H|T] = Nodes = [start_slave(N) || N <- Ns],
-    _ = [{N, rpc:call(H, net, ping, [N])} || N <- T],
+    _ = [rpc:call(H, net, ping, [N]) || N <- T],
     Nodes.
 	       
 start_slave(Name) ->

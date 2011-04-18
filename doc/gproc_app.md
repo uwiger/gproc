@@ -34,7 +34,7 @@ __Behaviours:__ [`application`](application.md).
 
 
 
-`start() -&gt; any()`
+`start() -> any()`
 
 <a name="start-2"></a>
 
@@ -44,7 +44,7 @@ __Behaviours:__ [`application`](application.md).
 
 
 
-`start(Type, StartArgs) -&gt; any()`
+`start(Type, StartArgs) -> any()`
 
 <a name="stop-1"></a>
 
@@ -54,5 +54,5 @@ __Behaviours:__ [`application`](application.md).
 
 
 
-`stop(State) -&gt; any()`
+`stop(State) -> any()`
 

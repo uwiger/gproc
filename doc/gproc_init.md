@@ -32,7 +32,7 @@ Module gproc_init
 
 
 
-<pre>hard_reset() -&gt; ok</pre>
+<pre>hard_reset() -> ok</pre>
 <br></br>
 
 
@@ -44,7 +44,7 @@ Module gproc_init
 
 
 
-<pre>soft_reset() -&gt; ok</pre>
+<pre>soft_reset() -> ok</pre>
 <br></br>
 
 
