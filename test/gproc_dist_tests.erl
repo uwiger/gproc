@@ -28,7 +28,8 @@ dist_test_() ->
 	       Ns = start_slaves([dist_test_n1, dist_test_n2]),
 	       ?assertMatch({[ok,ok],[]},
 			    rpc:multicall(Ns, application, start, [gproc])),
-	       ?debugVal(Ns)
+%%	       ?debugVal(Ns)
+	       Ns
        end,
        fun(Ns) ->
 	       [rpc:call(N, init, stop, []) || N <- Ns]
@@ -51,6 +52,9 @@ dist_test_() ->
 			       end,
 			       fun() ->
 				       ?debugVal(t_give_away(Ns))
+			       end,
+			       fun() ->
+				       ?debugVal(t_sync(Ns))
 			       end
 			      ]
 		 },
@@ -125,6 +129,11 @@ t_give_away([A,B|_] = Ns) ->
     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pa)),
     ?assertMatch(ok, t_call(Pa, die)),
     ?assertMatch(ok, t_call(Pb, die)).
+
+t_sync(Ns) ->
+    %% Don't really know how to test this...
+    [?assertMatch(true, rpc:call(N, gproc_dist, sync, []))
+     || N <- Ns].
 
 t_fail_node([A,B|_] = Ns) ->
     Na = ?T_NAME,

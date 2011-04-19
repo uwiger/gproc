@@ -29,7 +29,9 @@
 	 give_away/2,
 	 update_counter/2]).
 
--export([leader_call/1, leader_cast/1]).
+-export([leader_call/1,
+	 leader_cast/1,
+	 sync/0]).
 
 %%% internal exports
 -export([init/1,
@@ -82,7 +84,7 @@ reg(Key) ->
 %%%          | c  - counter
 %%%          | a  - aggregated counter
 %%%    Scope = l | g (global or local)
-%%%
+%%% @end
 reg({_,g,_} = Key, Value) ->
     %% anything global
     leader_call({reg, Key, Value, self()});
@@ -121,7 +123,15 @@ update_counter({c,g,_} = Key, Incr) when is_integer(Incr) ->
 update_counter(_, _) ->
     erlang:error(badarg).
 
-
+%% @spec sync() -> true
+%% @doc Synchronize with the gproc leader
+%%
+%% This function can be used to ensure that data has been replicated from the
+%% leader to the current node.
+%% @end
+%%
+sync() ->
+    leader_call(sync).
 
 %%% ==========================================================
 
@@ -184,6 +194,8 @@ handle_DOWN(Node, S, _E) ->
 %%     ets:select_delete(?TAB, [{Head, Gs, [true]}]),
 %%     {ok, [{delete, Globs}], S}.
 
+handle_leader_call(sync, _From, S, _E) ->
+    {reply, true, sync, S};
 handle_leader_call({reg, {C,g,Name} = K, Value, Pid}, _From, S, _E) ->
     case gproc_lib:insert_reg(K, Value, Pid, g) of
 	false ->
@@ -354,7 +366,8 @@ terminate(_Reason, _S) ->
 
 
 
-
+from_leader(sync, S, _E) ->
+    {ok, S};
 from_leader(Ops, S, _E) ->
     lists:foreach(
       fun({delete, Globals}) ->

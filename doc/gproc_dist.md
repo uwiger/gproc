@@ -35,7 +35,7 @@ Class = n  - unique name
 | p  - non-unique property
 | c  - counter
 | a  - aggregated counter
-Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-1">start_link/1</a></td><td></td></tr><tr><td valign="top"><a href="#surrendered-3">surrendered/3</a></td><td></td></tr><tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr><tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td></td></tr><tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td></td></tr></table>
+Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-1">start_link/1</a></td><td></td></tr><tr><td valign="top"><a href="#surrendered-3">surrendered/3</a></td><td></td></tr><tr><td valign="top"><a href="#sync-0">sync/0</a></td><td>Synchronize with the gproc leader.</td></tr><tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr><tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td></td></tr><tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td></td></tr></table>
 
 
 
@@ -220,8 +220,7 @@ Class = n  - unique name
 | p  - non-unique property
 | c  - counter
 | a  - aggregated counter
-Scope = l | g (global or local)
-<a name="set_value-2"></a>
+Scope = l | g (global or local)<a name="set_value-2"></a>
 
 <h3>set_value/2</h3>
 
@@ -261,7 +260,26 @@ Scope = l | g (global or local)
 
 `surrendered(S, X2, E) -> any()`
 
-<a name="terminate-2"></a>
+<a name="sync-0"></a>
+
+<h3>sync/0</h3>
+
+
+
+
+
+<pre>sync() -> true</pre>
+<br></br>
+
+
+
+
+
+
+Synchronize with the gproc leader
+
+This function can be used to ensure that data has been replicated from the
+leader to the current node.<a name="terminate-2"></a>
 
 <h3>terminate/2</h3>
 

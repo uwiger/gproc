@@ -5,7 +5,7 @@
 {application, gproc,
  [
   {description, "GPROC"},
-  {vsn, "0.2.2"},
+  {vsn, "0.2.3"},
   {id, "GPROC"},
   {registered, [ ] },
   %% NOTE: do not list applications which are load-only!
