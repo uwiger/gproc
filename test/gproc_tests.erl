@@ -256,7 +256,7 @@ t_qlc() ->
     ?assertEqual(Exp3,
 		 qlc:e(qlc:q([N || {_,_,x} = N <- gproc:table(all)]))),
 
-    %% match all on pid
+    %% match all
     Exp4 = [{{a,l,{c,1}},self(),1},
 	    {{c,l,{c,1}},self(),1},
 	    {{n,l,{n,1}},self(),x},
@@ -265,7 +265,14 @@ t_qlc() ->
 	    {{p,l,{p,2}},self(),y}
 	   ],
     ?assertEqual(Exp4,
-		 qlc:e(qlc:q([X || X <- gproc:table(all)]))).
+		 qlc:e(qlc:q([X || X <- gproc:table(all)]))),
+    %% match on pid
+    ?assertEqual(Exp4,
+		 qlc:e(qlc:q([{K,P,V} || {K,P,V} <-
+					     gproc:table(all), P =:= self()]))),
+    ?assertEqual(Exp4,
+		 qlc:e(qlc:q([{K,P,V} || {K,P,V} <-
+					     gproc:table(all), P == self()]))).
 
 t_loop() ->
     receive

@@ -1224,7 +1224,9 @@ keypat(Context) ->
     {S,T} = get_s_t(Context),
     {{T,S,'_'},'_'}.
 
-
+rev_keypat(Context) ->
+    {S,T} = get_s_t(Context),
+    {T,S,'_'}.
 
 get_s_t({S,T}) -> {scope(S), type(T)};
 get_s_t(T) when is_atom(T) ->
@@ -1339,10 +1341,10 @@ qlc_lookup(_Scope, 1, Keys) ->
 qlc_lookup(Scope, 2, Pids) ->
     lists:flatmap(fun(Pid) ->
                           Found =
-                              ets:select(?TAB, [{ {{Pid,keypat(Scope)}},
+                              ets:select(?TAB, [{ {{Pid, rev_keypat(Scope)}, r},
                                                   [], ['$_']}]),
                           lists:flatmap(
-                            fun({{_,{T,_,_}=K}}) ->
+                            fun({{_,{T,_,_}=K}, r}) ->
                                     K2 = if T==n orelse T==a -> T;
                                             true -> Pid
                                          end,
