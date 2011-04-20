@@ -27,8 +27,10 @@ dist_test_() ->
        fun() ->
 	       Ns = start_slaves([dist_test_n1, dist_test_n2]),
 	       ?assertMatch({[ok,ok],[]},
+			    rpc:multicall(Ns, application, set_env,
+					  [gproc, gproc_dist, Ns])),
+	       ?assertMatch({[ok,ok],[]},
 			    rpc:multicall(Ns, application, start, [gproc])),
-%%	       ?debugVal(Ns)
 	       Ns
        end,
        fun(Ns) ->
@@ -240,8 +242,7 @@ start_slave(Name) ->
     end,
     {ok, Node} = slave:start(
 		   host(), Name,
-		   "-pa . -pz ../ebin -pa ../deps/gen_leader/ebin "
-		   "-gproc gproc_dist all"),
+		   "-pa . -pz ../ebin -pa ../deps/gen_leader/ebin "),
     %% io:fwrite(user, "Slave node: ~p~n", [Node]),
     Node.
 
