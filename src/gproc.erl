@@ -1220,10 +1220,6 @@ type(props) -> p;
 type(counters) -> c;
 type(aggr_counters) -> a.
 
-keypat(Context) ->
-    {S,T} = get_s_t(Context),
-    {{T,S,'_'},'_'}.
-
 rev_keypat(Context) ->
     {S,T} = get_s_t(Context),
     {T,S,'_'}.
