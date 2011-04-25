@@ -141,6 +141,9 @@ update_counter(_, _) ->
 sync() ->
     leader_call(sync).
 
+%% @spec get_leader() -> node()
+%% @doc Returns the node of the current gproc leader.
+%% @end
 get_leader() ->
     gen_leader:call(?MODULE, get_leader).
 
