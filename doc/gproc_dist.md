@@ -30,7 +30,7 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.
 
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#code_change-4">code_change/4</a></td><td></td></tr><tr><td valign="top"><a href="#elected-2">elected/2</a></td><td></td></tr><tr><td valign="top"><a href="#elected-3">elected/3</a></td><td></td></tr><tr><td valign="top"><a href="#from_leader-3">from_leader/3</a></td><td></td></tr><tr><td valign="top"><a href="#give_away-2">give_away/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_DOWN-3">handle_DOWN/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_call-4">handle_call/4</a></td><td></td></tr><tr><td valign="top"><a href="#handle_cast-3">handle_cast/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_info-2">handle_info/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_leader_call-4">handle_leader_call/4</a></td><td></td></tr><tr><td valign="top"><a href="#handle_leader_cast-3">handle_leader_cast/3</a></td><td></td></tr><tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr><tr><td valign="top"><a href="#leader_call-1">leader_call/1</a></td><td></td></tr><tr><td valign="top"><a href="#leader_cast-1">leader_cast/1</a></td><td></td></tr><tr><td valign="top"><a href="#mreg-2">mreg/2</a></td><td></td></tr><tr><td valign="top"><a href="#reg-1">reg/1</a></td><td></td></tr><tr><td valign="top"><a href="#reg-2">reg/2</a></td><td>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#code_change-4">code_change/4</a></td><td></td></tr><tr><td valign="top"><a href="#elected-2">elected/2</a></td><td></td></tr><tr><td valign="top"><a href="#elected-3">elected/3</a></td><td></td></tr><tr><td valign="top"><a href="#from_leader-3">from_leader/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_leader-0">get_leader/0</a></td><td></td></tr><tr><td valign="top"><a href="#give_away-2">give_away/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_DOWN-3">handle_DOWN/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_call-4">handle_call/4</a></td><td></td></tr><tr><td valign="top"><a href="#handle_cast-3">handle_cast/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_info-2">handle_info/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_leader_call-4">handle_leader_call/4</a></td><td></td></tr><tr><td valign="top"><a href="#handle_leader_cast-3">handle_leader_cast/3</a></td><td></td></tr><tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr><tr><td valign="top"><a href="#leader_call-1">leader_call/1</a></td><td></td></tr><tr><td valign="top"><a href="#leader_cast-1">leader_cast/1</a></td><td></td></tr><tr><td valign="top"><a href="#mreg-2">mreg/2</a></td><td></td></tr><tr><td valign="top"><a href="#reg-1">reg/1</a></td><td></td></tr><tr><td valign="top"><a href="#reg-2">reg/2</a></td><td>
 Class = n  - unique name
 | p  - non-unique property
 | c  - counter
@@ -83,6 +83,16 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 `from_leader(Ops, S, E) -> any()`
 
+<a name="get_leader-0"></a>
+
+<h3>get_leader/0</h3>
+
+
+
+
+
+`get_leader() -> any()`
+
 <a name="give_away-2"></a>
 
 <h3>give_away/2</h3>
@@ -111,7 +121,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`handle_call(X1, X2, S, X4) -> any()`
+`handle_call(X1, X2, S, E) -> any()`
 
 <a name="handle_cast-3"></a>
 
@@ -141,7 +151,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#set_val
 
 
 
-`handle_leader_call(X1, From, S, E) -> any()`
+`handle_leader_call(X1, From, State, E) -> any()`
 
 <a name="handle_leader_cast-3"></a>
 
@@ -279,7 +289,13 @@ Scope = l | g (global or local)<a name="set_value-2"></a>
 Synchronize with the gproc leader
 
 This function can be used to ensure that data has been replicated from the
-leader to the current node.<a name="terminate-2"></a>
+leader to the current node. It does so by asking the leader to ping all
+live participating nodes. The call will return `true` when all these nodes
+have either responded or died. In the special case where the leader dies
+during an ongoing sync, the call will fail with a timeout exception.
+(Actually, it should be a `leader_died` exception; more study needed to find out
+why gen_leader times out in this situation, rather than reporting that the
+leader died.)<a name="terminate-2"></a>
 
 <h3>terminate/2</h3>
 

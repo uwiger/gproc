@@ -60,6 +60,9 @@ dist_test_() ->
 			       end
 			      ]
 		 },
+		 fun() ->
+			 ?debugVal(t_sync_cand_dies(Ns))
+		 end,
 		 {timeout, 90, [fun() ->
 		 			?debugVal(t_fail_node(Ns))
 		 		end]}
@@ -136,6 +139,27 @@ t_sync(Ns) ->
     %% Don't really know how to test this...
     [?assertMatch(true, rpc:call(N, gproc_dist, sync, []))
      || N <- Ns].
+
+%% Verify that the gproc_dist:sync() call returns true even if a candidate dies
+%% while the sync is underway. This test makes use of sys:suspend() to ensure that
+%% the other candidate doesn't respond too quickly.
+t_sync_cand_dies([A,B|_] = Ns) ->
+    Leader = rpc:call(A, gproc_dist, get_leader, []),
+    Other = case Leader of 
+		A -> B;
+		B -> A
+	    end,
+    ?assertMatch(ok, rpc:call(Other, sys, suspend, [gproc_dist])),
+    P = rpc:call(Other, erlang, whereis, [gproc_dist]),
+    Key = rpc:async_call(Leader, gproc_dist, sync, []),
+    %% The overall timeout for gproc_dist:sync() is 5 seconds. Here, we should 
+    %% still be waiting.
+    ?assertMatch(timeout, rpc:nb_yield(Key, 1000)),
+    exit(P, kill),
+    %% The leader should detect that the other candidate died and respond
+    %% immediately. Therefore, we should have our answer well within 1 sec.
+    ?assertMatch({value, true}, rpc:nb_yield(Key, 1000)).
+		    
 
 t_fail_node([A,B|_] = Ns) ->
     Na = ?T_NAME,
