@@ -68,6 +68,11 @@
          last/1,
          table/1, table/2]).
 
+%% Environment handling
+-export([get_env/3, get_env/4,
+	 get_set_env/3, get_set_env/4,
+	 set_env/5]).
+
 %% Convenience functions
 -export([add_local_name/1,
          add_global_name/1,
@@ -269,7 +274,201 @@ lookup_local_counters(P)    -> lookup_values({c,l,P}).
 %%
 lookup_global_counters(P)   -> lookup_values({c,g,P}).
 
+%% @spec get_env(Scope::scope(), App::atom(), Key::atom()) -> term()
+%% @equiv get_env(Scope, App, Key, [app_env])
+get_env(Scope, App, Key) ->
+    get_env(Scope, App, Key, [app_env]).
 
+%% @spec (Scope::scope(), App::atom(), Key::atom(), Strategy) -> term()
+%%   Strategy = [Alternative]
+%%   Alternative = app_env
+%%               | os_env
+%%               | inherit | {inherit, pid()}
+%%               | {default, term()}
+%%               | error
+%% @doc Fetch an environment value, potentially cached as a `gproc_env' property.
+%%
+%% This function first tries to read the value of a cached property,
+%% `{p, Scope, {gproc_env, App, Key}}'. If this fails, it will try the provided
+%% alternative strategy. `Strategy' is a list of alternatives, tried in order.
+%% Each alternative can be one of:
+%% 
+%% * `app_env' - try `application:get_env(App, Key)'
+%% * `os_env' - try `os:getenv(ENV)', where `ENV' is `Key' converted into an 
+%%   uppercase string
+%% * `{os_env, ENV}' - try `os:getenv(ENV)'
+%% * `inherit' - inherit the cached value, if any, held by the (proc_lib) parent.
+%% * `{inherit, Pid}' - inherit the cached value, if any, held by `Pid'.
+%% * `{default, Value}' - set a default value to return once alternatives have been
+%%    exhausted; if not set, `undefined' will be returned.
+%% * `error' - raise an exception, `erlang:error(gproc_env, [App, Key, Scope])'.
+%%
+%% While any alternative can occur more than once, the only one that might make 
+%% sense to repeat is `{default, Value}'. The last instance will be the one that 
+%% determines the return value.
+%%
+%% The `error' option can be used to assert that a value has been previously 
+%% cached. Alternatively, it can be used to assert that a value is either cached
+%% or at least defined somewhere, e.g. `get_env(l, mnesia, dir, [app_env, error])'.
+%% @end
+get_env(Scope, App, Key, Strategy)
+  when Scope==l, is_atom(App), is_atom(Key);
+       Scope==g, is_atom(App), is_atom(Key) ->
+    do_get_env(Scope, App, Key, Strategy, false).
+
+%% @spec get_set_env(Scope::scope(), App::atom(), Key::atom()) -> term()
+%% @equiv get_set_env(Scope, App, Key, [app_env])
+get_set_env(Scope, App, Key) ->
+    get_set_env(Scope, App, Key, [app_env]).
+
+%% @spec get_set_env(Scope::scope(), App::atom(), Key::atom(), Strategy) -> Value
+%% @doc Fetch and cache an environment value, if not already cached.
+%%
+%% @see get_env/4.
+%% This function does the same thing as {@link get_env/4}, but also updates the 
+%% cache. Note that the cache will be updated even if the result of the lookup
+%% is `undefined'.
+%% @end
+%%
+get_set_env(Scope, App, Key, Strategy)
+  when Scope==l, is_atom(App), is_atom(Key);
+       Scope==g, is_atom(App), is_atom(Key) ->
+    do_get_env(Scope, App, Key, Strategy, true).
+
+do_get_env(Context, App, Key, Alternatives, Set) ->
+    case lookup_env(Context, App, Key, self()) of
+	undefined ->
+	    check_alternatives(Alternatives, Context, App, Key, undefined, Set);
+	{ok, Value} ->
+	    Value
+    end.
+
+%% @spec set_env(Scope::scope(), App::atom(),
+%%               Key::atom(), Value::term(), Strategy) -> Value
+%%   Strategy = [Alternative]
+%%   Alternative = app_env | os_env | {os_env, VAR}
+%%
+%% @doc Updates the cached value as well as underlying environment.
+%%
+%% This function should be exercised with caution, as it affects the larger
+%% environment outside gproc. This function modifies the cached value, and then
+%% proceeds to update the underlying environment (OS environment variable or 
+%% application environment variable).
+%% @end
+%%
+set_env(Scope, App, Key, Value, Strategy)
+  when Scope==l, is_atom(App), is_atom(Key);
+       Scope==g, is_atom(App), is_atom(Key) ->
+    case is_valid_set_strategy(Strategy, Value) of
+	true ->
+	    cache_env(Scope, App, Key, Value),
+	    set_strategy(Strategy, App, Key, Value);
+	false ->
+	    erlang:error(badarg)
+    end.
+
+check_alternatives([{default, Val}|Alts], Scope, App, Key, _, Set) ->
+    check_alternatives(Alts, Scope, App, Key, Val, Set);
+check_alternatives([H|T], Scope, App, Key, Def, Set) ->
+    case try_alternative(H, App, Key, Scope) of
+	undefined ->
+	    check_alternatives(T, Scope, App, Key, Def, Set);
+	{ok, Value} ->
+	    if Set ->
+		    cache_env(Scope, App, Key, Value),
+		    Value;
+	       true ->
+		    Value
+	    end
+    end;
+check_alternatives([], Scope, App, Key, Def, Set) ->
+    if Set ->
+	    cache_env(Scope, App, Key, Def);
+       true ->
+	    ok
+    end,
+    Def.
+
+try_alternative(error, App, Key, Scope) ->
+    erlang:error(gproc_env, [App, Key, Scope]);
+try_alternative(inherit, App, Key, Scope) ->
+    case get('$ancestors') of
+	[P|_] ->
+	    lookup_env(Scope, App, Key, P);
+	_ ->
+	    undefined
+    end;
+try_alternative({inherit, P}, App, Key, Scope) ->
+    lookup_env(Scope, App, Key, P);
+try_alternative(app_env, App, Key, _Scope) ->
+    case application:get_env(App, Key) of
+	undefined       -> undefined;
+	{ok, undefined} -> undefined;
+	{ok, Value}     -> {ok, Value}
+    end;
+try_alternative(os_env, _App, Key, _) ->
+    case os:getenv(os_env_key(Key)) of
+	""  -> undefined;
+	Val -> {ok, Val}
+    end;
+try_alternative({os_env, Key}, _, _, _) ->
+    case os:getenv(Key) of
+	""  -> undefined;
+	Val -> {ok, Val}
+    end;
+try_alternative({mnesia,Type,Key,Pos}, _, _, _) ->
+    case mnesia:activity(Type, fun() -> mnesia:read(Key) end) of
+	[] -> undefined;
+	[Found] ->
+	    {ok, element(Pos, Found)}
+    end.
+
+os_env_key(Key) ->
+    string:to_upper(atom_to_list(Key)).
+
+lookup_env(Scope, App, Key, P) ->
+    case ets:lookup(?TAB, {{p, Scope, {gproc_env, App, Key}}, P}) of
+	[] ->
+	    undefined;
+	[{_, _, Value}] ->
+	    {ok, Value}
+    end.
+
+cache_env(Scope, App, Key, Value) ->
+    reg({p, Scope, {gproc_env, App, Key}}, Value).
+
+is_valid_set_strategy([os_env|T], Value) ->
+    is_string(Value) andalso is_valid_set_strategy(T, Value);
+is_valid_set_strategy([{os_env, _}|T], Value) ->
+    is_string(Value) andalso is_valid_set_strategy(T, Value);
+is_valid_set_strategy([app_env|T], Value) ->
+    is_valid_set_strategy(T, Value);
+is_valid_set_strategy([], _) ->
+    true;
+is_valid_set_strategy(_, _) ->
+    false.
+
+set_strategy([H|T], App, Key, Value) ->
+    case H of
+	app_env ->
+	    application:set_env(App, Key, Value);
+	os_env ->
+	    os:putenv(os_env_key(Key), Value);
+	{os_env, ENV} ->
+	    os:putenv(ENV, Value)
+    end,
+    set_strategy(T, App, Key, Value);
+set_strategy([], _, _, Value) ->
+    Value.
+
+is_string(S) ->
+    try begin _ = iolist_to_binary(S),
+	      true
+	end
+    catch
+	error:_ ->
+	    false
+    end.
 
 %% @spec reg(Key::key()) -> true
 %%
@@ -472,9 +671,6 @@ local_mreg(T, [_|_] = KVL) ->
         {true,_}  -> monitor_me()
     end.
 
-
-
-
 %% @spec (Key :: key(), Value) -> true
 %% @doc Sets the value of the registeration entry given by Key
 %% 
@@ -506,9 +702,6 @@ set_value({c,l,_} = Key, Value) when is_integer(Value) ->
     gproc_lib:do_set_counter_value(Key, Value, self());
 set_value(_, _) ->
     erlang:error(badarg).
-
-
-
 
 %% @spec (Key) -> Value
 %% @doc Read the value stored with a key registered to the current process.
@@ -605,9 +798,6 @@ my_is_process_alive(_) ->
     %% remote pid - assume true (too costly to find out)
     true.
 
-
-
-
 %% @spec (Key::key()) -> [{pid(), Value}]
 %%
 %% @doc Retrieve the `{Pid,Value}' pairs corresponding to Key.
@@ -624,8 +814,6 @@ lookup_values({T,_,_} = Key) ->
                 ets:select(?TAB, [{{{Key,'_'}, '$1', '$2'},[],[{{'$1','$2'}}]}])
         end,
     [Pair || {P,_} = Pair <- L, my_is_process_alive(P)].
-
-
 
 %% @spec (Key::key(), Incr::integer()) -> integer()
 %%
