@@ -940,7 +940,7 @@ property), Msg will be send to all processes that have such an object.<a name="s
 
 
 <pre>set_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom(), Value::term(), Strategy) -> Value</pre>
-<ul class="definitions"><li><pre>Strategy = [Alternative]</pre></li><li><pre>Alternative = app_env | os_env | {os_env, VAR}</pre></li></ul>
+<ul class="definitions"><li><pre>Strategy = [Alternative]</pre></li><li><pre>Alternative = app_env | os_env | {os_env, VAR} | {mnesia, ActivityType, Oid, Pos}</pre></li></ul>
 
 
 
@@ -948,10 +948,17 @@ property), Msg will be send to all processes that have such an object.<a name="s
 
 Updates the cached value as well as underlying environment.
 
-This function should be exercised with caution, as it affects the larger
-environment outside gproc. This function modifies the cached value, and then
-proceeds to update the underlying environment (OS environment variable or
-application environment variable).<a name="set_value-2"></a>
+
+
+This function should be exercised with caution, as it affects the larger  
+environment outside gproc. This function modifies the cached value, and then  
+proceeds to update the underlying environment (OS environment variable or  
+application environment variable).
+
+When the `mnesia` alternative is used, gproc will try to update any existing
+object, changing only the `Pos` position. If no such object exists, it will
+create a new object, setting any other attributes (except `Pos` and the key)
+to `undefined`.<a name="set_value-2"></a>
 
 <h3>set_value/2</h3>
 

@@ -354,6 +354,7 @@ do_get_env(Context, App, Key, Alternatives, Set) ->
 %%               Key::atom(), Value::term(), Strategy) -> Value
 %%   Strategy = [Alternative]
 %%   Alternative = app_env | os_env | {os_env, VAR}
+%%                | {mnesia, ActivityType, Oid, Pos}
 %%
 %% @doc Updates the cached value as well as underlying environment.
 %%
@@ -361,6 +362,11 @@ do_get_env(Context, App, Key, Alternatives, Set) ->
 %% environment outside gproc. This function modifies the cached value, and then
 %% proceeds to update the underlying environment (OS environment variable or 
 %% application environment variable).
+%%
+%% When the `mnesia' alternative is used, gproc will try to update any existing
+%% object, changing only the `Pos' position. If no such object exists, it will
+%% create a new object, setting any other attributes (except `Pos' and the key)
+%% to `undefined'.
 %% @end
 %%
 set_env(Scope, App, Key, Value, Strategy)
