@@ -299,13 +299,19 @@ get_env(Scope, App, Key) ->
 %% * `{os_env, ENV}' - try `os:getenv(ENV)'
 %% * `inherit' - inherit the cached value, if any, held by the (proc_lib) parent.
 %% * `{inherit, Pid}' - inherit the cached value, if any, held by `Pid'.
+%% * `{inherit, Name}' - inherit the cached value, if any, held by the process
+%%    registered in `gproc' as `Name'.
+%% * `init_arg' - try `init:get_argument(Key)'; expects a single value, if any.
+%% * `{mnesia, ActivityType, Oid, Pos}' - try 
+%%   `mnesia:activity(ActivityType, fun() -> mnesia:read(Oid) end)'; retrieve the
+%%    value in position `Pos' if object found.
 %% * `{default, Value}' - set a default value to return once alternatives have been
 %%    exhausted; if not set, `undefined' will be returned.
 %% * `error' - raise an exception, `erlang:error(gproc_env, [App, Key, Scope])'.
 %%
 %% While any alternative can occur more than once, the only one that might make 
-%% sense to repeat is `{default, Value}'. The last instance will be the one that 
-%% determines the return value.
+%% sense to repeat is `{default, Value}'. 
+%% The last instance will be the one that determines the return value.
 %%
 %% The `error' option can be used to assert that a value has been previously 
 %% cached. Alternatively, it can be used to assert that a value is either cached
@@ -324,10 +330,11 @@ get_set_env(Scope, App, Key) ->
 %% @spec get_set_env(Scope::scope(), App::atom(), Key::atom(), Strategy) -> Value
 %% @doc Fetch and cache an environment value, if not already cached.
 %%
-%% @see get_env/4.
 %% This function does the same thing as {@link get_env/4}, but also updates the 
 %% cache. Note that the cache will be updated even if the result of the lookup
 %% is `undefined'.
+%%
+%% @see get_env/4.
 %% @end
 %%
 get_set_env(Scope, App, Key, Strategy)
@@ -398,8 +405,14 @@ try_alternative(inherit, App, Key, Scope) ->
 	_ ->
 	    undefined
     end;
-try_alternative({inherit, P}, App, Key, Scope) ->
+try_alternative({inherit, P}, App, Key, Scope) when is_pid(P) ->
     lookup_env(Scope, App, Key, P);
+try_alternative({inherit, P}, App, Key, Scope) ->
+    case where(P) of
+	undefined -> undefined;
+	Pid when is_pid(Pid) ->
+	    lookup_env(Scope, App, Key, Pid)
+    end;
 try_alternative(app_env, App, Key, _Scope) ->
     case application:get_env(App, Key) of
 	undefined       -> undefined;
@@ -415,6 +428,13 @@ try_alternative({os_env, Key}, _, _, _) ->
     case os:getenv(Key) of
 	""  -> undefined;
 	Val -> {ok, Val}
+    end;
+try_alternative(init_arg, _, Key, _) ->
+    case init:get_argument(Key) of
+	{ok, [[Value]]} ->
+	    {ok, Value};
+	error ->
+	    undefined
     end;
 try_alternative({mnesia,Type,Key,Pos}, _, _, _) ->
     case mnesia:activity(Type, fun() -> mnesia:read(Key) end) of

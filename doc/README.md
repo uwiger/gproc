@@ -12,7 +12,7 @@ Extended process dictionary
 
 
 
-<h3><a name="Introduction">Introduction</a></h3>
+<h2>Introduction</h2>
 
 
 
@@ -43,6 +43,26 @@ Gproc is a process dictionary for Erlang, which provides a number of useful feat
 
 
 
+<h3>Use case: System inspection</h3>
+
+
+
+
+
+Gproc was designed to work as a central index for "process metadata", i.e.
+properties that describe the role and characteristics of each process. Having
+a single registry that is flexible enough to hold important types of property
+makes it easier to (a) find processes of a certain type, and (b) query and 
+browse key data in a running system.
+
+
+
+<h3>Use case: Pub/Sub patterns</h3>
+
+
+
+
+
 An interesting application of gproc is building publish/subscribe patterns.
 Example:
 
@@ -58,6 +78,30 @@ notify(EventType, Msg) ->
 
 
 
+<h3>Use case: Environment handling</h3>
+
+
+
+
+
+Gproc provides a set of functions to read environment variables, possibly from
+alternative sources, and cache them for efficient lookup. Caching also provides
+a way to see which processes rely on certain configuration values, as well as 
+which values they actually ended up using. 
+
+
+
+See [`gproc:get_env/4`](gproc.md#get_env-4), [`gproc:get_set_env/4`](gproc.md#get_set_env-4) and 
+[`gproc:set_env/5`](gproc.md#set_env-5) for details.
+
+
+
+<h2>Testing</h2>
+
+
+
+
+
 Gproc has a QuickCheck test suite, covering a fairly large part of the local 
 gproc functionality, although none of the global registry. It requires a 
 commercial EQC license, but rebar is smart enough to detect whether EQC is 
@@ -70,7 +114,7 @@ global gproc.
 
 
 
-<h3><a name="Building_Edoc">Building Edoc</a></h3>
+<h2>Building Edoc</h2>
 
 
 

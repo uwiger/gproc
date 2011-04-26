@@ -384,6 +384,12 @@ uppercase string
 * `{os_env, ENV}` - try `os:getenv(ENV)`
 * `inherit` - inherit the cached value, if any, held by the (proc_lib) parent.
 * `{inherit, Pid}` - inherit the cached value, if any, held by `Pid`.
+* `{inherit, Name}` - inherit the cached value, if any, held by the process
+registered in `gproc` as `Name`.
+* `init_arg` - try `init:get_argument(Key)`; expects a single value, if any.
+* `{mnesia, ActivityType, Oid, Pos}` - try
+`mnesia:activity(ActivityType, fun() -> mnesia:read(Oid) end)`; retrieve the
+value in position `Pos` if object found.
 * `{default, Value}` - set a default value to return once alternatives have been
 exhausted; if not set, `undefined` will be returned.
 * `error` - raise an exception, `erlang:error(gproc_env, [App, Key, Scope])`.
@@ -391,8 +397,8 @@ exhausted; if not set, `undefined` will be returned.
 
 
 While any alternative can occur more than once, the only one that might make
-sense to repeat is `{default, Value}`. The last instance will be the one that  
-determines the return value.
+sense to repeat is `{default, Value}`.  
+The last instance will be the one that determines the return value.
 
 The `error` option can be used to assert that a value has been previously
 cached. Alternatively, it can be used to assert that a value is either cached
@@ -424,12 +430,16 @@ Equivalent to [`get_set_env(Scope, App, Key, [app_env])`](#get_set_env-4).<a nam
 
 
 
+
+
 Fetch and cache an environment value, if not already cached.
 
-
-__See also:__ [This function does the same thing as [`get_env/4`](#get_env-4), but also updates the
+This function does the same thing as [`get_env/4`](#get_env-4), but also updates the
 cache. Note that the cache will be updated even if the result of the lookup
-is `undefined`.](#get_env-4).<a name="get_value-1"></a>
+is `undefined`.
+
+
+__See also:__ [get_env/4](#get_env-4).<a name="get_value-1"></a>
 
 <h3>get_value/1</h3>
 

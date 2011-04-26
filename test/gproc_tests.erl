@@ -63,6 +63,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(t_set_env())}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(t_get_env_inherit())}
+      , ?_test(t_is_clean())
      ]}.
 
 t_simple_reg() ->
@@ -286,11 +288,19 @@ t_get_env() ->
     ?assertEqual(true, os:putenv("TTTT", "s3")),
     ?assertEqual(ok, application:set_env(gproc, aaaa, a)),
     ?assertEqual(undefined, gproc:get_env(l, gproc, ssss, [])),
+    %%
     ?assertEqual("s1", gproc:get_env(l, gproc, ssss, [app_env])),
     ?assertEqual("s2", gproc:get_env(l, gproc, ssss, [os_env])),
     ?assertEqual("s1", gproc:get_env(l, gproc, ssss, [app_env, os_env])),
     ?assertEqual("s3", gproc:get_env(l, gproc, ssss, [{os_env,"TTTT"}])),
-    ?assertEqual("s4", gproc:get_env(l, gproc, ssss, [{default,"s4"}])).
+    ?assertEqual("s4", gproc:get_env(l, gproc, ssss, [{default,"s4"}])),
+    %%
+    ?assertEqual(ok, application:start(mnesia)),
+    ?assertEqual({atomic,ok}, mnesia:create_table(t, [{ram_copies, [node()]}])),
+    ?assertEqual(ok, mnesia:dirty_write({t, foo, bar})),
+    ?assertEqual(bar, gproc:get_env(l, gproc, some_env, [{mnesia,transaction,
+							  {t, foo}, 3}])),
+    ?assertEqual("erl", gproc:get_env(l, gproc, progname, [init_arg])).
 
 t_get_set_env() ->
     ?assertEqual(ok, application:set_env(gproc, aaaa, a)),
@@ -312,6 +322,17 @@ t_set_env() ->
     ?assertEqual(true, os:putenv("SSSS", "s0")),
     ?assertEqual([{self(),"s1"}],
 		 gproc:lookup_values({p,l,{gproc_env,gproc,ssss}})).
+
+t_get_env_inherit() ->
+    P = spawn_link(fun() ->
+			   ?assertEqual(bar, gproc:set_env(l,gproc,foo,bar,[])),
+			   gproc:reg({n,l,get_env_p}),
+			   t_loop()
+		   end),
+    ?assertEqual({P,undefined}, gproc:await({n,l,get_env_p},1000)),
+    ?assertEqual(bar, gproc:get_env(l, gproc, foo, [{inherit, P}])),
+    ?assertEqual(bar, gproc:get_env(l, gproc, foo, [{inherit, {n,l,get_env_p}}])),
+    ?assertEqual(ok, t_call(P, die)).
 
 t_loop() ->
     receive
