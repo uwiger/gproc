@@ -57,6 +57,12 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(t_qlc())}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(t_get_env())}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(t_get_set_env())}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(t_set_env())}
+      , ?_test(t_is_clean())
      ]}.
 
 t_simple_reg() ->
@@ -273,6 +279,39 @@ t_qlc() ->
     ?assertEqual(Exp4,
 		 qlc:e(qlc:q([{K,P,V} || {K,P,V} <-
 					     gproc:table(all), P == self()]))).
+
+t_get_env() ->
+    ?assertEqual(ok, application:set_env(gproc, ssss, "s1")),
+    ?assertEqual(true, os:putenv("SSSS", "s2")),
+    ?assertEqual(true, os:putenv("TTTT", "s3")),
+    ?assertEqual(ok, application:set_env(gproc, aaaa, a)),
+    ?assertEqual(undefined, gproc:get_env(l, gproc, ssss, [])),
+    ?assertEqual("s1", gproc:get_env(l, gproc, ssss, [app_env])),
+    ?assertEqual("s2", gproc:get_env(l, gproc, ssss, [os_env])),
+    ?assertEqual("s1", gproc:get_env(l, gproc, ssss, [app_env, os_env])),
+    ?assertEqual("s3", gproc:get_env(l, gproc, ssss, [{os_env,"TTTT"}])),
+    ?assertEqual("s4", gproc:get_env(l, gproc, ssss, [{default,"s4"}])).
+
+t_get_set_env() ->
+    ?assertEqual(ok, application:set_env(gproc, aaaa, a)),
+    ?assertEqual(a, gproc:get_set_env(l, gproc, aaaa, [app_env])),
+    ?assertEqual(ok, application:set_env(gproc, aaaa, undefined)),
+    ?assertEqual(a, gproc:get_env(l, gproc, aaaa, [error])).
+
+t_set_env() ->
+    ?assertEqual(ok, application:set_env(gproc, aaaa, a)),
+    ?assertEqual(a, gproc:get_set_env(l, gproc, aaaa, [app_env])),
+    ?assertEqual(ok, application:set_env(gproc, aaaa, undefined)),
+    ?assertEqual(b, gproc:set_env(l, gproc, aaaa, b, [app_env])),
+    ?assertEqual({ok,b}, application:get_env(gproc, aaaa)),
+    %%
+    ?assertEqual(true, os:putenv("SSSS", "s0")),
+    ?assertEqual("s0", gproc:get_env(l, gproc, ssss, [os_env])),
+    ?assertEqual("s1", gproc:set_env(l, gproc, ssss, "s1", [os_env])),
+    ?assertEqual("s1", os:getenv("SSSS")),
+    ?assertEqual(true, os:putenv("SSSS", "s0")),
+    ?assertEqual([{self(),"s1"}],
+		 gproc:lookup_values({p,l,{gproc_env,gproc,ssss}})).
 
 t_loop() ->
     receive

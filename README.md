@@ -78,7 +78,7 @@ global gproc.
 By default, `./rebar doc` generates Github-flavored Markdown files.If you want to change this, remove the `edoc_opts` line from `rebar.config`.
 
 Gproc was first introduced at the ACM SIGPLAN Erlang Workshop in
-Freiburg 2007 ([Paper available here](http://github.com/esl/gproc/blob/master/doc/erlang07-wiger.pdf)).
+Freiburg 2007 ([Paper available here](http://github.com/esl/gproc/blob/env_vars/doc/erlang07-wiger.pdf)).
 
 
 <h2 class="indextitle">Modules</h2>
@@ -86,10 +86,10 @@ Freiburg 2007 ([Paper available here](http://github.com/esl/gproc/blob/master/do
 
 
 <table width="100%" border="0" summary="list of modules">
-<tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc.md" class="module">gproc</a></td></tr>
-<tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_app.md" class="module">gproc_app</a></td></tr>
-<tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_dist.md" class="module">gproc_dist</a></td></tr>
-<tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_init.md" class="module">gproc_init</a></td></tr>
-<tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_lib.md" class="module">gproc_lib</a></td></tr>
-<tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_sup.md" class="module">gproc_sup</a></td></tr></table>
+<tr><td><a href="http://github.com/esl/gproc/blob/env_vars/doc/gproc.md" class="module">gproc</a></td></tr>
+<tr><td><a href="http://github.com/esl/gproc/blob/env_vars/doc/gproc_app.md" class="module">gproc_app</a></td></tr>
+<tr><td><a href="http://github.com/esl/gproc/blob/env_vars/doc/gproc_dist.md" class="module">gproc_dist</a></td></tr>
+<tr><td><a href="http://github.com/esl/gproc/blob/env_vars/doc/gproc_init.md" class="module">gproc_init</a></td></tr>
+<tr><td><a href="http://github.com/esl/gproc/blob/env_vars/doc/gproc_lib.md" class="module">gproc_lib</a></td></tr>
+<tr><td><a href="http://github.com/esl/gproc/blob/env_vars/doc/gproc_sup.md" class="module">gproc_sup</a></td></tr></table>
 

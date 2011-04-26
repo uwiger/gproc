@@ -361,7 +361,7 @@ set_env(Scope, App, Key, Value, Strategy)
        Scope==g, is_atom(App), is_atom(Key) ->
     case is_valid_set_strategy(Strategy, Value) of
 	true ->
-	    cache_env(Scope, App, Key, Value),
+	    update_cached_env(Scope, App, Key, Value),
 	    set_strategy(Strategy, App, Key, Value);
 	false ->
 	    erlang:error(badarg)
@@ -436,6 +436,14 @@ lookup_env(Scope, App, Key, P) ->
 
 cache_env(Scope, App, Key, Value) ->
     reg({p, Scope, {gproc_env, App, Key}}, Value).
+
+update_cached_env(Scope, App, Key, Value) ->
+    case lookup_env(Scope, App, Key, self()) of
+	undefined ->
+	    cache_env(Scope, App, Key, Value);
+	{ok, _} ->
+	    set_value({p, Scope, {gproc_env, App, Key}}, Value)
+    end.
 
 is_valid_set_strategy([os_env|T], Value) ->
     is_string(Value) andalso is_valid_set_strategy(T, Value);
