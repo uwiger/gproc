@@ -471,6 +471,8 @@ is_valid_set_strategy([{os_env, _}|T], Value) ->
     is_string(Value) andalso is_valid_set_strategy(T, Value);
 is_valid_set_strategy([app_env|T], Value) ->
     is_valid_set_strategy(T, Value);
+is_valid_set_strategy([{mnesia,_Type,_Oid,_Pos}|T], Value) ->
+    is_valid_set_strategy(T, Value);
 is_valid_set_strategy([], _) ->
     true;
 is_valid_set_strategy(_, _) ->
@@ -483,7 +485,24 @@ set_strategy([H|T], App, Key, Value) ->
 	os_env ->
 	    os:putenv(os_env_key(Key), Value);
 	{os_env, ENV} ->
-	    os:putenv(ENV, Value)
+	    os:putenv(ENV, Value);
+	{mnesia,Type,Oid,Pos} ->
+	    mnesia:activity(
+	      Type,
+	      fun() ->
+		      Rec = case mnesia:read(Oid) of
+				[] ->
+				    {Tab,K} = Oid,
+				    Tag = mnesia:table_info(Tab, record_name),
+				    Attrs = mnesia:table_info(Tab, attributes),
+				    list_to_tuple(
+				      [Tag,K |
+				       [undefined || _ <- tl(Attrs)]]);
+				[Old] ->
+				    Old
+			    end,
+		      mnesia:write(setelement(Pos, Rec, Value))
+	      end)
     end,
     set_strategy(T, App, Key, Value);
 set_strategy([], _, _, Value) ->

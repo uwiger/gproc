@@ -25,10 +25,12 @@
 reg_test_() ->
     {setup,
      fun() ->
-             application:start(gproc)
+             application:start(gproc),
+	     application:start(mnesia)
      end,
      fun(_) ->
-             application:stop(gproc)
+             application:stop(gproc),
+	     application:stop(mnesia)
      end,
      [
       {spawn, ?_test(t_simple_reg())}
@@ -295,7 +297,6 @@ t_get_env() ->
     ?assertEqual("s3", gproc:get_env(l, gproc, ssss, [{os_env,"TTTT"}])),
     ?assertEqual("s4", gproc:get_env(l, gproc, ssss, [{default,"s4"}])),
     %%
-    ?assertEqual(ok, application:start(mnesia)),
     ?assertEqual({atomic,ok}, mnesia:create_table(t, [{ram_copies, [node()]}])),
     ?assertEqual(ok, mnesia:dirty_write({t, foo, bar})),
     ?assertEqual(bar, gproc:get_env(l, gproc, some_env, [{mnesia,transaction,
@@ -321,7 +322,18 @@ t_set_env() ->
     ?assertEqual("s1", os:getenv("SSSS")),
     ?assertEqual(true, os:putenv("SSSS", "s0")),
     ?assertEqual([{self(),"s1"}],
-		 gproc:lookup_values({p,l,{gproc_env,gproc,ssss}})).
+		 gproc:lookup_values({p,l,{gproc_env,gproc,ssss}})),
+    %%
+    ?assertEqual({atomic,ok}, mnesia:create_table(t_set_env,
+						  [{ram_copies,[node()]}])),
+    ?assertEqual(ok, mnesia:dirty_write({t_set_env, a, 1})),
+    ?assertEqual(2, gproc:set_env(l, gproc, a, 2, [{mnesia,async_dirty,
+						    {t_set_env,a},3}])),
+    ?assertEqual([{t_set_env,a,2}], mnesia:dirty_read({t_set_env,a})),
+    %% non-existing mnesia obj
+    ?assertEqual(3, gproc:set_env(l, gproc, b, 3, [{mnesia,async_dirty,
+						    {t_set_env,b},3}])),
+    ?assertEqual([{t_set_env,b,3}], mnesia:dirty_read({t_set_env,b})).
 
 t_get_env_inherit() ->
     P = spawn_link(fun() ->
