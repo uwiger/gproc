@@ -26,6 +26,9 @@
 %%                                a = aggregate_counter
 %% @type scope() = l | g. l = local registration; g = global registration
 %%
+%% @type reg_id() = {type(), scope(), any()}.
+%% @type unique_id() = {n | a, scope(), any()}.
+%%
 %% Type and scope for select(), qlc() and stepping:
 %%
 %% @type sel_scope() = scope | all | global | local.
@@ -283,7 +286,9 @@ get_env(Scope, App, Key) ->
 %%   Strategy = [Alternative]
 %%   Alternative = app_env
 %%               | os_env
-%%               | inherit | {inherit, pid()}
+%%               | inherit | {inherit, pid()} | {inherit, unique_id()}
+%%               | init_arg
+%%               | {mnesia, ActivityType, Oid, Pos}
 %%               | {default, term()}
 %%               | error
 %% @doc Fetch an environment value, potentially cached as a `gproc_env' property.
@@ -299,8 +304,8 @@ get_env(Scope, App, Key) ->
 %% * `{os_env, ENV}' - try `os:getenv(ENV)'
 %% * `inherit' - inherit the cached value, if any, held by the (proc_lib) parent.
 %% * `{inherit, Pid}' - inherit the cached value, if any, held by `Pid'.
-%% * `{inherit, Name}' - inherit the cached value, if any, held by the process
-%%    registered in `gproc' as `Name'.
+%% * `{inherit, Id}' - inherit the cached value, if any, held by the process
+%%    registered in `gproc' as `Id'.
 %% * `init_arg' - try `init:get_argument(Key)'; expects a single value, if any.
 %% * `{mnesia, ActivityType, Oid, Pos}' - try 
 %%   `mnesia:activity(ActivityType, fun() -> mnesia:read(Oid) end)'; retrieve the
@@ -310,8 +315,14 @@ get_env(Scope, App, Key) ->
 %% * `error' - raise an exception, `erlang:error(gproc_env, [App, Key, Scope])'.
 %%
 %% While any alternative can occur more than once, the only one that might make 
-%% sense to repeat is `{default, Value}'. 
-%% The last instance will be the one that determines the return value.
+%% sense to use multiple times is `{default, Value}'. 
+%% 
+%% The return value will be one of:
+%%
+%% * The value of the first matching alternative, or exception caused by `error',
+%%   whichever comes first
+%% * The last instance of `{default, Value}', or `undefined', if there is no
+%%   matching alternative, default or `error' entry in the list.
 %%
 %% The `error' option can be used to assert that a value has been previously 
 %% cached. Alternatively, it can be used to assert that a value is either cached

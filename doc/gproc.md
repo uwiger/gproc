@@ -88,6 +88,15 @@ Type and scope for registration and lookup:
 sel_var() = DollarVar | '_'.
 
 
+<h3 class="typedecl"><a name="type-reg_id">reg_id()</a></h3>
+
+
+
+
+<pre>reg_id() = {<a href="#type-type">type()</a>, <a href="#type-scope">scope()</a>, any()}</pre>
+
+
+
 <h3 class="typedecl"><a name="type-scope">scope()</a></h3>
 
 
@@ -96,11 +105,7 @@ sel_var() = DollarVar | '_'.
 <pre>scope() = l | g</pre>
 
 
-
-
 l = local registration; g = global registration
-
-Type and scope for select(), qlc() and stepping:
 
 
 
@@ -141,6 +146,18 @@ Type and scope for select(), qlc() and stepping:
 
 n = name; p = property; c = counter;
 a = aggregate_counter
+
+
+<h3 class="typedecl"><a name="type-unique_id">unique_id()</a></h3>
+
+
+
+
+<pre>unique_id() = {n | a, <a href="#type-scope">scope()</a>, any()}</pre>
+
+
+Type and scope for select(), qlc() and stepping:
+
 
 <h2><a name="index">Function Index</a></h2>
 
@@ -361,7 +378,7 @@ Equivalent to [`get_env(Scope, App, Key, [app_env])`](#get_env-4).<a name="get_e
 
 
 <pre>get_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom(), Strategy) -> term()</pre>
-<ul class="definitions"><li><pre>Strategy = [Alternative]</pre></li><li><pre>Alternative = app_env | os_env | inherit | {inherit, pid()} | {default, term()} | error</pre></li></ul>
+<ul class="definitions"><li><pre>Strategy = [Alternative]</pre></li><li><pre>Alternative = app_env | os_env | inherit | {inherit, pid()} | {inherit, <a href="#type-unique_id">unique_id()</a>} | init_arg | {mnesia, ActivityType, Oid, Pos} | {default, term()} | error</pre></li></ul>
 
 
 
@@ -384,8 +401,8 @@ uppercase string
 * `{os_env, ENV}` - try `os:getenv(ENV)`
 * `inherit` - inherit the cached value, if any, held by the (proc_lib) parent.
 * `{inherit, Pid}` - inherit the cached value, if any, held by `Pid`.
-* `{inherit, Name}` - inherit the cached value, if any, held by the process
-registered in `gproc` as `Name`.
+* `{inherit, Id}` - inherit the cached value, if any, held by the process
+registered in `gproc` as `Id`.
 * `init_arg` - try `init:get_argument(Key)`; expects a single value, if any.
 * `{mnesia, ActivityType, Oid, Pos}` - try
 `mnesia:activity(ActivityType, fun() -> mnesia:read(Oid) end)`; retrieve the
@@ -397,8 +414,18 @@ exhausted; if not set, `undefined` will be returned.
 
 
 While any alternative can occur more than once, the only one that might make
-sense to repeat is `{default, Value}`.  
-The last instance will be the one that determines the return value.
+sense to use multiple times is `{default, Value}`.
+
+
+
+The return value will be one of:
+
+
+
+* The value of the first matching alternative, or exception caused by `error`,
+whichever comes first
+* The last instance of `{default, Value}`, or `undefined`, if there is no
+matching alternative, default or `error` entry in the list.
 
 The `error` option can be used to assert that a value has been previously
 cached. Alternatively, it can be used to assert that a value is either cached

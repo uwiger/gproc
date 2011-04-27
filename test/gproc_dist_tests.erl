@@ -260,7 +260,7 @@ start_slave(Name) ->
     case node() of
         nonode@nohost ->
             os:cmd("epmd -daemon"),
-            {ok, _} = net_kernel:start([gproc_master, longnames]);
+            {ok, _} = net_kernel:start([gproc_master, shortnames]);
         _ ->
             ok
     end,
