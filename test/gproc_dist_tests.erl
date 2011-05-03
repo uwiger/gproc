@@ -81,9 +81,14 @@ t_simple_reg([H|_] = Ns) ->
     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
     ?assertMatch(ok, t_call(P, die)).
 
-t_mreg([H|_]) ->
+t_mreg([H|_] = Ns) ->
     Kvl = ?T_KVL,
+    Keys = [K || {K,_} <- Kvl],
     P = t_spawn_mreg(H, Kvl),
+    [?assertMatch(ok, t_lookup_everywhere({n,g,K}, Ns, P)) || K <- Keys],
+    ?assertMatch(true, t_call(P, {apply, gproc, munreg, [n, g, Keys]})),
+    timer:sleep(1000),
+    [?assertMatch(ok, t_lookup_everywhere({n,g,K},Ns,undefined)) || K <- Keys],
     ?assertMatch(ok, t_call(P, die)).
 
 t_await_reg([A,B|_]) ->
@@ -143,7 +148,7 @@ t_sync(Ns) ->
 %% Verify that the gproc_dist:sync() call returns true even if a candidate dies
 %% while the sync is underway. This test makes use of sys:suspend() to ensure that
 %% the other candidate doesn't respond too quickly.
-t_sync_cand_dies([A,B|_] = Ns) ->
+t_sync_cand_dies([A,B|_]) ->
     Leader = rpc:call(A, gproc_dist, get_leader, []),
     Other = case Leader of 
 		A -> B;
@@ -220,7 +225,7 @@ t_spawn_reg(Node, Name) ->
 t_spawn_mreg(Node, KVL) ->
     Me = self(),
     spawn(Node, fun() ->
-			?assertMatch(true, gproc:mreg(p, g, KVL)),
+			?assertMatch(true, gproc:mreg(n, g, KVL)),
 			Me ! {self(), ok},
 			t_loop()
 		end),

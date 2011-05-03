@@ -116,8 +116,9 @@ t_simple_mreg() ->
     ?assertEqual(true, gproc:mreg(n, l, [{foo, foo_val},
 					 {bar, bar_val}])),
     ?assertEqual(P, gproc:where({n,l,foo})),
-    ?assertEqual(P, gproc:where({n,l,bar})).
-    
+    ?assertEqual(P, gproc:where({n,l,bar})),
+    ?assertEqual(true, gproc:munreg(n, l, [foo, bar])).
+
 
 t_gproc_crash() ->
     P = spawn_helper(),

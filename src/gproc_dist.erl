@@ -25,6 +25,7 @@
 -export([start_link/0, start_link/1,
 	 reg/1, reg/2, unreg/1,
 	 mreg/2,
+	 munreg/2,
 	 set_value/2,
 	 give_away/2,
 	 update_counter/2]).
@@ -98,6 +99,11 @@ mreg(T, KVL) ->
        true -> erlang:error(badarg)
     end.
 
+munreg(T, Keys) ->
+    if is_list(Keys) -> leader_call({munreg, T, g, Keys, self()});
+       true -> erlang:error(badarg)
+    end.
+	     
 
 unreg({_,g,_} = Key) ->
     leader_call({unreg, Key, self()});
@@ -312,6 +318,15 @@ handle_leader_call({mreg, T, g, L, Pid}, _From, S, _E) ->
 		error:_     -> {reply, badarg, S}
 	    end;
        true -> {reply, badarg, S}
+    end;
+handle_leader_call({munreg, T, g, L, Pid}, _From, S, _E) ->
+    try gproc_lib:remove_many(T, g, L, Pid) of
+	[] ->
+	    {reply, true, S};
+	Objs ->
+	    {reply, true, [{delete, Objs}], S}
+    catch
+	error:_ -> {reply, badarg, S}
     end;
 handle_leader_call({set,{T,g,N} =K,V,Pid}, _From, S, _E) ->
     if T == a ->

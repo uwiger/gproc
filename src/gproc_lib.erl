@@ -192,17 +192,28 @@ ensure_monitor(Pid, Scope) when Scope==g; Scope==l ->
     end.
 
 remove_reg(Key, Pid) ->
-    remove_reg_1(Key, Pid),
-    ets:delete(?TAB, {Pid,Key}).
+    Reg = remove_reg_1(Key, Pid),
+    ets:delete(?TAB, Rev = {Pid,Key}),
+    [Reg, Rev].
+
+remove_many(T, Scope, L, Pid) ->
+    lists:flatmap(fun(K) ->
+			  Key = {T, Scope, K},
+			  remove_reg(Key, Pid)
+		  end, L).
 
 remove_reg_1({c,_,_} = Key, Pid) ->
-    remove_counter_1(Key, ets:lookup_element(?TAB, {Key,Pid}, 3), Pid);
+    remove_counter_1(Key, ets:lookup_element(?TAB, Reg = {Key,Pid}, 3), Pid),
+    Reg;
 remove_reg_1({a,_,_} = Key, _Pid) ->
-    ets:delete(?TAB, {Key,a});
+    ets:delete(?TAB, Reg = {Key,a}),
+    Reg;
 remove_reg_1({n,_,_} = Key, _Pid) ->
-    ets:delete(?TAB, {Key,n});
+    ets:delete(?TAB, Reg = {Key,n}),
+    Reg;
 remove_reg_1({_,_,_} = Key, Pid) ->
-    ets:delete(?TAB, {Key, Pid}).
+    ets:delete(?TAB, Reg = {Key, Pid}),
+    Reg.
 
 remove_counter_1({c,C,N} = Key, Val, Pid) ->
     Res = ets:delete(?TAB, {Key, Pid}),
@@ -235,18 +246,6 @@ update_counter({c,l,Ctr} = Key, Incr, Pid) ->
 
 update_aggr_counter(C, N, Val) ->
     catch ets:update_counter(?TAB, {{a,C,N},a}, {3, Val}).
-
-%% cleanup_counter({c,g,N}=K, Pid, Acc) ->
-%%     remove_reg(K,Pid),
-%%     case ets:lookup(?TAB, {{a,g,N},a}) of
-%%         [Aggr] ->
-%%             [Aggr|Acc];
-%%         [] ->
-%%             Acc
-%%     end;
-%% cleanup_counter(K, Pid, Acc) ->
-%%     remove_reg(K,Pid),
-%%     Acc.
 
 scan_existing_counters(Ctxt, Name) ->
     Head = {{{c,Ctxt,Name},'_'},'_','$1'},

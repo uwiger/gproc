@@ -50,6 +50,7 @@
 -export([start_link/0,
          reg/1, reg/2, unreg/1,
          mreg/3,
+	 munreg/3,
          set_value/2,
          get_value/1,
          where/1,
@@ -653,6 +654,8 @@ reg(_, _) ->
 %% @doc Register multiple {Key,Value} pairs of a given type and scope.
 %% 
 %% This function is more efficient than calling {@link reg/2} repeatedly.
+%% It is also atomic in regard to unique names; either all names are registered
+%% or none are.
 %% @end
 mreg(T, g, KVL) ->
     ?CHK_DIST,
@@ -668,6 +671,40 @@ mreg(p, l, KVL) ->
 mreg(_, _, _) ->
     erlang:error(badarg).
 
+%% @spec munreg(type(), scope(), [Key::any()]) -> true
+%%
+%% @doc Unregister multiple Key items of a given type and scope.
+%% 
+%% This function is usually more efficient than calling {@link unreg/1}
+%% repeatedly.
+%% @end
+munreg(T, g, L) ->
+    ?CHK_DIST,
+    gproc_dist:munreg(T, existing(T,g,L));
+munreg(T, l, L) when T==a; T==n ->
+    if is_list(L) ->
+            call({munreg, T, l, existing(T,l,L)});
+       true ->
+            erlang:error(badarg)
+    end;
+munreg(p, l, L) ->
+    local_munreg(p, existing(p,l,L));
+munreg(_, _, _) ->
+    erlang:error(badarg).
+
+existing(T,Scope,L) ->
+    Keys = if T==p; T==c ->
+		   [{{T,Scope,K}, self()} || K <- L];
+	      T==a; T==n ->
+		   [{{T,Scope,K}, T} || K <- L]
+	   end,
+    _ = [case ets:member(?TAB, K) of
+	     false -> erlang:error(badarg);
+	     true  -> true
+	 end || K <- Keys],
+    L.
+
+
 %% @spec (Key:: key()) -> true
 %%
 %% @doc Unregister a name or property.
@@ -682,7 +719,8 @@ unreg(Key) ->
         {_, l, _} ->
             case ets:member(?TAB, {Key,self()}) of
                 true ->
-                    gproc_lib:remove_reg(Key, self());
+                    _ = gproc_lib:remove_reg(Key, self()),
+		    true;
                 false ->
                     erlang:error(badarg)
             end
@@ -734,6 +772,10 @@ local_mreg(T, [_|_] = KVL) ->
         false     -> erlang:error(badarg);
         {true,_}  -> monitor_me()
     end.
+
+local_munreg(T, L) when T==p; T==c ->
+    _ = [gproc_lib:remove_reg({T,l,K}) || K <- L],
+    true.
 
 %% @spec (Key :: key(), Value) -> true
 %% @doc Sets the value of the registeration entry given by Key
@@ -1115,7 +1157,7 @@ handle_call({reg, {_T,l,_} = Key, Val}, {Pid,_}, S) ->
 handle_call({unreg, {_,l,_} = Key}, {Pid,_}, S) ->
     case ets:member(?TAB, {Pid,Key}) of
         true ->
-            gproc_lib:remove_reg(Key, Pid),
+            _ = gproc_lib:remove_reg(Key, Pid),
             {reply, true, S};
         false ->
             {reply, badarg, S}
@@ -1137,6 +1179,9 @@ handle_call({mreg, T, l, L}, {Pid,_}, S) ->
     catch
         error:_  -> {reply, badarg, S}
     end;
+handle_call({munreg, T, l, L}, {Pid,_}, S) ->
+    _ = gproc_lib:remove_many(T, l, L, Pid),
+    {reply, true, S};
 handle_call({set, {_,l,_} = Key, Value}, {Pid,_}, S) ->
     case gproc_lib:do_set_value(Key, Value, Pid) of
         true ->
@@ -1293,7 +1338,7 @@ do_give_away({T,l,_} = K, To, Pid) when T==n; T==a ->
                     gproc_lib:ensure_monitor(ToPid, l),
                     ToPid;
                 undefined ->
-                    gproc_lib:remove_reg(K, Pid),
+                    _ = gproc_lib:remove_reg(K, Pid),
                     undefined
             end;
         _ ->
@@ -1318,7 +1363,7 @@ do_give_away({T,l,_} = K, To, Pid) when T==c; T==p ->
                             ToPid
                     end;
                 undefined ->
-                    gproc_lib:remove_reg(K, Pid),
+                    _ = gproc_lib:remove_reg(K, Pid),
                     undefined
             end;
         _ ->
