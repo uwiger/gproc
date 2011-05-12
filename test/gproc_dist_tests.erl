@@ -268,9 +268,9 @@ start_slave(Name) ->
         _ ->
             ok
     end,
-    {ok, Node} = slave:start(
-		   host(), Name,
-		   "-pa . -pz ../ebin -pa ../deps/gen_leader/ebin "),
+    Paths = "-pa ./ -pz ../ebin" ++
+        lists:flatten([ " -pa " ++ Path || Path <- code:get_path() ]),
+    {ok, Node} = slave:start(host(), Name, Paths),
     %% io:fwrite(user, "Slave node: ~p~n", [Node]),
     Node.
 
