@@ -774,7 +774,7 @@ local_mreg(T, [_|_] = KVL) ->
     end.
 
 local_munreg(T, L) when T==p; T==c ->
-    _ = [gproc_lib:remove_reg({T,l,K}) || K <- L],
+    _ = [gproc_lib:remove_reg({T,l,K}, self()) || K <- L],
     true.
 
 %% @spec (Key :: key(), Value) -> true
@@ -1280,12 +1280,12 @@ try_insert_reg({T,l,_} = Key, Val, Pid) ->
 -spec audit_process(pid()) -> ok.
 
 audit_process(Pid) when is_pid(Pid) ->
-    gen_server:call(gproc, {audit_process, Pid}, infinity).
+    ok = gen_server:call(gproc, {audit_process, Pid}, infinity).
     
 
 -spec process_is_down(pid()) -> ok.
 
-process_is_down(Pid) ->
+process_is_down(Pid) when is_pid(Pid) ->
     %% delete the monitor marker
     %% io:fwrite(user, "process_is_down(~p) - ~p~n", [Pid,ets:tab2list(?TAB)]),
     ets:delete(?TAB, {Pid,l}),
@@ -1592,7 +1592,7 @@ table(Context) ->
 %% See [http://www.erlang.org/doc/man/qlc.html].
 %% @end
 table(Context, Opts) ->
-    Ctxt = get_s_t(Context),
+    Ctxt = {_, Type} = get_s_t(Context),
     [Traverse, NObjs] = [proplists:get_value(K,Opts,Def) ||
                             {K,Def} <- [{traverse,select}, {n_objects,100}]],
     TF = case Traverse of
@@ -1607,7 +1607,7 @@ table(Context, Opts) ->
                  erlang:error(badarg, [Ctxt,Opts])
          end,
     InfoFun = fun(indices) -> [2];
-                 (is_unique_objects) -> is_unique(Ctxt);
+                 (is_unique_objects) -> is_unique(Type);
                  (keypos) -> 1;
                  (is_sorted_key) -> true;
                  (num_of_objects) ->
@@ -1675,13 +1675,7 @@ qlc_select({Objects, Cont}) ->
     Objects ++ fun() -> qlc_select(ets:select(Cont)) end.
 
 
-is_unique(names) -> true;
-is_unique(aggr_counters) -> true;
-is_unique({_, names}) -> true;
-is_unique({_, aggr_counters}) -> true;
 is_unique(n) -> true;
 is_unique(a) -> true;
-is_unique({_,n}) -> true;
-is_unique({_,a}) -> true;
 is_unique(_) -> false.
 

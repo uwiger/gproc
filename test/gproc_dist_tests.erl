@@ -87,7 +87,6 @@ t_mreg([H|_] = Ns) ->
     P = t_spawn_mreg(H, Kvl),
     [?assertMatch(ok, t_lookup_everywhere({n,g,K}, Ns, P)) || K <- Keys],
     ?assertMatch(true, t_call(P, {apply, gproc, munreg, [n, g, Keys]})),
-    timer:sleep(1000),
     [?assertMatch(ok, t_lookup_everywhere({n,g,K},Ns,undefined)) || K <- Keys],
     ?assertMatch(ok, t_call(P, die)).
 

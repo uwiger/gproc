@@ -20,11 +20,13 @@
 ## FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 ## DEALINGS IN THE SOFTWARE.
 
-.PHONY: all compile clean eunit test eqc doc
+.PHONY: all compile clean eunit test eqc doc check dialyzer
 
 DIRS=src 
 
 all: compile eunit test doc
+
+check: compile dialyzer
 
 compile:
 	./rebar compile
@@ -40,3 +42,6 @@ test: eunit
 
 doc:
 	./rebar doc
+
+dialyzer:
+	./rebar skip_deps=true dialyze

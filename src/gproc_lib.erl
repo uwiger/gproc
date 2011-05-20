@@ -20,7 +20,17 @@
 %% <p>For a detailed description, see gproc/doc/erlang07-wiger.pdf.</p>
 %% @end
 -module(gproc_lib).
--compile(export_all).
+
+-export([await/3,
+	 do_set_counter_value/3,
+	 do_set_value/3,
+	 ensure_monitor/2,
+	 insert_many/4,
+	 insert_reg/4,
+	 remove_many/4,
+	 remove_reg/2,
+	 update_aggr_counter/3,
+	 update_counter/3]).
 
 -include("gproc.hrl").
 
@@ -65,7 +75,7 @@ insert_reg({c,Scope,Ctr} = Key, Value, Pid, Scope) when Scope==l; Scope==g ->
             ignore
     end,
     Res;
-insert_reg(Key, Value, Pid, _Scope) ->
+insert_reg({_,_,_} = Key, Value, Pid, _Scope) when is_pid(Pid) ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
     Kr = {Pid, Key},
