@@ -42,12 +42,12 @@ init(_Args) ->
          permanent, 2000, worker, [gproc]},
     
     Dist = case application:get_env(gproc_dist) of
-	       undefined -> [];
-	       {ok, false} -> [];
-	       {ok, Env} ->
-		   [{gproc_dist, {gproc_dist, start_link, [Env]},
-		     permanent, 2000, worker, [gproc_dist]}]
-	   end,
+               undefined -> [];
+               {ok, false} -> [];
+               {ok, Env} ->
+                   [{gproc_dist, {gproc_dist, start_link, [Env]},
+                     permanent, 2000, worker, [gproc_dist]}]
+           end,
     {ok,{{one_for_one, 15, 60}, [GProc | Dist]}}.
 
 

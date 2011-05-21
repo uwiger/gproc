@@ -35,12 +35,12 @@ soft_reset() ->
 
 hard_reset() ->
     %% exit normal {n,'_','_'}
-    [ exit(Pid,normal) || Pid <- gproc:lookup_pids({n,'_','_'}),
-			  (node(Pid) =/= node()) orelse is_process_alive(Pid) ],
+    _ = [ exit(Pid,normal) || Pid <- gproc:lookup_pids({n,'_','_'}),
+                              (node(Pid) =/= node()) orelse is_process_alive(Pid) ],
     %% kill via supervisor
     ok = supervisor:terminate_child(gproc_sup, gproc),
     %% delete ets table
-    [ ets:delete(Tab) || Tab <- ets:all(), Tab =:= gproc ],
+    _ = [ ets:delete(Tab) || Tab <- ets:all(), Tab =:= gproc ],
     %% restart via supervisor
     {ok,_} = supervisor:restart_child(gproc_sup, gproc),
     ok.

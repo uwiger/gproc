@@ -22,15 +22,15 @@
 -module(gproc_lib).
 
 -export([await/3,
-	 do_set_counter_value/3,
-	 do_set_value/3,
-	 ensure_monitor/2,
-	 insert_many/4,
-	 insert_reg/4,
-	 remove_many/4,
-	 remove_reg/2,
-	 update_aggr_counter/3,
-	 update_counter/3]).
+         do_set_counter_value/3,
+         do_set_value/3,
+         ensure_monitor/2,
+         insert_many/4,
+         insert_reg/4,
+         remove_many/4,
+         remove_reg/2,
+         update_aggr_counter/3,
+         update_counter/3]).
 
 -include("gproc.hrl").
 
@@ -92,7 +92,7 @@ insert_many(T, Scope, KVL, Pid) ->
         true ->
             RevObjs = mk_reg_rev_objs(T, Scope, Pid, KVL),
             ets:insert(?TAB, RevObjs),
-	    gproc_lib:ensure_monitor(Pid, Scope),
+            _ = gproc_lib:ensure_monitor(Pid, Scope),
             {true, Objs};
         false ->
             Existing = [{Obj, ets:lookup(?TAB, K)} || {K,_,_} = Obj <- Objs],
@@ -108,13 +108,13 @@ insert_many(T, Scope, KVL, Pid) ->
                 false ->
                     %% possibly waiters, but they are handled in next step
                     insert_objects(Existing),
-		    gproc_lib:ensure_monitor(Pid, Scope),
+                    _ = gproc_lib:ensure_monitor(Pid, Scope),
                     {true, Objs}
             end
     end.
 
 -spec insert_objects([{key(), pid(), any()}]) -> ok.
-     
+
 insert_objects(Objs) ->
     lists:foreach(
       fun({{{Id,_} = _K, Pid, V} = Obj, Existing}) ->
@@ -132,25 +132,25 @@ await({T,C,_} = Key, WPid, {_Pid, Ref} = From) ->
     case ets:lookup(?TAB, {Key,T}) of
         [{_, P, Value}] ->
             %% for symmetry, we always reply with Ref and then send a message
-	    if C == g ->
-		    %% in the global case, we bundle the reply, since otherwise
-		    %% the messages can pass each other
-		    {reply, {Ref, {Key, P, Value}}};
-	       true ->
-		    gen_server:reply(From, Ref),
-		    WPid ! {gproc, Ref, registered, {Key, P, Value}},
-		    noreply
-	    end;
+            if C == g ->
+                    %% in the global case, we bundle the reply, since otherwise
+                    %% the messages can pass each other
+                    {reply, {Ref, {Key, P, Value}}};
+               true ->
+                    gen_server:reply(From, Ref),
+                    WPid ! {gproc, Ref, registered, {Key, P, Value}},
+                    noreply
+            end;
         [{K, Waiters}] ->
             NewWaiters = [{WPid,Ref} | Waiters],
             W = {K, NewWaiters},
             ets:insert(?TAB, [W, Rev]),
-            gproc_lib:ensure_monitor(WPid,C),
+            _ = gproc_lib:ensure_monitor(WPid,C),
             {reply, Ref, [W,Rev]};
         [] ->
             W = {{Key,T}, [{WPid,Ref}]},
             ets:insert(?TAB, [W, Rev]),
-            gproc_lib:ensure_monitor(WPid,C),
+            _ = gproc_lib:ensure_monitor(WPid,C),
             {reply, Ref, [W,Rev]}
     end.
 
@@ -170,10 +170,10 @@ maybe_waiters(K, Pid, Value, T, Info) ->
 -spec notify_waiters([{pid(), reference()}], key(), pid(), any()) -> ok.
 
 notify_waiters(Waiters, K, Pid, V) ->
-    [begin
-         P ! {gproc, Ref, registered, {K, Pid, V}},
-         ets:delete(?TAB, {P, K}) 
-     end || {P, Ref} <- Waiters],
+    _ = [begin
+             P ! {gproc, Ref, registered, {K, Pid, V}},
+             ets:delete(?TAB, {P, K})
+         end || {P, Ref} <- Waiters],
     ok.
 
 
@@ -208,9 +208,9 @@ remove_reg(Key, Pid) ->
 
 remove_many(T, Scope, L, Pid) ->
     lists:flatmap(fun(K) ->
-			  Key = {T, Scope, K},
-			  remove_reg(Key, Pid)
-		  end, L).
+                          Key = {T, Scope, K},
+                          remove_reg(Key, Pid)
+                  end, L).
 
 remove_reg_1({c,_,_} = Key, Pid) ->
     remove_counter_1(Key, ets:lookup_element(?TAB, Reg = {Key,Pid}, 3), Pid),

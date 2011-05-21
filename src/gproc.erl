@@ -22,7 +22,7 @@
 %%
 %% Type and scope for registration and lookup:
 %%
-%% @type type()  = n | p | c | a. n = name; p = property; c = counter; 
+%% @type type()  = n | p | c | a. n = name; p = property; c = counter;
 %%                                a = aggregate_counter
 %% @type scope() = l | g. l = local registration; g = global registration
 %%
@@ -46,11 +46,11 @@
 %% @end
 -module(gproc).
 -behaviour(gen_server).
- 
+
 -export([start_link/0,
          reg/1, reg/2, unreg/1,
          mreg/3,
-	 munreg/3,
+         munreg/3,
          set_value/2,
          get_value/1,
          where/1,
@@ -74,8 +74,8 @@
 
 %% Environment handling
 -export([get_env/3, get_env/4,
-	 get_set_env/3, get_set_env/4,
-	 set_env/5]).
+         get_set_env/3, get_set_env/4,
+         set_env/5]).
 
 %% Convenience functions
 -export([add_local_name/1,
@@ -134,7 +134,7 @@
 %%
 %% @doc Starts the gproc server.
 %%
-%% This function is intended to be called from gproc_sup, as part of 
+%% This function is intended to be called from gproc_sup, as part of
 %% starting the gproc application.
 %% @end
 start_link() ->
@@ -203,7 +203,7 @@ add_local_aggr_counter(Name)  -> reg({a,l,Name}).
 %% @end
 %%
 add_global_aggr_counter(Name) -> reg({a,g,Name}).
-    
+
 
 %% @spec (Name::any()) -> pid()
 %%
@@ -238,7 +238,7 @@ lookup_local_aggr_counter(Name)  -> lookup_value({a,l,Name}).
 %% @end
 %%
 lookup_global_aggr_counter(Name) -> lookup_value({a,g,Name}).
-    
+
 
 %% @spec (Property::any()) -> [{pid(), Value}]
 %%
@@ -298,9 +298,9 @@ get_env(Scope, App, Key) ->
 %% `{p, Scope, {gproc_env, App, Key}}'. If this fails, it will try the provided
 %% alternative strategy. `Strategy' is a list of alternatives, tried in order.
 %% Each alternative can be one of:
-%% 
+%%
 %% * `app_env' - try `application:get_env(App, Key)'
-%% * `os_env' - try `os:getenv(ENV)', where `ENV' is `Key' converted into an 
+%% * `os_env' - try `os:getenv(ENV)', where `ENV' is `Key' converted into an
 %%   uppercase string
 %% * `{os_env, ENV}' - try `os:getenv(ENV)'
 %% * `inherit' - inherit the cached value, if any, held by the (proc_lib) parent.
@@ -308,16 +308,16 @@ get_env(Scope, App, Key) ->
 %% * `{inherit, Id}' - inherit the cached value, if any, held by the process
 %%    registered in `gproc' as `Id'.
 %% * `init_arg' - try `init:get_argument(Key)'; expects a single value, if any.
-%% * `{mnesia, ActivityType, Oid, Pos}' - try 
+%% * `{mnesia, ActivityType, Oid, Pos}' - try
 %%   `mnesia:activity(ActivityType, fun() -> mnesia:read(Oid) end)'; retrieve the
 %%    value in position `Pos' if object found.
 %% * `{default, Value}' - set a default value to return once alternatives have been
 %%    exhausted; if not set, `undefined' will be returned.
 %% * `error' - raise an exception, `erlang:error(gproc_env, [App, Key, Scope])'.
 %%
-%% While any alternative can occur more than once, the only one that might make 
-%% sense to use multiple times is `{default, Value}'. 
-%% 
+%% While any alternative can occur more than once, the only one that might make
+%% sense to use multiple times is `{default, Value}'.
+%%
 %% The return value will be one of:
 %%
 %% * The value of the first matching alternative, or exception caused by `error',
@@ -325,7 +325,7 @@ get_env(Scope, App, Key) ->
 %% * The last instance of `{default, Value}', or `undefined', if there is no
 %%   matching alternative, default or `error' entry in the list.
 %%
-%% The `error' option can be used to assert that a value has been previously 
+%% The `error' option can be used to assert that a value has been previously
 %% cached. Alternatively, it can be used to assert that a value is either cached
 %% or at least defined somewhere, e.g. `get_env(l, mnesia, dir, [app_env, error])'.
 %% @end
@@ -342,7 +342,7 @@ get_set_env(Scope, App, Key) ->
 %% @spec get_set_env(Scope::scope(), App::atom(), Key::atom(), Strategy) -> Value
 %% @doc Fetch and cache an environment value, if not already cached.
 %%
-%% This function does the same thing as {@link get_env/4}, but also updates the 
+%% This function does the same thing as {@link get_env/4}, but also updates the
 %% cache. Note that the cache will be updated even if the result of the lookup
 %% is `undefined'.
 %%
@@ -356,10 +356,10 @@ get_set_env(Scope, App, Key, Strategy)
 
 do_get_env(Context, App, Key, Alternatives, Set) ->
     case lookup_env(Context, App, Key, self()) of
-	undefined ->
-	    check_alternatives(Alternatives, Context, App, Key, undefined, Set);
-	{ok, Value} ->
-	    Value
+        undefined ->
+            check_alternatives(Alternatives, Context, App, Key, undefined, Set);
+        {ok, Value} ->
+            Value
     end.
 
 %% @spec set_env(Scope::scope(), App::atom(),
@@ -372,7 +372,7 @@ do_get_env(Context, App, Key, Alternatives, Set) ->
 %%
 %% This function should be exercised with caution, as it affects the larger
 %% environment outside gproc. This function modifies the cached value, and then
-%% proceeds to update the underlying environment (OS environment variable or 
+%% proceeds to update the underlying environment (OS environment variable or
 %% application environment variable).
 %%
 %% When the `mnesia' alternative is used, gproc will try to update any existing
@@ -385,32 +385,32 @@ set_env(Scope, App, Key, Value, Strategy)
   when Scope==l, is_atom(App), is_atom(Key);
        Scope==g, is_atom(App), is_atom(Key) ->
     case is_valid_set_strategy(Strategy, Value) of
-	true ->
-	    update_cached_env(Scope, App, Key, Value),
-	    set_strategy(Strategy, App, Key, Value);
-	false ->
-	    erlang:error(badarg)
+        true ->
+            update_cached_env(Scope, App, Key, Value),
+            set_strategy(Strategy, App, Key, Value);
+        false ->
+            erlang:error(badarg)
     end.
 
 check_alternatives([{default, Val}|Alts], Scope, App, Key, _, Set) ->
     check_alternatives(Alts, Scope, App, Key, Val, Set);
 check_alternatives([H|T], Scope, App, Key, Def, Set) ->
     case try_alternative(H, App, Key, Scope) of
-	undefined ->
-	    check_alternatives(T, Scope, App, Key, Def, Set);
-	{ok, Value} ->
-	    if Set ->
-		    cache_env(Scope, App, Key, Value),
-		    Value;
-	       true ->
-		    Value
-	    end
+        undefined ->
+            check_alternatives(T, Scope, App, Key, Def, Set);
+        {ok, Value} ->
+            if Set ->
+                    cache_env(Scope, App, Key, Value),
+                    Value;
+               true ->
+                    Value
+            end
     end;
 check_alternatives([], Scope, App, Key, Def, Set) ->
     if Set ->
-	    cache_env(Scope, App, Key, Def);
+            cache_env(Scope, App, Key, Def);
        true ->
-	    ok
+            ok
     end,
     Def.
 
@@ -418,47 +418,47 @@ try_alternative(error, App, Key, Scope) ->
     erlang:error(gproc_env, [App, Key, Scope]);
 try_alternative(inherit, App, Key, Scope) ->
     case get('$ancestors') of
-	[P|_] ->
-	    lookup_env(Scope, App, Key, P);
-	_ ->
-	    undefined
+        [P|_] ->
+            lookup_env(Scope, App, Key, P);
+        _ ->
+            undefined
     end;
 try_alternative({inherit, P}, App, Key, Scope) when is_pid(P) ->
     lookup_env(Scope, App, Key, P);
 try_alternative({inherit, P}, App, Key, Scope) ->
     case where(P) of
-	undefined -> undefined;
-	Pid when is_pid(Pid) ->
-	    lookup_env(Scope, App, Key, Pid)
+        undefined -> undefined;
+        Pid when is_pid(Pid) ->
+            lookup_env(Scope, App, Key, Pid)
     end;
 try_alternative(app_env, App, Key, _Scope) ->
     case application:get_env(App, Key) of
-	undefined       -> undefined;
-	{ok, undefined} -> undefined;
-	{ok, Value}     -> {ok, Value}
+        undefined       -> undefined;
+        {ok, undefined} -> undefined;
+        {ok, Value}     -> {ok, Value}
     end;
 try_alternative(os_env, _App, Key, _) ->
     case os:getenv(os_env_key(Key)) of
-	""  -> undefined;
-	Val -> {ok, Val}
+        ""  -> undefined;
+        Val -> {ok, Val}
     end;
 try_alternative({os_env, Key}, _, _, _) ->
     case os:getenv(Key) of
-	""  -> undefined;
-	Val -> {ok, Val}
+        ""  -> undefined;
+        Val -> {ok, Val}
     end;
 try_alternative(init_arg, _, Key, _) ->
     case init:get_argument(Key) of
-	{ok, [[Value]]} ->
-	    {ok, Value};
-	error ->
-	    undefined
+        {ok, [[Value]]} ->
+            {ok, Value};
+        error ->
+            undefined
     end;
 try_alternative({mnesia,Type,Key,Pos}, _, _, _) ->
     case mnesia:activity(Type, fun() -> mnesia:read(Key) end) of
-	[] -> undefined;
-	[Found] ->
-	    {ok, element(Pos, Found)}
+        [] -> undefined;
+        [Found] ->
+            {ok, element(Pos, Found)}
     end.
 
 os_env_key(Key) ->
@@ -466,10 +466,10 @@ os_env_key(Key) ->
 
 lookup_env(Scope, App, Key, P) ->
     case ets:lookup(?TAB, {{p, Scope, {gproc_env, App, Key}}, P}) of
-	[] ->
-	    undefined;
-	[{_, _, Value}] ->
-	    {ok, Value}
+        [] ->
+            undefined;
+        [{_, _, Value}] ->
+            {ok, Value}
     end.
 
 cache_env(Scope, App, Key, Value) ->
@@ -477,10 +477,10 @@ cache_env(Scope, App, Key, Value) ->
 
 update_cached_env(Scope, App, Key, Value) ->
     case lookup_env(Scope, App, Key, self()) of
-	undefined ->
-	    cache_env(Scope, App, Key, Value);
-	{ok, _} ->
-	    set_value({p, Scope, {gproc_env, App, Key}}, Value)
+        undefined ->
+            cache_env(Scope, App, Key, Value);
+        {ok, _} ->
+            set_value({p, Scope, {gproc_env, App, Key}}, Value)
     end.
 
 is_valid_set_strategy([os_env|T], Value) ->
@@ -498,29 +498,29 @@ is_valid_set_strategy(_, _) ->
 
 set_strategy([H|T], App, Key, Value) ->
     case H of
-	app_env ->
-	    application:set_env(App, Key, Value);
-	os_env ->
-	    os:putenv(os_env_key(Key), Value);
-	{os_env, ENV} ->
-	    os:putenv(ENV, Value);
-	{mnesia,Type,Oid,Pos} ->
-	    mnesia:activity(
-	      Type,
-	      fun() ->
-		      Rec = case mnesia:read(Oid) of
-				[] ->
-				    {Tab,K} = Oid,
-				    Tag = mnesia:table_info(Tab, record_name),
-				    Attrs = mnesia:table_info(Tab, attributes),
-				    list_to_tuple(
-				      [Tag,K |
-				       [undefined || _ <- tl(Attrs)]]);
-				[Old] ->
-				    Old
-			    end,
-		      mnesia:write(setelement(Pos, Rec, Value))
-	      end)
+        app_env ->
+            application:set_env(App, Key, Value);
+        os_env ->
+            os:putenv(os_env_key(Key), Value);
+        {os_env, ENV} ->
+            os:putenv(ENV, Value);
+        {mnesia,Type,Oid,Pos} ->
+            mnesia:activity(
+              Type,
+              fun() ->
+                      Rec = case mnesia:read(Oid) of
+                                [] ->
+                                    {Tab,K} = Oid,
+                                    Tag = mnesia:table_info(Tab, record_name),
+                                    Attrs = mnesia:table_info(Tab, attributes),
+                                    list_to_tuple(
+                                      [Tag,K |
+                                       [undefined || _ <- tl(Attrs)]]);
+                                [Old] ->
+                                    Old
+                            end,
+                      mnesia:write(setelement(Pos, Rec, Value))
+              end)
     end,
     set_strategy(T, App, Key, Value);
 set_strategy([], _, _, Value) ->
@@ -528,11 +528,11 @@ set_strategy([], _, _, Value) ->
 
 is_string(S) ->
     try begin _ = iolist_to_binary(S),
-	      true
-	end
+              true
+        end
     catch
-	error:_ ->
-	    false
+        error:_ ->
+            false
     end.
 
 %% @spec reg(Key::key()) -> true
@@ -556,11 +556,11 @@ await(Key) ->
 %%   Timeout = integer() | infinity
 %%
 %% @doc Wait for a local name to be registered.
-%% The function raises an exception if the timeout expires. Timeout must be 
+%% The function raises an exception if the timeout expires. Timeout must be
 %% either an interger &gt; 0 or 'infinity'.
 %% A small optimization: we first perform a lookup, to see if the name
-%% is already registered. This way, the cost of the operation will be 
-%% roughly the same as of where/1 in the case where the name is already 
+%% is already registered. This way, the cost of the operation will be
+%% roughly the same as of where/1 in the case where the name is already
 %% registered (the difference: await/2 also returns the value).
 %% @end
 %%
@@ -594,10 +594,10 @@ request_wait({n,C,_} = Key, Timeout) when C==l; C==g ->
            end,
     receive
         {gproc, WRef, registered, {_K, Pid, V}} ->
-            case TRef of
-                no_timer -> ignore;
-                _ -> erlang:cancel_timer(TRef)
-            end,
+            _ = case TRef of
+                    no_timer -> ignore;
+                    _ -> erlang:cancel_timer(TRef)
+                end,
             {Pid, V};
         {timeout, TRef, gproc_timeout} ->
             cancel_wait(Key, WRef),
@@ -627,7 +627,7 @@ cancel_wait({_,g,_} = Key, Ref) ->
 cancel_wait({_,l,_} = Key, Ref) ->
     cast({cancel_wait, self(), Key, Ref}, l),
     ok.
-            
+
 
 %% @spec reg(Key::key(), Value) -> true
 %%
@@ -652,7 +652,7 @@ reg(_, _) ->
 %% @spec mreg(type(), scope(), [{Key::any(), Value::any()}]) -> true
 %%
 %% @doc Register multiple {Key,Value} pairs of a given type and scope.
-%% 
+%%
 %% This function is more efficient than calling {@link reg/2} repeatedly.
 %% It is also atomic in regard to unique names; either all names are registered
 %% or none are.
@@ -674,7 +674,7 @@ mreg(_, _, _) ->
 %% @spec munreg(type(), scope(), [Key::any()]) -> true
 %%
 %% @doc Unregister multiple Key items of a given type and scope.
-%% 
+%%
 %% This function is usually more efficient than calling {@link unreg/1}
 %% repeatedly.
 %% @end
@@ -694,14 +694,14 @@ munreg(_, _, _) ->
 
 existing(T,Scope,L) ->
     Keys = if T==p; T==c ->
-		   [{{T,Scope,K}, self()} || K <- L];
-	      T==a; T==n ->
-		   [{{T,Scope,K}, T} || K <- L]
-	   end,
+                   [{{T,Scope,K}, self()} || K <- L];
+              T==a; T==n ->
+                   [{{T,Scope,K}, T} || K <- L]
+           end,
     _ = [case ets:member(?TAB, K) of
-	     false -> erlang:error(badarg);
-	     true  -> true
-	 end || K <- Keys],
+             false -> erlang:error(badarg);
+             true  -> true
+         end || K <- Keys],
     L.
 
 
@@ -720,7 +720,7 @@ unreg(Key) ->
             case ets:member(?TAB, {Key,self()}) of
                 true ->
                     _ = gproc_lib:remove_reg(Key, self()),
-		    true;
+                    true;
                 false ->
                     erlang:error(badarg)
             end
@@ -779,7 +779,7 @@ local_munreg(T, L) when T==p; T==c ->
 
 %% @spec (Key :: key(), Value) -> true
 %% @doc Sets the value of the registeration entry given by Key
-%% 
+%%
 %% Key is assumed to exist and belong to the calling process.
 %% If it doesn't, this function will exit.
 %%
@@ -852,7 +852,7 @@ lookup_value({T,_,_} = Key) ->
 %% @spec (Key::key()) -> pid()
 %%
 %% @doc Returns the pid registered as Key
-%% 
+%%
 %% The type of registration entry must be either name or aggregated counter.
 %% Otherwise this function will exit. Use {@link lookup_pids/1} in these
 %% cases.
@@ -926,7 +926,7 @@ lookup_values({T,_,_} = Key) ->
 %% @doc Updates the counter registered as Key for the current process.
 %%
 %% This function works like ets:update_counter/3
-%% (see [http://www.erlang.org/doc/man/ets.html#update_counter-3]), but 
+%% (see [http://www.erlang.org/doc/man/ets.html#update_counter-3]), but
 %% will fail if the type of object referred to by Key is not a counter.
 %% @end
 %%
@@ -946,14 +946,14 @@ update_counter(_, _) ->
 %% from one process to another, and returns the pid of the new owner.
 %%
 %% `To' must be either a pid or a unique name (name or aggregated counter), but
-%% does not necessarily have to resolve to an existing process. If there is 
+%% does not necessarily have to resolve to an existing process. If there is
 %% no process registered with the `To' key, `give_away/2' returns `undefined',
 %% and the `From' key is effectively unregistered.
 %%
 %% It is allowed to give away a key to oneself, but of course, this operation
 %% will have no effect.
 %%
-%% Fails with `badarg' if the calling process does not have a `From' key 
+%% Fails with `badarg' if the calling process does not have a `From' key
 %% registered.
 %% @end
 give_away({_,l,_} = Key, ToPid) when is_pid(ToPid), node(ToPid) == node() ->
@@ -968,9 +968,9 @@ give_away({_,g,_} = Key, To) ->
 %%
 %% @doc Sends a message to the process, or processes, corresponding to Key.
 %%
-%% If Key belongs to a unique object (name or aggregated counter), this 
+%% If Key belongs to a unique object (name or aggregated counter), this
 %% function will send a message to the corresponding process, or fail if there
-%% is no such process. If Key is for a non-unique object type (counter or 
+%% is no such process. If Key is for a non-unique object type (counter or
 %% property), Msg will be send to all processes that have such an object.
 %% @end
 %%
@@ -1081,8 +1081,8 @@ step(Key, S, T) ->
 %% ProcessInfo = [{gproc, [{Key,Value}]} | ProcessInfo]
 %%
 %% @doc Similar to `process_info(Pid)' but with additional gproc info.
-%% 
-%% Returns the same information as process_info(Pid), but with the 
+%%
+%% Returns the same information as process_info(Pid), but with the
 %% addition of a `gproc' information item, containing the `{Key,Value}'
 %% pairs registered to the process.
 %% @end
@@ -1095,7 +1095,7 @@ info(Pid) when is_pid(Pid) ->
 %% @doc Similar to process_info(Pid, Item), but with additional gproc info.
 %%
 %% For `Item = gproc', this function returns a list of `{Key, Value}' pairs
-%% registered to the process Pid. For other values of Item, it returns the 
+%% registered to the process Pid. For other values of Item, it returns the
 %% same as [http://www.erlang.org/doc/man/erlang.html#process_info-2].
 %% @end
 info(Pid, ?MODULE) ->
@@ -1132,7 +1132,7 @@ handle_cast({cancel_wait, Pid, {T,_,_} = Key, Ref}, S) ->
                 NewWaiters ->
                     ets:insert(?TAB, {K, NewWaiters}),
                     case lists:keymember(Pid, 1, NewWaiters) of
-                        true -> 
+                        true ->
                             %% should be extremely unlikely
                             ok;
                         false ->
@@ -1149,7 +1149,7 @@ handle_cast({cancel_wait, Pid, {T,_,_} = Key, Ref}, S) ->
 handle_call({reg, {_T,l,_} = Key, Val}, {Pid,_}, S) ->
     case try_insert_reg(Key, Val, Pid) of
         true ->
-            gproc_lib:ensure_monitor(Pid,l),
+            _ = gproc_lib:ensure_monitor(Pid,l),
             {reply, true, S};
         false ->
             {reply, badarg, S}
@@ -1214,13 +1214,13 @@ handle_info(_, S) ->
 %% @hidden
 code_change(_FromVsn, S, _Extra) ->
     %% We have changed local monitor markers from {Pid} to {Pid,l}.
-    case ets:select(?TAB, [{{'$1'},[],['$1']}]) of
-        [] ->
-            ok;
-        Pids ->
-            ets:insert(?TAB, [{P,l} || P <- Pids]),
-            ets:select_delete(?TAB, [{{'_'},[],[true]}])
-    end,
+    _ = case ets:select(?TAB, [{{'$1'},[],['$1']}]) of
+            [] ->
+                ok;
+            Pids ->
+                ets:insert(?TAB, [{P,l} || P <- Pids]),
+                ets:select_delete(?TAB, [{{'_'},[],[true]}])
+        end,
     {ok, S}.
 
 %% @hidden
@@ -1281,7 +1281,7 @@ try_insert_reg({T,l,_} = Key, Val, Pid) ->
 
 audit_process(Pid) when is_pid(Pid) ->
     ok = gen_server:call(gproc, {audit_process, Pid}, infinity).
-    
+
 
 -spec process_is_down(pid()) -> ok.
 
@@ -1289,7 +1289,7 @@ process_is_down(Pid) when is_pid(Pid) ->
     %% delete the monitor marker
     %% io:fwrite(user, "process_is_down(~p) - ~p~n", [Pid,ets:tab2list(?TAB)]),
     ets:delete(?TAB, {Pid,l}),
-    Revs = ets:select(?TAB, [{{{Pid,'$1'},r}, 
+    Revs = ets:select(?TAB, [{{{Pid,'$1'},r},
                               [{'==',{element,2,'$1'},l}], ['$1']}]),
     lists:foreach(
       fun({n,l,_}=K) ->
@@ -1313,7 +1313,7 @@ process_is_down(Pid) when is_pid(Pid) ->
               [{_, _, Value}] = ets:lookup(?TAB, Key),
               ets:delete(?TAB, Key),
               gproc_lib:update_aggr_counter(l, C, -Value);
-         ({a,l,_} = K) -> 
+         ({a,l,_} = K) ->
               ets:delete(?TAB, {K,a});
          ({p,_,_} = K) ->
               ets:delete(?TAB, {K, Pid})
@@ -1335,7 +1335,7 @@ do_give_away({T,l,_} = K, To, Pid) when T==n; T==a ->
                     ets:insert(?TAB, [{Key, ToPid, Value},
                                       {{ToPid, K}, r}]),
                     ets:delete(?TAB, {Pid, K}),
-                    gproc_lib:ensure_monitor(ToPid, l),
+                    _ = gproc_lib:ensure_monitor(ToPid, l),
                     ToPid;
                 undefined ->
                     _ = gproc_lib:remove_reg(K, Pid),
@@ -1359,7 +1359,7 @@ do_give_away({T,l,_} = K, To, Pid) when T==c; T==p ->
                                               {{ToPid, K}, r}]),
                             ets:delete(?TAB, {Pid, K}),
                             ets:delete(?TAB, Key),
-                            gproc_lib:ensure_monitor(ToPid, l),
+                            _ = gproc_lib:ensure_monitor(ToPid, l),
                             ToPid
                     end;
                 undefined ->
@@ -1369,9 +1369,9 @@ do_give_away({T,l,_} = K, To, Pid) when T==c; T==p ->
         _ ->
             badarg
     end.
-                        
 
-pid_to_give_away_to(P) when is_pid(P), node(P) == node() ->                 
+
+pid_to_give_away_to(P) when is_pid(P), node(P) == node() ->
     P;
 pid_to_give_away_to({T,l,_} = Key) when T==n; T==a ->
     case ets:lookup(?TAB, {Key, T}) of
@@ -1403,7 +1403,7 @@ set_monitors() ->
 set_monitors('$end_of_table') ->
     ok;
 set_monitors({Pids, Cont}) ->
-    [erlang:monitor(process,Pid) || Pid <- Pids],
+    _ = [erlang:monitor(process,Pid) || Pid <- Pids],
     set_monitors(ets:select(Cont)).
 
 
@@ -1490,7 +1490,7 @@ headpat(T, C, V1,V2,V3) ->
     {{{Kp,K2},V2,V3}, Vars}.
 
 %% l(L) -> L.
-    
+
 
 
 subst(X, '_', _F, Vs) ->
