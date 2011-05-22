@@ -292,7 +292,7 @@ get_env(Scope, App, Key) ->
 %%               | {mnesia, ActivityType, Oid, Pos}
 %%               | {default, term()}
 %%               | error
-%% @doc Fetch an environment value, potentially cached as a `gproc_env' property.
+%% @doc Read an environment value, potentially cached as a `gproc_env' property.
 %%
 %% This function first tries to read the value of a cached property,
 %% `{p, Scope, {gproc_env, App, Key}}'. If this fails, it will try the provided
@@ -303,16 +303,16 @@ get_env(Scope, App, Key) ->
 %% * `os_env' - try `os:getenv(ENV)', where `ENV' is `Key' converted into an
 %%   uppercase string
 %% * `{os_env, ENV}' - try `os:getenv(ENV)'
-%% * `inherit' - inherit the cached value, if any, held by the (proc_lib) parent.
+%% * `inherit' - inherit the cached value, if any, held by the parent process.
 %% * `{inherit, Pid}' - inherit the cached value, if any, held by `Pid'.
 %% * `{inherit, Id}' - inherit the cached value, if any, held by the process
 %%    registered in `gproc' as `Id'.
 %% * `init_arg' - try `init:get_argument(Key)'; expects a single value, if any.
 %% * `{mnesia, ActivityType, Oid, Pos}' - try
-%%   `mnesia:activity(ActivityType, fun() -> mnesia:read(Oid) end)'; retrieve the
-%%    value in position `Pos' if object found.
-%% * `{default, Value}' - set a default value to return once alternatives have been
-%%    exhausted; if not set, `undefined' will be returned.
+%%   `mnesia:activity(ActivityType, fun() -> mnesia:read(Oid) end)'; retrieve
+%%    the value in position `Pos' if object found.
+%% * `{default, Value}' - set a default value to return once alternatives have
+%%    been exhausted; if not set, `undefined' will be returned.
 %% * `error' - raise an exception, `erlang:error(gproc_env, [App, Key, Scope])'.
 %%
 %% While any alternative can occur more than once, the only one that might make
@@ -320,14 +320,15 @@ get_env(Scope, App, Key) ->
 %%
 %% The return value will be one of:
 %%
-%% * The value of the first matching alternative, or exception caused by `error',
+%% * The value of the first matching alternative, or `error' eception,
 %%   whichever comes first
 %% * The last instance of `{default, Value}', or `undefined', if there is no
 %%   matching alternative, default or `error' entry in the list.
 %%
 %% The `error' option can be used to assert that a value has been previously
 %% cached. Alternatively, it can be used to assert that a value is either cached
-%% or at least defined somewhere, e.g. `get_env(l, mnesia, dir, [app_env, error])'.
+%% or at least defined somewhere,
+%% e.g. `get_env(l, mnesia, dir, [app_env, error])'.
 %% @end
 get_env(Scope, App, Key, Strategy)
   when Scope==l, is_atom(App), is_atom(Key);
@@ -339,7 +340,8 @@ get_env(Scope, App, Key, Strategy)
 get_set_env(Scope, App, Key) ->
     get_set_env(Scope, App, Key, [app_env]).
 
-%% @spec get_set_env(Scope::scope(), App::atom(), Key::atom(), Strategy) -> Value
+%% @spec get_set_env(Scope::scope(), App::atom(), Key::atom(), Strategy) ->
+%%           Value
 %% @doc Fetch and cache an environment value, if not already cached.
 %%
 %% This function does the same thing as {@link get_env/4}, but also updates the
@@ -942,7 +944,7 @@ update_counter(_, _) ->
 %%
 %% @doc Atomically transfers the key `From' to the process identified by `To'.
 %%
-%% This function transfers any gproc key (name, property, counter, aggr. counter)
+%% This function transfers any gproc key (name, property, counter, aggr counter)
 %% from one process to another, and returns the pid of the new owner.
 %%
 %% `To' must be either a pid or a unique name (name or aggregated counter), but
@@ -1434,7 +1436,6 @@ pattern([{Head, Gs, As}], Scope) ->
         {true,_N} ->
             HeadPat = {{{T,S,'_'},'_'},'_','_'},
             Vs = [{Head, obj_prod()}],
-%%            {HeadPat, Vs} = headpat(Scope, A,B,C),
             %% the headpat function should somehow verify that Head is
             %% consistent with Scope (or should we add a guard?)
             [{HeadPat, rewrite(Gs, Vs), rewrite(As, Vs)}];
@@ -1678,4 +1679,3 @@ qlc_select({Objects, Cont}) ->
 is_unique(n) -> true;
 is_unique(a) -> true;
 is_unique(_) -> false.
-

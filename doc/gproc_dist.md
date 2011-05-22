@@ -307,9 +307,9 @@ leader to the current node. It does so by asking the leader to ping all
 live participating nodes. The call will return `true` when all these nodes
 have either responded or died. In the special case where the leader dies
 during an ongoing sync, the call will fail with a timeout exception.
-(Actually, it should be a `leader_died` exception; more study needed to find out
-why gen_leader times out in this situation, rather than reporting that the
-leader died.)<a name="terminate-2"></a>
+(Actually, it should be a `leader_died` exception; more study needed to find
+out why gen_leader times out in this situation, rather than reporting that
+the leader died.)<a name="terminate-2"></a>
 
 <h3>terminate/2</h3>
 

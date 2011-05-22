@@ -3,18 +3,18 @@
 %% compliance with the License. You should have received a copy of the
 %% Erlang Public License along with this software. If not, it can be
 %% retrieved via the world wide web at http://www.erlang.org/.
-%% 
+%%
 %% Software distributed under the License is distributed on an "AS IS"
 %% basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
 %% the License for the specific language governing rights and limitations
 %% under the License.
-%% 
+%%
 %% The Initial Developer of the Original Code is Ericsson Utvecklings AB.
 %% Portions created by Ericsson are Copyright 1999, Ericsson Utvecklings
 %% AB. All Rights Reserved.''
 %%
 %% @author Ulf Wiger <ulf.wiger@erlang-solutions.com>
-%% 
+%%
 %% @doc Extended process registry
 %% <p>This module implements an extended process registry</p>
 %% <p>For a detailed description, see gproc/doc/erlang07-wiger.pdf.</p>
@@ -137,11 +137,11 @@ update_counter(_, _) ->
 %% This function can be used to ensure that data has been replicated from the
 %% leader to the current node. It does so by asking the leader to ping all
 %% live participating nodes. The call will return `true' when all these nodes
-%% have either responded or died. In the special case where the leader dies 
+%% have either responded or died. In the special case where the leader dies
 %% during an ongoing sync, the call will fail with a timeout exception.
-%% (Actually, it should be a `leader_died' exception; more study needed to find out
-%% why gen_leader times out in this situation, rather than reporting that the 
-%% leader died.)
+%% (Actually, it should be a `leader_died' exception; more study needed to find
+%% out why gen_leader times out in this situation, rather than reporting that
+%% the leader died.)
 %% @end
 %%
 sync() ->
@@ -370,8 +370,8 @@ handle_leader_cast({sync_reply, Node, Ref}, S, _E) ->
         false ->
             %% This should never happen, except perhaps if the leader who
             %% received the sync request died, and the new leader gets the
-            %% sync reply. In that case, we trust that the client has been notified
-            %% anyway, and ignore the message.
+            %% sync reply. In that case, we trust that the client has been
+	    %% notified anyway, and ignore the message.
             {ok, S};
         {_, Ns} ->
             case lists:delete(Node, Ns) of
@@ -404,7 +404,7 @@ handle_leader_cast({pid_is_DOWN, Pid}, S, _E) ->
     end.
 
 process_globals(Globals) ->
-    Modified = 
+    Modified =
         lists:foldl(
           fun({{T,_,_} = Key, Pid}, A) ->
                   A1 = case T of
@@ -528,7 +528,7 @@ update_aggr_counter({c,g,Ctr}, Incr) ->
             [New]
     end.
 
-pid_to_give_away_to(P) when is_pid(P) ->                 
+pid_to_give_away_to(P) when is_pid(P) ->
     P;
 pid_to_give_away_to({T,g,_} = Key) when T==n; T==a ->
     case ets:lookup(?TAB, {Key, T}) of

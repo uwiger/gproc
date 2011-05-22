@@ -40,7 +40,7 @@ init(_Args) ->
     GProc =
         {gproc, {gproc, start_link, []},
          permanent, 2000, worker, [gproc]},
-    
+
     Dist = case application:get_env(gproc_dist) of
                undefined -> [];
                {ok, false} -> [];
