@@ -70,8 +70,9 @@ start_link(all) ->
 start_link(Nodes) when is_list(Nodes) ->
     start_link({Nodes, []});
 start_link({Nodes, Opts}) ->
+    SpawnOpts = gproc_lib:valid_opts(server_options, []),
     gen_leader:start_link(
-      ?SERVER, Nodes, Opts, ?MODULE, [], []).
+      ?SERVER, Nodes, Opts, ?MODULE, [], [{spawn_opt, SpawnOpts}]).
 
 %% ==========================================================
 %% API

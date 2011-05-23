@@ -10,7 +10,8 @@ Module gproc
 * [Function Details](#functions)
 
 
-Extended process registry.
+Extended process registry  
+This module implements an extended process registry.
 
 
 
@@ -22,13 +23,32 @@ __Authors:__ Ulf Wiger ([`ulf.wiger@erlang-consulting.com`](mailto:ulf.wiger@erl
 
 
 
-This module implements an extended process registry
 
 
 For a detailed description, see
 [erlang07-wiger.pdf](erlang07-wiger.pdf).
 
-Type and scope for registration and lookup:
+
+
+<h2>Tuning Gproc performance</h2>
+
+
+
+
+
+Gproc relies on a central server and an ordered-set ets table.
+Effort is made to perform as much work as possible in the client without
+sacrificing consistency. A few things can be tuned by setting the following
+application environment variables in the top application of `gproc`
+(usually `gproc`):
+
+* `{ets_options, list()}` - Currently, the options `{write_concurrency, F}`
+and `{read_concurrency, F}` are allowed. The default is
+`[{write_concurrency, true}, {read_concurrency, true}]`
+* `{server_options, list()}` - These will be passed as spawn options when
+starting the `gproc` and `gproc_dist` servers. Default is `[]`. It is
+likely that `{priority, high | max}` and/or increasing `min_heap_size`
+will improve performance.
 
 
 
@@ -154,9 +174,6 @@ a = aggregate_counter
 
 
 <pre>unique_id() = {n | a, <a href="#type-scope">scope()</a>, any()}</pre>
-
-
-Type and scope for select(), qlc() and stepping:
 
 
 <h2><a name="index">Function Index</a></h2>

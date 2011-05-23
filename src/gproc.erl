@@ -16,20 +16,35 @@
 %% @author Ulf Wiger <ulf.wiger@erlang-consulting.com>
 %%
 %% @doc Extended process registry
-%% <p>This module implements an extended process registry</p>
-%% <p>For a detailed description, see
-%% <a href="erlang07-wiger.pdf">erlang07-wiger.pdf</a>.</p>
+%% This module implements an extended process registry
 %%
-%% Type and scope for registration and lookup:
+%% For a detailed description, see
+%% <a href="erlang07-wiger.pdf">erlang07-wiger.pdf</a>.
 %%
+%% <h2>Tuning Gproc performance</h2>
+%%
+%% Gproc relies on a central server and an ordered-set ets table.
+%% Effort is made to perform as much work as possible in the client without
+%% sacrificing consistency. A few things can be tuned by setting the following
+%% application environment variables in the top application of `gproc'
+%% (usually `gproc'):
+%%
+%% * `{ets_options, list()}' - Currently, the options `{write_concurrency, F}'
+%%   and `{read_concurrency, F}' are allowed. The default is
+%%   `[{write_concurrency, true}, {read_concurrency, true}]'
+%% * `{server_options, list()}' - These will be passed as spawn options when 
+%%   starting the `gproc' and `gproc_dist' servers. Default is `[]'. It is 
+%%   likely that `{priority, high | max}' and/or increasing `min_heap_size'
+%%   will improve performance.
+%%
+%% @end
+
 %% @type type()  = n | p | c | a. n = name; p = property; c = counter;
 %%                                a = aggregate_counter
 %% @type scope() = l | g. l = local registration; g = global registration
 %%
 %% @type reg_id() = {type(), scope(), any()}.
 %% @type unique_id() = {n | a, scope(), any()}.
-%%
-%% Type and scope for select(), qlc() and stepping:
 %%
 %% @type sel_scope() = scope | all | global | local.
 %% @type sel_type() = type() | names | props | counters | aggr_counters.
@@ -42,8 +57,8 @@
 %% @type pidpat() = pid() | sel_var().
 %% sel_var() = DollarVar | '_'.
 %% @type sel_pattern() = [{headpat(), Guards, Prod}].
-%% @type key()   = {type(), scope(), any()}
-%% @end
+%% @type key()   = {type(), scope(), any()}.
+
 -module(gproc).
 -behaviour(gen_server).
 
@@ -139,7 +154,9 @@
 %% @end
 start_link() ->
     _ = create_tabs(),
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+    SpawnOpts = gproc_lib:valid_opts(server_options, []),
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [],
+			  [{spawn_opt, SpawnOpts}]).
 
 %% spec(Name::any()) -> true
 %%
@@ -1384,13 +1401,14 @@ pid_to_give_away_to({T,l,_} = Key) when T==n; T==a ->
     end.
 
 create_tabs() ->
+    Opts = gproc_lib:valid_opts(ets_options, [{write_concurrency,true},
+					      {read_concurrency, true}]),
     case ets:info(?TAB, name) of
         undefined ->
-            ets:new(?TAB, [ordered_set, public, named_table]);
+            ets:new(?TAB, [ordered_set, public, named_table | Opts]);
         _ ->
             ok
     end.
-
 
 %% @hidden
 init([]) ->

@@ -22,6 +22,42 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("stdlib/include/qlc.hrl").
 
+conf_test_() ->
+    {foreach,
+     fun() ->
+	     application:unload(gproc)
+     end,
+     fun(_) ->
+	     application:stop(gproc)
+     end,
+     [?_test(t_server_opts()),
+      ?_test(t_ets_opts())]}.
+
+t_server_opts() ->
+    H = 10000,
+    application:set_env(gproc, server_options, [{min_heap_size, H}]),
+    ?assert(ok == application:start(gproc)),
+    {min_heap_size, H1} = process_info(whereis(gproc), min_heap_size),
+    ?assert(is_integer(H1) andalso H1 > H).
+
+t_ets_opts() ->
+    %% Cannot inspect the write_concurrency attribute on an ets table in
+    %% any easy way, so trace on the ets:new/2 call and check the arguments.
+    application:set_env(gproc, ets_options, [{write_concurrency, false}]),
+    erlang:trace_pattern({ets,new, 2}, [{[gproc,'_'],[],[]}], [global]),
+    erlang:trace(new, true, [call]),
+    ?assert(ok == application:start(gproc)),
+    erlang:trace(new, false, [call]),
+    receive
+	{trace,_,call,{ets,new,[gproc,Opts]}} ->
+	    ?assertMatch({write_concurrency, false},
+			 lists:keyfind(write_concurrency,1,Opts))
+    after 3000 ->
+	    error(timeout)
+    end.
+
+
+
 reg_test_() ->
     {setup,
      fun() ->
@@ -75,8 +111,6 @@ t_simple_reg() ->
     ?assert(gproc:unreg({n,l,name}) =:= true),
     ?assert(gproc:where({n,l,name}) =:= undefined).
 
-
-                       
 t_simple_prop() ->
     ?assert(gproc:reg({p,l,prop}) =:= true),
     ?assert(t_other_proc(fun() ->
@@ -96,7 +130,10 @@ t_other_proc(F) ->
 t_await() ->
     Me = self(),
     {_Pid,Ref} = spawn_monitor(
-                   fun() -> exit(?assert(gproc:await({n,l,t_await}) =:= {Me,val})) end),
+                   fun() ->
+			   exit(?assert(
+				   gproc:await({n,l,t_await}) =:= {Me,val}))
+		   end),
     ?assert(gproc:reg({n,l,t_await},val) =:= true),
     receive
         {'DOWN', Ref, _, _, R} ->
@@ -109,7 +146,6 @@ t_is_clean() ->
     sys:get_status(gproc), % in order to synch
     T = ets:tab2list(gproc),
     ?assert(T =:= []).
-                                        
 
 t_simple_mreg() ->
     P = self(),
@@ -356,7 +392,6 @@ t_loop() ->
 	{From, die} ->
 	    From ! {self(), ok}
     end.
-    
 
 t_call(P, Msg) ->
     P ! {self(), Msg},
@@ -371,7 +406,7 @@ spawn_helper() ->
 		      ?assert(gproc:reg({n,l,self()}) =:= true),
 		      Ref = erlang:monitor(process, Parent),
 		      Parent ! {ok,self()},
-		      receive 
+		      receive
 			  {'DOWN', Ref, _, _, _} ->
 			      ok
 		      end
