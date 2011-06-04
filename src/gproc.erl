@@ -66,6 +66,7 @@
          send/2,
          info/1, info/2,
          select/1, select/2, select/3,
+         select_count/1, select_count/2,
          first/1,
          next/2,
          prev/2,
@@ -757,6 +758,24 @@ select(Context, Pat) ->
 %% @end
 select(Context, Pat, Limit) ->
     ets:select(?TAB, pattern(Pat, Context), Limit).
+
+
+%% @spec (select_pattern()) -> list(sel_object())
+%% @doc
+%% @equiv select_count(all, Pat)
+%% @end
+select_count(Pat) ->
+    select_count(all, Pat).
+
+%% @spec (Context::context(), Pat::sel_pattern()) -> [{Key, Pid, Value}]
+%%
+%% @doc Perform a select_count operation on the process registry.
+%%
+%% The physical representation in the registry may differ from the above,
+%% but the select patterns are transformed appropriately.
+%% @end
+select_count(Context, Pat) ->
+    ets: select_count(?TAB, pattern(Pat, Context)).
 
 
 %%% Local properties can be registered in the local process, since
