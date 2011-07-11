@@ -159,8 +159,8 @@ await({T,C,_} = Key, WPid, {_Pid, Ref} = From) ->
 maybe_waiters(K, Pid, Value, T, Info) ->
     case ets:lookup(?TAB, {K,T}) of
         [{_, Waiters}] when is_list(Waiters) ->
-            ets:insert(?TAB, Info),
             notify_waiters(Waiters, K, Pid, Value),
+            ets:insert(?TAB, Info),
             true;
         [_] ->
             false
