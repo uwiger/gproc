@@ -50,6 +50,9 @@ dist_test_() ->
 			       	       ?debugVal(t_await_reg(Ns))
 			       end,
 			       fun() ->
+			       	       ?debugVal(t_await_self(Ns))
+			       end,
+			       fun() ->
 			       	       ?debugVal(t_await_reg_exists(Ns))
 			       end,
 			       fun() ->
@@ -108,6 +111,24 @@ t_await_reg([A,B|_]) ->
     ?assertMatch(ok, t_call(P, die)),
     ?assertMatch(ok, t_call(P1, die)).
 
+t_await_self([A|_]) ->
+    Name = ?T_NAME,
+    P = t_spawn(A, false),  % buffer unknowns
+    Ref = t_call(P, {apply, gproc, nb_wait, [Name]}),
+    ?assertMatch(ok, t_call(P, {selective, true})),
+    ?assertMatch(true, t_call(P, {apply, gproc, reg, [Name, some_value]})),
+    ?assertMatch({registered, {Name, P, some_value}},
+		 t_call(P, {apply_fun, fun() ->
+					       receive
+						   {gproc, Ref, R, Wh} ->
+						       {R, Wh}
+					       after 10000 ->
+						       timeout
+					       end
+				       end})),
+    ?assertMatch(ok, t_call(P, {selective, false})),
+    ?assertMatch(true, t_call(P, {apply, gproc, unreg, [Name]})).
+
 t_await_reg_exists([A,B|_]) ->
     Name = ?T_NAME,
     P = t_spawn(A),
@@ -149,21 +170,20 @@ t_sync(Ns) ->
 %% the other candidate doesn't respond too quickly.
 t_sync_cand_dies([A,B|_]) ->
     Leader = rpc:call(A, gproc_dist, get_leader, []),
-    Other = case Leader of 
+    Other = case Leader of
 		A -> B;
 		B -> A
 	    end,
     ?assertMatch(ok, rpc:call(Other, sys, suspend, [gproc_dist])),
     P = rpc:call(Other, erlang, whereis, [gproc_dist]),
     Key = rpc:async_call(Leader, gproc_dist, sync, []),
-    %% The overall timeout for gproc_dist:sync() is 5 seconds. Here, we should 
+    %% The overall timeout for gproc_dist:sync() is 5 seconds. Here, we should
     %% still be waiting.
     ?assertMatch(timeout, rpc:nb_yield(Key, 1000)),
     exit(P, kill),
     %% The leader should detect that the other candidate died and respond
     %% immediately. Therefore, we should have our answer well within 1 sec.
     ?assertMatch({value, true}, rpc:nb_yield(Key, 1000)).
-		    
 
 t_fail_node([A,B|_] = Ns) ->
     Na = ?T_NAME,
@@ -178,8 +198,7 @@ t_fail_node([A,B|_] = Ns) ->
     ?assertMatch(ok, t_lookup_everywhere(Nb, Ns, Pb)),
     ?assertMatch(ok, t_call(Pa, die)),
     ?assertMatch(ok, t_call(Pb, die)).
-    
-    
+
 t_sleep() ->
     timer:sleep(500).
 
@@ -198,13 +217,15 @@ t_lookup_everywhere(Key, Nodes, Exp, I) ->
        true ->
 	    ok
     end.
-				  
 
 t_spawn(Node) ->
+    t_spawn(Node, false).
+
+t_spawn(Node, Selective) when is_boolean(Selective) ->
     Me = self(),
     P = spawn(Node, fun() ->
 			    Me ! {self(), ok},
-			    t_loop()
+			    t_loop(Selective)
 		    end),
     receive
 	{P, ok} -> P
@@ -244,13 +265,22 @@ t_call(P, Req) ->
     end.
 
 t_loop() ->
+    t_loop(false).
+
+t_loop(Selective) when is_boolean(Selective) ->
     receive
 	{From, Ref, die} ->
 	    From ! {self(), Ref, ok};
+	{From, Ref, {selective, Bool}} when is_boolean(Bool) ->
+	    From ! {self(), Ref, ok},
+	    t_loop(Bool);
 	{From, Ref, {apply, M, F, A}} ->
 	    From ! {self(), Ref, apply(M, F, A)},
-	    t_loop();
-	Other ->
+	    t_loop(Selective);
+	{From, Ref, {apply_fun, F}} ->
+	    From ! {self(), Ref, F()},
+	    t_loop(Selective);
+	Other when not Selective ->
 	    ?debugFmt("got unknown msg: ~p~n", [Other]),
 	    exit({unknown_msg, Other})
     end.
@@ -259,7 +289,7 @@ start_slaves(Ns) ->
     [H|T] = Nodes = [start_slave(N) || N <- Ns],
     _ = [rpc:call(H, net, ping, [N]) || N <- T],
     Nodes.
-	       
+
 start_slave(Name) ->
     case node() of
         nonode@nohost ->

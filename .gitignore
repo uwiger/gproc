@@ -2,3 +2,5 @@ current_counterexample.eqc
 deps/
 ebin/
 .eunit/
+*~
+*/*~

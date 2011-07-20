@@ -30,7 +30,8 @@
          remove_many/4,
          remove_reg/2,
          update_aggr_counter/3,
-         update_counter/3]).
+         update_counter/3,
+	 valid_opts/2]).
 
 -include("gproc.hrl").
 
@@ -172,7 +173,11 @@ maybe_waiters(K, Pid, Value, T, Info) ->
 notify_waiters(Waiters, K, Pid, V) ->
     _ = [begin
              P ! {gproc, Ref, registered, {K, Pid, V}},
-             ets:delete(?TAB, {P, K})
+             case P of 
+		 Pid -> ignore;
+		 _ ->
+		     ets:delete(?TAB, {P, K})
+	     end
          end || {P, Ref} <- Waiters],
     ok.
 
@@ -261,3 +266,42 @@ scan_existing_counters(Ctxt, Name) ->
     Head = {{{c,Ctxt,Name},'_'},'_','$1'},
     Cs = ets:select(?TAB, [{Head, [], ['$1']}]),
     lists:sum(Cs).
+
+
+valid_opts(Type, Default) ->
+    Opts = get_app_env(Type, Default),
+    check_opts(Type, Opts).
+
+check_opts(Type, Opts) when is_list(Opts) ->
+    Check = check_option_f(Type),
+    lists:map(fun(X) ->
+		      case Check(X) of
+			  true -> X;
+			  false ->
+			      erlang:error({illegal_option, X}, [Type, Opts])
+		      end
+	      end, Opts);
+check_opts(Type, Other) ->
+    erlang:error(invalid_options, [Type, Other]).
+
+check_option_f(ets_options)    -> fun check_ets_option/1;
+check_option_f(server_options) -> fun check_server_option/1.
+
+check_ets_option({read_concurrency , B}) -> is_boolean(B);
+check_ets_option({write_concurrency, B}) -> is_boolean(B);
+check_ets_option(_) -> false.
+
+check_server_option({priority, P}) ->
+    %% Forbid setting priority to 'low' since that would
+    %% surely cause problems. Unsure about 'max'...
+    lists:member(P, [normal, high, max]);
+check_server_option(_) ->
+    %% assume it's a valid spawn option
+    true.
+
+get_app_env(Key, Default) ->
+    case application:get_env(Key) of
+	undefined       -> Default;
+	{ok, undefined} -> Default;
+	{ok, Value}     -> Value
+    end.
