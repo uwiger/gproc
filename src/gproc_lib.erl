@@ -173,7 +173,11 @@ maybe_waiters(K, Pid, Value, T, Info) ->
 notify_waiters(Waiters, K, Pid, V) ->
     _ = [begin
              P ! {gproc, Ref, registered, {K, Pid, V}},
-             ets:delete(?TAB, {P, K})
+             case P of 
+		 Pid -> ignore;
+		 _ ->
+		     ets:delete(?TAB, {P, K})
+	     end
          end || {P, Ref} <- Waiters],
     ok.
 

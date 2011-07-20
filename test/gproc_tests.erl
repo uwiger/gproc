@@ -75,6 +75,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(t_await())}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(t_await_self())}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(t_simple_mreg())}
       , ?_test(t_is_clean())
       , {spawn, ?_test(t_gproc_crash())}
@@ -141,6 +143,19 @@ t_await() ->
     after 10000 ->
             erlang:error(timeout)
     end.
+
+t_await_self() ->
+    Me = self(),
+    Ref = gproc:nb_wait({n, l, t_await_self}),
+    ?assert(gproc:reg({n, l, t_await_self}, some_value) =:= true),
+    ?assertEqual(true, receive
+			   {gproc, Ref, R, Wh} ->
+			       {registered, {{n, l, t_await_self},
+					     Me, some_value}} = {R, Wh},
+			       true
+		       after 10000 ->
+			       timeout
+		       end).
 
 t_is_clean() ->
     sys:get_status(gproc), % in order to synch
