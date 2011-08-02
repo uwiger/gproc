@@ -95,6 +95,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(t_select())}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(t_select_count())}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(t_qlc())}
       , ?_test(t_is_clean())
       , {spawn, ?_test(t_get_env())}
@@ -291,6 +293,26 @@ t_select() ->
        ], gproc:select(
 	    {all,all},
 	    [{{'_',self(),'_'},[],['$_']}])).
+
+t_select_count() ->
+    ?assertEqual(true, gproc:reg({n, l, {n,1}}, x)),
+    ?assertEqual(true, gproc:reg({n, l, {n,2}}, y)),
+    ?assertEqual(true, gproc:reg({p, l, {p,1}}, x)),
+    ?assertEqual(true, gproc:reg({p, l, {p,2}}, y)),
+    ?assertEqual(true, gproc:reg({c, l, {c,1}}, 1)),
+    ?assertEqual(true, gproc:reg({a, l, {c,1}}, undefined)),
+    %% local names
+    ?assertEqual(2, gproc:select_count(
+		      {local,names}, [{{{n,l,'_'},'_','_'},[],[true]}])),
+    %% mactch local names on value
+    ?assertEqual(1, gproc:select_count(
+		      {local,names}, [{{{n,l,'_'},'_',x},[],[true]}])),
+    %% match all on value
+    ?assertEqual(2, gproc:select_count(
+		      {all,all}, [{{{'_',l,'_'},'_',x},[],[true]}])),
+    %% match all on pid
+    ?assertEqual(6, gproc:select_count(
+		      {all,all}, [{{'_',self(),'_'},[],[true]}])).
 
 t_qlc() ->
     ?assertEqual(true, gproc:reg({n, l, {n,1}}, x)),
