@@ -78,6 +78,7 @@
          lookup_values/1,
          update_counter/2,
          give_away/2,
+         goodbye/0,
          send/2,
          info/1, info/2,
          select/1, select/2, select/3,
@@ -1002,6 +1003,17 @@ give_away({_,g,_} = Key, To) ->
     ?CHK_DIST,
     gproc_dist:give_away(Key, To).
 
+%% @spec () -> ok
+%%
+%% @doc Unregister all items of the calling process and inform gproc
+%% to forget about the calling process.
+%%
+%% This function is more efficient than letting gproc perform these
+%% cleanup operations.
+%% @end
+goodbye() ->
+    process_is_down(self()).
+
 %% @spec (Key::key(), Msg::any()) -> Msg
 %%
 %% @doc Sends a message to the process, or processes, corresponding to Key.
@@ -1326,38 +1338,44 @@ audit_process(Pid) when is_pid(Pid) ->
 process_is_down(Pid) when is_pid(Pid) ->
     %% delete the monitor marker
     %% io:fwrite(user, "process_is_down(~p) - ~p~n", [Pid,ets:tab2list(?TAB)]),
-    ets:delete(?TAB, {Pid,l}),
-    Revs = ets:select(?TAB, [{{{Pid,'$1'},r},
-                              [{'==',{element,2,'$1'},l}], ['$1']}]),
-    lists:foreach(
-      fun({n,l,_}=K) ->
-              Key = {K,n},
-              case ets:lookup(?TAB, Key) of
-                  [{_, Pid, _}] ->
-                      ets:delete(?TAB, Key);
-                  [{_, Waiters}] ->
-                      case [W || {P,_} = W <- Waiters,
-                                 P =/= Pid] of
-                          [] ->
+    Marker = {Pid,l},
+    case ets:member(?TAB, Marker) of
+        false ->
+            ok;
+        true ->
+            Revs = ets:select(?TAB, [{{{Pid,'$1'},r},
+                                      [{'==',{element,2,'$1'},l}], ['$1']}]),
+            lists:foreach(
+              fun({n,l,_}=K) ->
+                      Key = {K,n},
+                      case ets:lookup(?TAB, Key) of
+                          [{_, Pid, _}] ->
                               ets:delete(?TAB, Key);
-                          Waiters1 ->
-                              ets:insert(?TAB, {Key, Waiters1})
+                          [{_, Waiters}] ->
+                              case [W || {P,_} = W <- Waiters,
+                                         P =/= Pid] of
+                                  [] ->
+                                      ets:delete(?TAB, Key);
+                                  Waiters1 ->
+                                      ets:insert(?TAB, {Key, Waiters1})
+                              end;
+                          [] ->
+                              true
                       end;
-                  [] ->
-                      true
-              end;
-         ({c,l,C} = K) ->
-              Key = {K, Pid},
-              [{_, _, Value}] = ets:lookup(?TAB, Key),
-              ets:delete(?TAB, Key),
-              gproc_lib:update_aggr_counter(l, C, -Value);
-         ({a,l,_} = K) ->
-              ets:delete(?TAB, {K,a});
-         ({p,_,_} = K) ->
-              ets:delete(?TAB, {K, Pid})
-      end, Revs),
-    ets:select_delete(?TAB, [{{{Pid,{'_',l,'_'}},'_'}, [], [true]}]),
-    ok.
+                 ({c,l,C} = K) ->
+                      Key = {K, Pid},
+                      [{_, _, Value}] = ets:lookup(?TAB, Key),
+                      ets:delete(?TAB, Key),
+                      gproc_lib:update_aggr_counter(l, C, -Value);
+                 ({a,l,_} = K) ->
+                      ets:delete(?TAB, {K,a});
+                 ({p,_,_} = K) ->
+                      ets:delete(?TAB, {K, Pid})
+              end, Revs),
+            ets:select_delete(?TAB, [{{{Pid,{'_',l,'_'}},'_'}, [], [true]}]),
+            ets:delete(?TAB, Marker),
+            ok
+    end.
 
 do_give_away({T,l,_} = K, To, Pid) when T==n; T==a ->
     Key = {K, T},
