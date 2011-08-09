@@ -298,11 +298,25 @@ start_slave(Name) ->
         _ ->
             ok
     end,
+    {Pa, Pz} = paths(),
     Paths = "-pa ./ -pz ../ebin" ++
-        lists:flatten([ " -pa " ++ Path || Path <- code:get_path() ]),
+        lists:flatten([[" -pa " ++ Path || Path <- Pa],
+		       [" -pz " ++ Path || Path <- Pz]]),
     {ok, Node} = slave:start(host(), Name, Paths),
     %% io:fwrite(user, "Slave node: ~p~n", [Node]),
     Node.
+
+paths() ->
+    Path = code:get_path(),
+    {ok, [[Root]]} = init:get_argument(root),
+    {Pas, Rest} = lists:splitwith(fun(P) ->
+					  not lists:prefix(Root, P)
+				  end, Path),
+    {_, Pzs} = lists:splitwith(fun(P) ->
+				       lists:prefix(Root, P)
+			       end, Rest),
+    {Pas, Pzs}.
+
 
 host() ->
     [_Name, Host] = re:split(atom_to_list(node()), "@", [{return, list}]),
