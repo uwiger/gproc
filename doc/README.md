@@ -133,6 +133,7 @@ Freiburg 2007 ([Paper available here](erlang07-wiger.pdf)).
 <tr><td><a href="gproc.md" class="module">gproc</a></td></tr>
 <tr><td><a href="gproc_app.md" class="module">gproc_app</a></td></tr>
 <tr><td><a href="gproc_dist.md" class="module">gproc_dist</a></td></tr>
+<tr><td><a href="gproc_info.md" class="module">gproc_info</a></td></tr>
 <tr><td><a href="gproc_init.md" class="module">gproc_init</a></td></tr>
 <tr><td><a href="gproc_lib.md" class="module">gproc_lib</a></td></tr>
 <tr><td><a href="gproc_sup.md" class="module">gproc_sup</a></td></tr></table>

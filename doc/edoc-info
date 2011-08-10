@@ -1,3 +1,4 @@
 {application,gproc}.
 {packages,[]}.
-{modules,[gproc,gproc_app,gproc_dist,gproc_init,gproc_lib,gproc_sup]}.
+{modules,[gproc,gproc_app,gproc_dist,gproc_info,gproc_init,gproc_lib,
+          gproc_sup]}.

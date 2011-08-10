@@ -81,6 +81,7 @@
          goodbye/0,
          send/2,
          info/1, info/2,
+	 i/0,
          select/1, select/2, select/3,
          select_count/1, select_count/2,
          first/1,
@@ -1153,7 +1154,7 @@ info(Pid, ?MODULE) ->
     {?MODULE, lists:zf(
                 fun(K) ->
                         try V = get_value(K, Pid),
-                            {true, {K,V}}
+			      {true, {K,V}}
                         catch
                             error:_ ->
                                 false
@@ -1162,8 +1163,13 @@ info(Pid, ?MODULE) ->
 info(Pid, I) ->
     process_info(Pid, I).
 
-
-
+%% @spec () -> ok
+%%
+%% @doc Similar to the built-in shell command `i()' but inserts information
+%% about names and properties registered in Gproc, where applicable.
+%% @end
+i() ->
+    gproc_info:i().
 
 %%% ==========================================================
 
