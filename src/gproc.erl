@@ -87,7 +87,7 @@
          next/2,
          prev/2,
          last/1,
-         table/1, table/2]).
+         table/0, table/1, table/2]).
 
 %% Environment handling
 -export([get_env/3, get_env/4,
@@ -1631,6 +1631,14 @@ rewrite1(V, R) when is_atom(V) ->
 rewrite1(Expr, _) ->
     Expr.
 
+
+%% @spec () -> any()
+%%
+%% @doc
+%% @equiv table({all, all})
+%% @end
+table() ->
+    table({all, all}).
 
 %% @spec (Context::context()) -> any()
 %%
