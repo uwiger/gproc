@@ -96,7 +96,7 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.
 
 
 
-<pre>insert_reg(K::<a href="#type-key">key()</a>, Value::any(), Pid::pid(), Scope::<a href="#type-scope">scope()</a>) -> boolean()</pre>
+<pre>insert_reg(K::<a href="#type-key">key()</a>, Value::any(), Pid::pid() | shared, Scope::<a href="#type-scope">scope()</a>) -> boolean()</pre>
 <br></br>
 
 

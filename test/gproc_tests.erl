@@ -71,6 +71,10 @@ reg_test_() ->
      [
       {spawn, ?_test(t_simple_reg())}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(t_simple_counter())}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(t_simple_aggr_counter())}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(t_simple_prop())}
       , ?_test(t_is_clean())
       , {spawn, ?_test(t_await())}
@@ -114,6 +118,36 @@ t_simple_reg() ->
     ?assert(gproc:where({n,l,name}) =:= self()),
     ?assert(gproc:unreg({n,l,name}) =:= true),
     ?assert(gproc:where({n,l,name}) =:= undefined).
+
+t_simple_counter() ->
+    ?assert(gproc:reg({c,l,c1}, 3) =:= true),
+    ?assert(gproc:get_value({c,l,c1}) =:= 3),
+    ?assert(gproc:update_counter({c,l,c1}, 4) =:= 7),
+    ?assert(gproc:reset_counter({c,l,c1}) =:= {7, 3}).
+
+t_simple_aggr_counter() ->
+    ?assert(gproc:reg({c,l,c1}, 3) =:= true),
+    ?assert(gproc:reg({a,l,c1}) =:= true),
+    ?assert(gproc:get_value({a,l,c1}) =:= 3),
+    P = self(),
+    P1 = spawn_link(fun() ->
+			    gproc:reg({c,l,c1}, 5),
+			    P ! {self(), ok},
+			    receive
+				{P1, goodbye} -> ok
+			    end
+		    end),
+    receive {P1, ok} -> ok end,
+    ?assert(gproc:get_value({a,l,c1}) =:= 8),
+    ?assert(gproc:update_counter({c,l,c1}, 4) =:= 7),
+    ?assert(gproc:get_value({a,l,c1}) =:= 12),
+    P1 ! {self(), goodbye},
+    R = erlang:monitor(process, P1),
+    receive {'DOWN', R, _, _, _} ->
+	    gproc:audit_process(P1)
+    end,
+    ?assert(gproc:get_value({a,l,c1}) =:= 7).
+
 
 t_simple_prop() ->
     ?assert(gproc:reg({p,l,prop}) =:= true),
@@ -162,7 +196,7 @@ t_await_self() ->
 t_is_clean() ->
     sys:get_status(gproc), % in order to synch
     T = ets:tab2list(gproc),
-    ?assert(T =:= []).
+    ?assertMatch([], T).
 
 t_simple_mreg() ->
     P = self(),

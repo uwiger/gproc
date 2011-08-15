@@ -44,6 +44,15 @@ dist_test_() ->
 			       	       ?debugVal(t_simple_reg(Ns))
 			       end,
 			       fun() ->
+			       	       ?debugVal(t_simple_counter(Ns))
+			       end,
+			       fun() ->
+			       	       ?debugVal(t_aggr_counter(Ns))
+			       end,
+			       fun() ->
+			       	       ?debugVal(t_shared_counter(Ns))
+			       end,
+			       fun() ->
 			       	       ?debugVal(t_mreg(Ns))
 			       end,
 			       fun() ->
@@ -75,6 +84,7 @@ dist_test_() ->
 
 -define(T_NAME, {n, g, {?MODULE, ?LINE}}).
 -define(T_KVL, [{foo, "foo"}, {bar, "bar"}]).
+-define(T_COUNTER, {c, g, {?MODULE, ?LINE}}).
 
 t_simple_reg([H|_] = Ns) ->
     Name = ?T_NAME,
@@ -83,6 +93,47 @@ t_simple_reg([H|_] = Ns) ->
     ?assertMatch(true, t_call(P, {apply, gproc, unreg, [Name]})),
     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
     ?assertMatch(ok, t_call(P, die)).
+
+t_simple_counter([H|_] = Ns) ->
+    Ctr = ?T_COUNTER,
+    P = t_spawn_reg(H, Ctr, 3),
+    ?assertMatch(ok, t_read_everywhere(Ctr, P, Ns, 3)),
+    ?assertMatch(5, t_call(P, {apply, gproc, update_counter, [Ctr, 2]})),
+    ?assertMatch(ok, t_read_everywhere(Ctr, P, Ns, 5)),
+    ?assertMatch(ok, t_call(P, die)).
+
+t_shared_counter([H|_] = Ns) ->
+    Ctr = ?T_COUNTER,
+    P = t_spawn_reg_shared(H, Ctr, 3),
+    ?assertMatch(ok, t_read_everywhere(Ctr, shared, Ns, 3)),
+    ?assertMatch(5, t_call(P, {apply, gproc, update_shared_counter, [Ctr, 2]})),
+    ?assertMatch(ok, t_read_everywhere(Ctr, shared, Ns, 5)),
+    ?assertMatch(ok, t_call(P, die)),
+    ?assertMatch(ok, t_read_everywhere(Ctr, shared, Ns, 5)),
+    ?assertMatch(ok, t_read_everywhere(Ctr, shared, Ns, 5)), % twice
+    P1 = t_spawn(H),
+    ?assertMatch(true, t_call(P1, {apply, gproc, unreg_shared, [Ctr]})),
+    ?assertMatch(ok, t_read_everywhere(Ctr, shared, Ns, badarg)).
+
+
+t_aggr_counter([H1,H2|_] = Ns) ->
+    {c,g,Nm} = Ctr = ?T_COUNTER,
+    Aggr = {a,g,Nm},
+    Pc1 = t_spawn_reg(H1, Ctr, 3),
+    Pa = t_spawn_reg(H2, Aggr),
+    ?assertMatch(ok, t_read_everywhere(Ctr, Pc1, Ns, 3)),
+    ?assertMatch(ok, t_read_everywhere(Aggr, Pa, Ns, 3)),
+    Pc2 = t_spawn_reg(H2, Ctr, 3),
+    ?assertMatch(ok, t_read_everywhere(Ctr, Pc2, Ns, 3)),
+    ?assertMatch(ok, t_read_everywhere(Aggr, Pa, Ns, 6)),
+    ?assertMatch(5, t_call(Pc1, {apply, gproc, update_counter, [Ctr, 2]})),
+    ?assertMatch(ok, t_read_everywhere(Ctr, Pc1, Ns, 5)),
+    ?assertMatch(ok, t_read_everywhere(Aggr, Pa, Ns, 8)),
+    ?assertMatch(ok, t_call(Pc1, die)),
+    ?assertMatch(ok, t_read_everywhere(Aggr, Pa, Ns, 3)),
+    ?assertMatch(ok, t_call(Pc2, die)),
+    ?assertMatch(ok, t_call(Pa, die)).
+
 
 t_mreg([H|_] = Ns) ->
     Kvl = ?T_KVL,
@@ -211,12 +262,38 @@ t_lookup_everywhere(Key, Nodes, Exp, I) ->
     Expected = [{N, Exp} || N <- Nodes],
     Found = [{N,rpc:call(N, gproc, where, [Key])} || N <- Nodes],
     if Expected =/= Found ->
-	    ?debugFmt("lookup ~p failed (~p), retrying...~n", [Key, Found]),
+	    ?debugFmt("lookup ~p failed~n"
+		      "(Expected: ~p;~n"
+		      " Found   : ~p), retrying...~n",
+		      [Key, Expected, Found]),
 	    t_sleep(),
 	    t_lookup_everywhere(Key, Nodes, Exp, I-1);
        true ->
 	    ok
     end.
+
+t_read_everywhere(Key, Pid, Nodes, Exp) ->
+    t_read_everywhere(Key, Pid, Nodes, Exp, 3).
+
+t_read_everywhere(Key, _, _, Exp, 0) ->
+    {read_failed, Key, Exp};
+t_read_everywhere(Key, Pid, Nodes, Exp, I) ->
+    Expected = [{N, Exp} || N <- Nodes],
+    Found = [{N, read_result(rpc:call(N, gproc, get_value, [Key, Pid]))}
+	     || N <- Nodes],
+    if Expected =/= Found ->
+	    ?debugFmt("read ~p failed~n"
+		      "(Expected: ~p;~n"
+		      " Found   : ~p), retrying...~n",
+		      [{Key, Pid}, Expected, Found]),
+	    t_sleep(),
+	    t_read_everywhere(Key, Pid, Nodes, Exp, I-1);
+       true ->
+	    ok
+    end.
+
+read_result({badrpc, {'EXIT', {badarg, _}}}) -> badarg;
+read_result(R) -> R.
 
 t_spawn(Node) ->
     t_spawn(Node, false).
@@ -232,15 +309,32 @@ t_spawn(Node, Selective) when is_boolean(Selective) ->
     end.
 
 t_spawn_reg(Node, Name) ->
+    t_spawn_reg(Node, Name, default_value(Name)).
+
+t_spawn_reg(Node, Name, Value) ->
     Me = self(),
     spawn(Node, fun() ->
-			?assertMatch(true, gproc:reg(Name)),
+			?assertMatch(true, gproc:reg(Name, Value)),
 			Me ! {self(), ok},
 			t_loop()
 		end),
     receive
 	{P, ok} -> P
     end.
+
+t_spawn_reg_shared(Node, Name, Value) ->
+    Me = self(),
+    spawn(Node, fun() ->
+			?assertMatch(true, gproc:reg_shared(Name, Value)),
+			Me ! {self(), ok},
+			t_loop()
+		end),
+    receive
+	{P, ok} -> P
+    end.
+
+default_value({c,_,_}) -> 0;
+default_value(_) -> undefined.
 
 t_spawn_mreg(Node, KVL) ->
     Me = self(),

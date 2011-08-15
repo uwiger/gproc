@@ -24,11 +24,14 @@
 
 -export([start_link/0, start_link/1,
          reg/1, reg/2, unreg/1,
+	 reg_shared/2, unreg_shared/1,
          mreg/2,
          munreg/2,
          set_value/2,
          give_away/2,
-         update_counter/2]).
+         update_counter/2,
+	 update_shared_counter/2,
+	 reset_counter/1]).
 
 -export([leader_call/1,
          leader_cast/1,
@@ -97,6 +100,12 @@ reg({_,g,_} = Key, Value) ->
 reg(_, _) ->
     erlang:error(badarg).
 
+reg_shared({_,g,_} = Key, Value) ->
+    leader_call({reg, Key, Value, shared});
+reg_shared(_, _) ->
+    erlang:error(badarg).
+
+
 mreg(T, KVL) ->
     if is_list(KVL) -> leader_call({mreg, T, g, KVL, self()});
        true -> erlang:error(badarg)
@@ -111,6 +120,12 @@ unreg({_,g,_} = Key) ->
     leader_call({unreg, Key, self()});
 unreg(_) ->
     erlang:error(badarg).
+
+unreg_shared({T,g,_} = Key) when T==c; T==a ->
+    leader_call({unreg, Key, shared});
+unreg_shared(_) ->
+    erlang:error(badarg).
+
 
 set_value({T,g,_} = Key, Value) when T==a; T==c ->
     if is_integer(Value) ->
@@ -131,6 +146,18 @@ update_counter({c,g,_} = Key, Incr) when is_integer(Incr) ->
     leader_call({update_counter, Key, Incr, self()});
 update_counter(_, _) ->
     erlang:error(badarg).
+
+update_shared_counter({c,g,_} = Key, Incr) when is_integer(Incr) ->
+    leader_call({update_counter, Key, Incr, shared});
+update_shared_counter(_, _) ->
+    erlang:error(badarg).
+
+
+reset_counter({c,g,_} = Key) ->
+    leader_call({reset_counter, Key, self()});
+reset_counter(_) ->
+    erlang:error(badarg).
+
 
 %% @spec sync() -> true
 %% @doc Synchronize with the gproc leader
@@ -261,6 +288,22 @@ handle_leader_call({update_counter, {c,g,_Ctr} = Key, Incr, Pid}, _From, S, _E)
         error:_ ->
             {reply, badarg, S}
     end;
+handle_leader_call({reset_counter, {c,g,_Ctr} = Key, Pid}, _From, S, _E) ->
+    try  Current = ets:lookup_element(?TAB, {Key, Pid}, 3),
+	 Initial = case ets:lookup_element(?TAB, {Pid, Key}, 2) of
+		       r -> 0;
+		       Opts when is_list(Opts) ->
+			   proplists:get_value(initial, Opts, 0)
+		   end,
+	 Incr = Initial - Current,
+	 New = ets:update_counter(?TAB, {Key, Pid}, {3, Incr}),
+	 Vals = [{{Key,Pid},Pid,New} | update_aggr_counter(Key, Incr)],
+	 {reply, {Current, New}, [{insert, Vals}], S}
+    catch
+	error:_R ->
+	    io:fwrite("reset_counter failed: ~p~n~p~n", [_R, erlang:get_stacktrace()]),
+	    {reply, badarg, S}
+    end;
 handle_leader_call({unreg, {T,g,Name} = K, Pid}, _From, S, _E) ->
     Key = if T == n; T == a -> {K,T};
              true -> {K, Pid}
@@ -293,7 +336,7 @@ handle_leader_call({give_away, {T,g,_} = K, To, Pid}, _From, S, _E)
                     {reply, Pid, S};
                 ToPid when is_pid(ToPid) ->
                     ets:insert(?TAB, [{Key, ToPid, Value},
-                                      {{ToPid,K}, r}]),
+                                      {{ToPid,K}, []}]),
                     _ = gproc_lib:ensure_monitor(ToPid, g),
                     {reply, ToPid, [{delete, [Key, {Pid,K}]},
                                    {insert, [{Key, ToPid, Value}]}], S};
@@ -394,7 +437,7 @@ handle_leader_cast({remove_globals, Globals}, S, _E) ->
     delete_globals(Globals),
     {ok, S};
 handle_leader_cast({pid_is_DOWN, Pid}, S, _E) ->
-    Globals = ets:select(?TAB, [{{{Pid,'$1'},r},
+    Globals = ets:select(?TAB, [{{{Pid,'$1'}, '_'},
                                  [{'==',{element,2,'$1'},g}],[{{'$1',Pid}}]}]),
     ets:delete(?TAB, {Pid,g}),
     case process_globals(Globals) of
@@ -440,9 +483,9 @@ from_leader(Ops, S, _E) ->
               ets:insert(?TAB, Globals),
               lists:foreach(
                 fun({{{_,g,_}=Key,_}, P, _}) ->
-                        ets:insert(?TAB, {{P,Key},r}),
+                        ets:insert(?TAB, {{P,Key}, []}),
                         gproc_lib:ensure_monitor(P,g);
-                   ({{P,_K},r}) ->
+                   ({{P,_K}, _}) when is_pid(P) ->
                         gproc_lib:ensure_monitor(P,g);
                    (_) ->
                         skip
@@ -454,11 +497,11 @@ delete_globals(Globals) ->
     lists:foreach(
       fun({{_,g,_},T} = K) when is_atom(T) ->
               ets:delete(?TAB, K);
-         ({Key, Pid}) when is_pid(Pid) ->
+         ({Key, Pid}) when is_pid(Pid); Pid==shared ->
               K = ets_key(Key,Pid),
               ets:delete(?TAB, K),
               ets:delete(?TAB, {Pid, Key});
-         ({Pid, K}) when is_pid(Pid) ->
+         ({Pid, K}) when is_pid(Pid); Pid==shared ->
               ets:delete(?TAB, {Pid, K})
       end, Globals).
 

@@ -42,7 +42,7 @@
 %% Pid around as payload as well. This is a bit redundant, but
 %% symmetric.
 %%
--spec insert_reg(key(), any(), pid(), scope()) -> boolean().
+-spec insert_reg(key(), any(), pid() | shared, scope()) -> boolean().
 
 insert_reg({T,_,Name} = K, Value, Pid, Scope) when T==a; T==n ->
     MaybeScan = fun() ->
@@ -53,7 +53,7 @@ insert_reg({T,_,Name} = K, Value, Pid, Scope) when T==a; T==n ->
                                 true
                         end
                 end,
-    Info = [{{K, T}, Pid, Value}, {{Pid,K},r}],
+    Info = [{{K, T}, Pid, Value}, {{Pid,K}, []}],
     case ets:insert_new(?TAB, Info) of
         true ->
             MaybeScan();
@@ -68,7 +68,7 @@ insert_reg({c,Scope,Ctr} = Key, Value, Pid, Scope) when Scope==l; Scope==g ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
     Kr = {Pid, Key},
-    Res = ets:insert_new(?TAB, [{K, Pid, Value}, {Kr,r}]),
+    Res = ets:insert_new(?TAB, [{K, Pid, Value}, {Kr, [{initial, Value}]}]),
     case Res of
         true ->
             update_aggr_counter(Scope, Ctr, Value);
@@ -80,7 +80,7 @@ insert_reg({_,_,_} = Key, Value, Pid, _Scope) when is_pid(Pid) ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
     Kr = {Pid, Key},
-    ets:insert_new(?TAB, [{K, Pid, Value}, {Kr,r}]).
+    ets:insert_new(?TAB, [{K, Pid, Value}, {Kr, []}]).
 
 
 
@@ -119,7 +119,7 @@ insert_many(T, Scope, KVL, Pid) ->
 insert_objects(Objs) ->
     lists:foreach(
       fun({{{Id,_} = _K, Pid, V} = Obj, Existing}) ->
-              ets:insert(?TAB, [Obj, {{Pid, Id}, r}]),
+              ets:insert(?TAB, [Obj, {{Pid, Id}, []}]),
               case Existing of
                   [] -> ok;
                   [{_, Waiters}] ->
@@ -129,7 +129,7 @@ insert_objects(Objs) ->
 
 
 await({T,C,_} = Key, WPid, {_Pid, Ref} = From) ->
-    Rev = {{WPid,Key}, r},
+    Rev = {{WPid,Key}, []},
     case ets:lookup(?TAB, {Key,T}) of
         [{_, P, Value}] ->
             %% for symmetry, we always reply with Ref and then send a message
@@ -173,7 +173,7 @@ maybe_waiters(K, Pid, Value, T, Info) ->
 notify_waiters(Waiters, K, Pid, V) ->
     _ = [begin
              P ! {gproc, Ref, registered, {K, Pid, V}},
-             case P of 
+             case P of
 		 Pid -> ignore;
 		 _ ->
 		     ets:delete(?TAB, {P, K})
@@ -197,9 +197,11 @@ mk_reg_objs(p = T, Scope, Pid, L) ->
               end, L).
 
 mk_reg_rev_objs(T, Scope, Pid, L) ->
-    [{{Pid,{T,Scope,K}},r} || {K,_} <- L].
+    [{{Pid,{T,Scope,K}}, []} || {K,_} <- L].
 
 
+ensure_monitor(shared, _) ->
+    ok;
 ensure_monitor(Pid, Scope) when Scope==g; Scope==l ->
     case node(Pid) == node() andalso ets:insert_new(?TAB, {{Pid, Scope}}) of
         false -> ok;
