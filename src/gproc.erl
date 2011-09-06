@@ -821,6 +821,13 @@ unreg_shared(Key) ->
 unregister_name(Key) ->
     unreg(Key).
 
+%% @spec (Continuation ::term()) -> {[Match],Continuation} | '$end_of_table'
+%% @doc
+%% see http://www.erlang.org/doc/man/ets.html#select-1
+%% @end
+select({?TAB, _, _, _, _, _, _, _} = Continuation) ->
+    ets:select(Continuation);
+
 %% @spec (select_pattern()) -> list(sel_object())
 %% @doc
 %% @equiv select(all, Pat)
@@ -839,7 +846,7 @@ select(Context, Pat) ->
     ets:select(?TAB, pattern(Pat, Context)).
 
 %% @spec (Context::context(), Pat::sel_patten(), Limit::integer()) ->
-%%          [{Key, Pid, Value}]
+%%          {[Match],Continuation} | '$end_of_table'
 %% @doc Like {@link select/2} but returns Limit objects at a time.
 %%
 %% See [http://www.erlang.org/doc/man/ets.html#select-3].
