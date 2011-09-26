@@ -475,12 +475,12 @@ try_alternative(app_env, App, Key, _Scope) ->
     end;
 try_alternative(os_env, _App, Key, _) ->
     case os:getenv(os_env_key(Key)) of
-        ""  -> undefined;
+        false  -> undefined;
         Val -> {ok, Val}
     end;
 try_alternative({os_env, Key}, _, _, _) ->
     case os:getenv(Key) of
-        ""  -> undefined;
+        false  -> undefined;
         Val -> {ok, Val}
     end;
 try_alternative(init_arg, _, Key, _) ->
