@@ -134,7 +134,7 @@ t_simple_aggr_counter() ->
 			    gproc:reg({c,l,c1}, 5),
 			    P ! {self(), ok},
 			    receive
-				{P1, goodbye} -> ok
+				{P, goodbye} -> ok
 			    end
 		    end),
     receive {P1, ok} -> ok end,

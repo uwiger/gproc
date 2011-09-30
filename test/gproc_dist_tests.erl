@@ -381,7 +381,7 @@ t_loop(Selective) when is_boolean(Selective) ->
 
 start_slaves(Ns) ->
     [H|T] = Nodes = [start_slave(N) || N <- Ns],
-    _ = [rpc:call(H, net, ping, [N]) || N <- T],
+    _ = [rpc:call(H, net_adm, ping, [N]) || N <- T],
     Nodes.
 
 start_slave(Name) ->
