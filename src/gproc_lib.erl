@@ -28,7 +28,8 @@
          insert_many/4,
          insert_reg/4,
          remove_many/4,
-         remove_reg/2,
+         remove_reg/2, remove_reg/3,
+	 notify/2,
          update_aggr_counter/3,
          update_counter/3,
 	 valid_opts/2]).
@@ -209,15 +210,37 @@ ensure_monitor(Pid, Scope) when Scope==g; Scope==l ->
     end.
 
 remove_reg(Key, Pid) ->
+    remove_reg(Key, Pid, []).
+
+remove_reg(Key, Pid, Opts) ->
     Reg = remove_reg_1(Key, Pid),
     ets:delete(?TAB, Rev = {Pid,Key}),
+    notify(Key, Opts),
     [Reg, Rev].
+
+notify(Key, Opts) ->
+    case lists:keyfind(monitor, 1, Opts) of
+	false ->
+	    [];
+	{_, Mons} ->
+	    [begin P ! {gproc, unreg, Ref, Key}, P end || {P, Ref} <- Mons]
+    end.
 
 remove_many(T, Scope, L, Pid) ->
     lists:flatmap(fun(K) ->
                           Key = {T, Scope, K},
-                          remove_reg(Key, Pid)
+                          remove_reg(Key, Pid, unreg_opts(Key, Pid))
                   end, L).
+
+unreg_opts(Key, Pid) ->
+    case ets:lookup(?TAB, {Pid, Key}) of
+	[] ->
+	    [];
+	[{_,r}] ->
+	    [];
+	[{_,Opts}] ->
+	    Opts
+    end.
 
 remove_reg_1({c,_,_} = Key, Pid) ->
     remove_counter_1(Key, ets:lookup_element(?TAB, Reg = {Key,Pid}, 3), Pid),

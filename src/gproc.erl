@@ -73,6 +73,8 @@
          await/1, await/2,
          nb_wait/1,
          cancel_wait/2,
+	 monitor/1,
+	 demonitor/2,
          lookup_pid/1,
          lookup_pids/1,
          lookup_value/1,
@@ -119,6 +121,7 @@
 
 %% Callbacks for behaviour support
 -export([whereis_name/1,
+	 register_name/2,
          unregister_name/1]).
 
 -export([default/1]).
@@ -665,6 +668,38 @@ cancel_wait({_,l,_} = Key, Ref) ->
     ok.
 
 
+%% @spec monitor(key()) -> reference()
+%%
+%% @doc monitor a registered name
+%% This function works much like erlang:monitor(process, Pid), but monitors
+%% a unique name registered via gproc. A message, `{gproc, unreg, Ref, Key}'
+%% will be sent to the requesting process, if the name is unregistered or
+%% the registered process dies.
+%%
+%% If the name is not yet registered, the same message is sent immediately.
+%% @end
+monitor({T,g,_} = Key) when T==n; T==a ->
+    ?CHK_DIST,
+    call({monitor, Key}, g);
+monitor({T,l,_} = Key) when T==n; T==a ->
+    call({monitor, Key}, l);
+monitor(Key) ->
+    erlang:error(badarg, [Key]).
+
+%% @spec demonitor(key(), reference()) -> ok
+%%
+%% @doc Remove a monitor on a registered name
+%% This function is the reverse of monitor/1. It removes a monitor previously
+%% set on a unique name. This function always succeeds given legal input.
+%% @end
+demonitor({T,g,_} = Key, Ref) when T==n; T==a ->
+    ?CHK_DIST,
+    call({demonitor, Key, Ref}, g);
+demonitor({T,l,_} = Key, Ref) when T==n; T==a ->
+    call({demonitor, Key, Ref}, l);
+demonitor(Key, Ref) ->
+    erlang:error(badarg, [Key, Ref]).
+
 %% @spec reg(Key::key(), Value) -> true
 %%
 %% @doc Register a name or property for the current process
@@ -815,6 +850,17 @@ unreg_shared(Key) ->
                        T == a -> call({unreg_shared, Key});
         _ ->
 	    erlang:error(badarg)
+    end.
+
+%% @spec (key(), pid()) -> yes | no
+%%
+%% @doc Behaviour support callback
+%% @end
+register_name({n,_,_} = Name, Pid) when Pid == self() ->
+    try reg(Name), yes
+    catch
+	error:_ ->
+	    no
     end.
 
 %% @equiv unreg/1
@@ -1336,6 +1382,35 @@ handle_call({reg, {_T,l,_} = Key, Val}, {Pid,_}, S) ->
         false ->
             {reply, badarg, S}
     end;
+handle_call({monitor, {T,_,_} = Key}, {Pid, _}, S)
+  when T==n; T==a ->
+    Ref = make_ref(),
+    case where(Key) of
+	undefined ->
+	    Pid ! {gproc, unreg, Ref, Key};
+	RegPid ->
+	    case ets:lookup(?TAB, {RegPid, Key}) of
+		[{K,r}] ->
+		    ets:insert(?TAB, {K, [{monitor, [Pid]}]});
+		[{K, Opts}] ->
+		    ets:insert(?TAB, {K, add_monitor(Opts, Pid, Ref)})
+	    end
+    end,
+    {reply, Ref, S};
+handle_call({demonitor, {T,_,_} = Key, Ref}, {Pid,_}, S)
+  when T==n; T==a ->
+    case where(Key) of
+	undefined ->
+	    ok;  % be nice
+	RegPid ->
+	    case ets:lookup(?TAB, {RegPid, Key}) of
+		[{_K,r}] ->
+		    ok;   % be nice
+		[{K, Opts}] ->
+		    ets:insert(?TAB, {K, remove_monitor(Opts, Pid, Ref)})
+	    end
+    end,
+    {reply, ok, S};
 handle_call({reg_shared, {_T,l,_} = Key, Val}, _From, S) ->
     case try_insert_reg(Key, Val, shared) of
     %% case try_insert_shared(Key, Val) of
@@ -1345,15 +1420,26 @@ handle_call({reg_shared, {_T,l,_} = Key, Val}, _From, S) ->
 	    {reply, badarg, S}
     end;
 handle_call({unreg, {_,l,_} = Key}, {Pid,_}, S) ->
-    case ets:member(?TAB, {Pid,Key}) of
-        true ->
+    case ets:lookup(?TAB, {Pid,Key}) of
+        [{_, r}] ->
             _ = gproc_lib:remove_reg(Key, Pid),
             {reply, true, S};
-        false ->
+        [{_, Opts}] when is_list(Opts) ->
+            _ = gproc_lib:remove_reg(Key, Pid, Opts),
+            {reply, true, S};
+        [] ->
             {reply, badarg, S}
     end;
 handle_call({unreg_shared, {_,l,_} = Key}, _, S) ->
-    _ = gproc_lib:remove_reg(Key, shared),
+    case ets:lookup(?TAB, {shared, Key}) of
+	[{_, r}] ->
+	    _ = gproc_lib:remove_reg(Key, shared);
+	[{_, Opts}] ->
+	    _ = gproc_lib:remove_reg(Key, shared, Opts);
+	[] ->
+	    %% don't crash if shared key already unregged.
+	    ok
+    end,
     {reply, true, S};
 handle_call({await, {_,l,_} = Key, Pid}, From, S) ->
     %% Passing the pid explicitly is needed when leader_call is used,
@@ -1487,14 +1573,16 @@ process_is_down(Pid) when is_pid(Pid) ->
         false ->
             ok;
         true ->
-            Revs = ets:select(?TAB, [{{{Pid,'$1'}, '_'},
-                                      [{'==',{element,2,'$1'},l}], ['$1']}]),
+            Revs = ets:select(?TAB, [{{{Pid,'$1'}, '$2'},
+                                      [{'==',{element,2,'$1'},l}],
+				      [{{'$1','$2'}}]}]),
             lists:foreach(
-              fun({n,l,_}=K) ->
+              fun({{n,l,_}=K, R}) ->
                       Key = {K,n},
                       case ets:lookup(?TAB, Key) of
                           [{_, Pid, _}] ->
-                              ets:delete(?TAB, Key);
+                              ets:delete(?TAB, Key),
+			      opt_notify(R, K);
                           [{_, Waiters}] ->
                               case [W || {P,_} = W <- Waiters,
                                          P =/= Pid] of
@@ -1506,20 +1594,27 @@ process_is_down(Pid) when is_pid(Pid) ->
                           [] ->
                               true
                       end;
-                 ({c,l,C} = K) ->
+                 ({{c,l,C} = K, _}) ->
                       Key = {K, Pid},
                       [{_, _, Value}] = ets:lookup(?TAB, Key),
                       ets:delete(?TAB, Key),
                       gproc_lib:update_aggr_counter(l, C, -Value);
-                 ({a,l,_} = K) ->
-                      ets:delete(?TAB, {K,a});
-                 ({p,_,_} = K) ->
+                 ({{a,l,_} = K, R}) ->
+                      ets:delete(?TAB, {K,a}),
+		      opt_notify(R, K);
+                 ({{p,_,_} = K, _}) ->
                       ets:delete(?TAB, {K, Pid})
               end, Revs),
             ets:select_delete(?TAB, [{{{Pid,{'_',l,'_'}},'_'}, [], [true]}]),
             ets:delete(?TAB, Marker),
             ok
     end.
+
+opt_notify(r, _) ->
+    ok;
+opt_notify(Opts, Key) ->
+    gproc_lib:notify(Key, Opts).
+
 
 do_give_away({T,l,_} = K, To, Pid) when T==n; T==a ->
     Key = {K, T},
@@ -1607,7 +1702,19 @@ set_monitors({Pids, Cont}) ->
     _ = [erlang:monitor(process,Pid) || Pid <- Pids],
     set_monitors(ets:select(Cont)).
 
+add_monitor([{monitor, Mons}|T], Pid, Ref) ->
+    [{monitor, [{Pid,Ref}|Mons]}|T];
+add_monitor([H|T], Pid, Ref) ->
+    [H|add_monitor(T, Pid, Ref)];
+add_monitor([], Pid, Ref) ->
+    [{monitor, [{Pid, Ref}]}].
 
+remove_monitor([{monitor, Mons}|T], Pid, Ref) ->
+    [{monitor, Mons -- [{Pid, Ref}]}|T];
+remove_monitor([H|T], Pid, Ref) ->
+    [H|remove_monitor(T, Pid, Ref)];
+remove_monitor([], _Pid, _Ref) ->
+    [].
 
 monitor_me() ->
     case ets:insert_new(?TAB, {{self(),l}}) of

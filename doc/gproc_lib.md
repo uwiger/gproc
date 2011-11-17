@@ -1,9 +1,6 @@
-Module gproc_lib
-================
 
 
-<h1>Module gproc_lib</h1>
-
+#Module gproc_lib#
 * [Description](#description)
 * [Function Index](#index)
 * [Function Details](#functions)
@@ -13,33 +10,29 @@ Extended process registry.
 
 
 
-__Authors:__ Ulf Wiger ([`ulf.wiger@ericsson.com`](mailto:ulf.wiger@ericsson.com)).
+__Authors:__ Ulf Wiger ([`ulf.wiger@ericsson.com`](mailto:ulf.wiger@ericsson.com)).<a name="description"></a>
 
-<h2><a name="description">Description</a></h2>
-
+##Description##
 
 
 This module implements an extended process registry
 
 
-For a detailed description, see gproc/doc/erlang07-wiger.pdf.
+For a detailed description, see gproc/doc/erlang07-wiger.pdf.<a name="index"></a>
 
-<h2><a name="index">Function Index</a></h2>
-
-
-
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#await-3">await/3</a></td><td></td></tr><tr><td valign="top"><a href="#do_set_counter_value-3">do_set_counter_value/3</a></td><td></td></tr><tr><td valign="top"><a href="#do_set_value-3">do_set_value/3</a></td><td></td></tr><tr><td valign="top"><a href="#ensure_monitor-2">ensure_monitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#insert_many-4">insert_many/4</a></td><td></td></tr><tr><td valign="top"><a href="#insert_reg-4">insert_reg/4</a></td><td></td></tr><tr><td valign="top"><a href="#remove_many-4">remove_many/4</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reg-2">remove_reg/2</a></td><td></td></tr><tr><td valign="top"><a href="#update_aggr_counter-3">update_aggr_counter/3</a></td><td></td></tr><tr><td valign="top"><a href="#update_counter-3">update_counter/3</a></td><td></td></tr><tr><td valign="top"><a href="#valid_opts-2">valid_opts/2</a></td><td></td></tr></table>
+##Function Index##
 
 
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#await-3">await/3</a></td><td></td></tr><tr><td valign="top"><a href="#do_set_counter_value-3">do_set_counter_value/3</a></td><td></td></tr><tr><td valign="top"><a href="#do_set_value-3">do_set_value/3</a></td><td></td></tr><tr><td valign="top"><a href="#ensure_monitor-2">ensure_monitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#insert_many-4">insert_many/4</a></td><td></td></tr><tr><td valign="top"><a href="#insert_reg-4">insert_reg/4</a></td><td></td></tr><tr><td valign="top"><a href="#notify-2">notify/2</a></td><td></td></tr><tr><td valign="top"><a href="#remove_many-4">remove_many/4</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reg-2">remove_reg/2</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reg-3">remove_reg/3</a></td><td></td></tr><tr><td valign="top"><a href="#update_aggr_counter-3">update_aggr_counter/3</a></td><td></td></tr><tr><td valign="top"><a href="#update_counter-3">update_counter/3</a></td><td></td></tr><tr><td valign="top"><a href="#valid_opts-2">valid_opts/2</a></td><td></td></tr></table>
 
 
-<h2><a name="functions">Function Details</a></h2>
+<a name="functions"></a>
 
+##Function Details##
 
 <a name="await-3"></a>
 
-<h3>await/3</h3>
-
+###await/3##
 
 
 
@@ -48,8 +41,7 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.
 
 <a name="do_set_counter_value-3"></a>
 
-<h3>do_set_counter_value/3</h3>
-
+###do_set_counter_value/3##
 
 
 
@@ -58,8 +50,7 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.
 
 <a name="do_set_value-3"></a>
 
-<h3>do_set_value/3</h3>
-
+###do_set_value/3##
 
 
 
@@ -68,8 +59,7 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.
 
 <a name="ensure_monitor-2"></a>
 
-<h3>ensure_monitor/2</h3>
-
+###ensure_monitor/2##
 
 
 
@@ -78,32 +68,38 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.
 
 <a name="insert_many-4"></a>
 
-<h3>insert_many/4</h3>
+###insert_many/4##
 
 
 
 
-
-<pre>insert_many(T::<a href="#type-type">type()</a>, Scope::<a href="#type-scope">scope()</a>, KVL::[{<a href="#type-key">key()</a>, any()}], Pid::pid()) -> {true, list()} | false</pre>
+<pre>insert_many(T::[type()](#type-type), Scope::[scope()](#type-scope), KVL::[{[key()](#type-key), any()}], Pid::pid()) -&gt; {true, list()} | false</pre>
 <br></br>
 
 
 <a name="insert_reg-4"></a>
 
-<h3>insert_reg/4</h3>
+###insert_reg/4##
 
 
 
 
-
-<pre>insert_reg(K::<a href="#type-key">key()</a>, Value::any(), Pid::pid() | shared, Scope::<a href="#type-scope">scope()</a>) -> boolean()</pre>
+<pre>insert_reg(K::[key()](#type-key), Value::any(), Pid::pid() | shared, Scope::[scope()](#type-scope)) -&gt; boolean()</pre>
 <br></br>
 
 
+<a name="notify-2"></a>
+
+###notify/2##
+
+
+
+
+`notify(Key, Opts) -> any()`
+
 <a name="remove_many-4"></a>
 
-<h3>remove_many/4</h3>
-
+###remove_many/4##
 
 
 
@@ -112,18 +108,25 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.
 
 <a name="remove_reg-2"></a>
 
-<h3>remove_reg/2</h3>
-
+###remove_reg/2##
 
 
 
 
 `remove_reg(Key, Pid) -> any()`
 
+<a name="remove_reg-3"></a>
+
+###remove_reg/3##
+
+
+
+
+`remove_reg(Key, Pid, Opts) -> any()`
+
 <a name="update_aggr_counter-3"></a>
 
-<h3>update_aggr_counter/3</h3>
-
+###update_aggr_counter/3##
 
 
 
@@ -132,8 +135,7 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.
 
 <a name="update_counter-3"></a>
 
-<h3>update_counter/3</h3>
-
+###update_counter/3##
 
 
 
@@ -142,8 +144,7 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.
 
 <a name="valid_opts-2"></a>
 
-<h3>valid_opts/2</h3>
-
+###valid_opts/2##
 
 
 

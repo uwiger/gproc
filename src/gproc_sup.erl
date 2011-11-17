@@ -48,7 +48,9 @@ init(_Args) ->
                    [{gproc_dist, {gproc_dist, start_link, [Env]},
                      permanent, 2000, worker, [gproc_dist]}]
            end,
-    {ok,{{one_for_one, 15, 60}, [GProc | Dist]}}.
+    Mon = {gproc_monitor, {gproc_monitor, start_link, []},
+	   permanent, 2000, worker, [gproc_monitor]},
+    {ok,{{one_for_one, 15, 60}, [GProc| Dist] ++ [Mon]}}.
 
 
 %%%----------------------------------------------------------------------
