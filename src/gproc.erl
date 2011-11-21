@@ -73,6 +73,7 @@
          await/1, await/2,
          nb_wait/1,
          cancel_wait/2,
+	 cancel_wait_or_monitor/1,
 	 monitor/1,
 	 demonitor/2,
          lookup_pid/1,
@@ -659,12 +660,29 @@ nb_wait({n,l,_} = Key) ->
 nb_wait(Key) ->
     erlang:error(badarg, [Key]).
 
+%% @spec cancel_wait(Key::key(), Ref) -> ok
+%%    Ref = all | reference()
+%%
+%% @doc Cancels a previous call to nb_wait/1
+%%
+%% If `Ref = all', all wait requests on `Key' from the calling process
+%% are canceled.
+%% @end
+%%
 cancel_wait({_,g,_} = Key, Ref) ->
     ?CHK_DIST,
     cast({cancel_wait, self(), Key, Ref}, g),
     ok;
 cancel_wait({_,l,_} = Key, Ref) ->
     cast({cancel_wait, self(), Key, Ref}, l),
+    ok.
+
+cancel_wait_or_monitor({_,g,_} = Key) ->
+    ?CHK_DIST,
+    cast({cancel_wait_or_monitor, self(), Key}, g),
+    ok;
+cancel_wait_or_monitor({_,l,_} = Key) ->
+    cast({cancel_wait_or_monitor, self(), Key}, l),
     ok.
 
 
@@ -680,9 +698,9 @@ cancel_wait({_,l,_} = Key, Ref) ->
 %% @end
 monitor({T,g,_} = Key) when T==n; T==a ->
     ?CHK_DIST,
-    call({monitor, Key}, g);
+    call({monitor, Key, self()}, g);
 monitor({T,l,_} = Key) when T==n; T==a ->
-    call({monitor, Key}, l);
+    call({monitor, Key, self()}, l);
 monitor(Key) ->
     erlang:error(badarg, [Key]).
 
@@ -694,9 +712,9 @@ monitor(Key) ->
 %% @end
 demonitor({T,g,_} = Key, Ref) when T==n; T==a ->
     ?CHK_DIST,
-    call({demonitor, Key, Ref}, g);
+    call({demonitor, Key, Ref, self()}, g);
 demonitor({T,l,_} = Key, Ref) when T==n; T==a ->
-    call({demonitor, Key, Ref}, l);
+    call({demonitor, Key, Ref, self()}, l);
 demonitor(Key, Ref) ->
     erlang:error(badarg, [Key, Ref]).
 
@@ -830,7 +848,7 @@ unreg(Key) ->
         {_, l, _} ->
             case ets:member(?TAB, {Key,self()}) of
                 true ->
-                    _ = gproc_lib:remove_reg(Key, self()),
+                    _ = gproc_lib:remove_reg(Key, self(), unreg),
                     true;
                 false ->
                     erlang:error(badarg)
@@ -936,7 +954,7 @@ local_mreg(T, [_|_] = KVL) ->
     end.
 
 local_munreg(T, L) when T==p; T==c ->
-    _ = [gproc_lib:remove_reg({T,l,K}, self()) || K <- L],
+    _ = [gproc_lib:remove_reg({T,l,K}, self(), unreg) || K <- L],
     true.
 
 %% @spec (Key :: key(), Value) -> true
@@ -1350,26 +1368,21 @@ handle_cast({monitor_me, Pid}, S) ->
     erlang:monitor(process, Pid),
     {noreply, S};
 handle_cast({cancel_wait, Pid, {T,_,_} = Key, Ref}, S) ->
-    Rev = {Pid,Key},
     case ets:lookup(?TAB, {Key,T}) of
-        [{K, Waiters}] ->
-            case Waiters -- [{Pid,Ref}] of
-                [] ->
-                    ets:delete(?TAB, K),
-                    ets:delete(?TAB, Rev);
-                NewWaiters ->
-                    ets:insert(?TAB, {K, NewWaiters}),
-                    case lists:keymember(Pid, 1, NewWaiters) of
-                        true ->
-                            %% should be extremely unlikely
-                            ok;
-                        false ->
-                            %% delete the reverse entry
-                            ets:delete(?TAB, Rev)
-                    end
-            end;
+        [{_, Waiters}] ->
+	    gproc_lib:remove_wait(Key, Pid, Ref, Waiters);
         _ ->
             ignore
+    end,
+    {noreply, S};
+handle_cast({cancel_wait_or_monitor, Pid, {T,_,_} = Key}, S) ->
+    case ets:lookup(?TAB, {Key, T}) of
+	[{_, Waiters}] ->
+	    gproc_lib:remove_wait(Key, Pid, all, Waiters);
+	[{_, OtherPid, _}] ->
+	    gproc_lib:remove_monitors(Key, OtherPid, Pid);
+	_ ->
+	    ok
     end,
     {noreply, S}.
 
@@ -1382,7 +1395,7 @@ handle_call({reg, {_T,l,_} = Key, Val}, {Pid,_}, S) ->
         false ->
             {reply, badarg, S}
     end;
-handle_call({monitor, {T,_,_} = Key}, {Pid, _}, S)
+handle_call({monitor, {T,l,_} = Key, Pid}, _From, S)
   when T==n; T==a ->
     Ref = make_ref(),
     case where(Key) of
@@ -1391,13 +1404,13 @@ handle_call({monitor, {T,_,_} = Key}, {Pid, _}, S)
 	RegPid ->
 	    case ets:lookup(?TAB, {RegPid, Key}) of
 		[{K,r}] ->
-		    ets:insert(?TAB, {K, [{monitor, [Pid]}]});
+		    ets:insert(?TAB, {K, [{monitor, [{Pid,Ref}]}]});
 		[{K, Opts}] ->
-		    ets:insert(?TAB, {K, add_monitor(Opts, Pid, Ref)})
+		    ets:insert(?TAB, {K, gproc_lib:add_monitor(Opts, Pid, Ref)})
 	    end
     end,
     {reply, Ref, S};
-handle_call({demonitor, {T,_,_} = Key, Ref}, {Pid,_}, S)
+handle_call({demonitor, {T,l,_} = Key, Ref, Pid}, _From, S)
   when T==n; T==a ->
     case where(Key) of
 	undefined ->
@@ -1407,7 +1420,8 @@ handle_call({demonitor, {T,_,_} = Key, Ref}, {Pid,_}, S)
 		[{_K,r}] ->
 		    ok;   % be nice
 		[{K, Opts}] ->
-		    ets:insert(?TAB, {K, remove_monitor(Opts, Pid, Ref)})
+		    ets:insert(?TAB, {K, gproc_lib:remove_monitor(
+					   Opts, Pid, Ref)})
 	    end
     end,
     {reply, ok, S};
@@ -1422,10 +1436,10 @@ handle_call({reg_shared, {_T,l,_} = Key, Val}, _From, S) ->
 handle_call({unreg, {_,l,_} = Key}, {Pid,_}, S) ->
     case ets:lookup(?TAB, {Pid,Key}) of
         [{_, r}] ->
-            _ = gproc_lib:remove_reg(Key, Pid),
+            _ = gproc_lib:remove_reg(Key, Pid, unreg),
             {reply, true, S};
         [{_, Opts}] when is_list(Opts) ->
-            _ = gproc_lib:remove_reg(Key, Pid, Opts),
+            _ = gproc_lib:remove_reg(Key, Pid, unreg, Opts),
             {reply, true, S};
         [] ->
             {reply, badarg, S}
@@ -1433,9 +1447,9 @@ handle_call({unreg, {_,l,_} = Key}, {Pid,_}, S) ->
 handle_call({unreg_shared, {_,l,_} = Key}, _, S) ->
     case ets:lookup(?TAB, {shared, Key}) of
 	[{_, r}] ->
-	    _ = gproc_lib:remove_reg(Key, shared);
+	    _ = gproc_lib:remove_reg(Key, shared, unreg);
 	[{_, Opts}] ->
-	    _ = gproc_lib:remove_reg(Key, shared, Opts);
+	    _ = gproc_lib:remove_reg(Key, shared, unreg, Opts);
 	[] ->
 	    %% don't crash if shared key already unregged.
 	    ok
@@ -1552,6 +1566,7 @@ try_insert_reg({T,l,_} = Key, Val, Pid) ->
             true
     end.
 
+
 %% try_insert_shared({c,l,_} = Key, Val) ->
 %%     ets:insert_new(?TAB, [{{Key,shared}, shared, Val}, {{shared, Key}, []}]);
 %% try_insert_shared({a,l,_} = Key, Val) ->
@@ -1629,11 +1644,11 @@ do_give_away({T,l,_} = K, To, Pid) when T==n; T==a ->
                 ToPid when is_pid(ToPid) ->
                     ets:insert(?TAB, [{Key, ToPid, Value},
                                       {{ToPid, K}, []}]),
-                    ets:delete(?TAB, {Pid, K}),
+		    gproc_lib:remove_reverse_mapping({migrated,ToPid}, Pid, K),
                     _ = gproc_lib:ensure_monitor(ToPid, l),
                     ToPid;
                 undefined ->
-                    _ = gproc_lib:remove_reg(K, Pid),
+                    _ = gproc_lib:remove_reg(K, Pid, unreg),
                     undefined
             end;
         _ ->
@@ -1658,7 +1673,7 @@ do_give_away({T,l,_} = K, To, Pid) when T==c; T==p ->
                             ToPid
                     end;
                 undefined ->
-                    _ = gproc_lib:remove_reg(K, Pid),
+                    _ = gproc_lib:remove_reg(K, Pid, migrated),
                     undefined
             end;
         _ ->
@@ -1701,20 +1716,6 @@ set_monitors('$end_of_table') ->
 set_monitors({Pids, Cont}) ->
     _ = [erlang:monitor(process,Pid) || Pid <- Pids],
     set_monitors(ets:select(Cont)).
-
-add_monitor([{monitor, Mons}|T], Pid, Ref) ->
-    [{monitor, [{Pid,Ref}|Mons]}|T];
-add_monitor([H|T], Pid, Ref) ->
-    [H|add_monitor(T, Pid, Ref)];
-add_monitor([], Pid, Ref) ->
-    [{monitor, [{Pid, Ref}]}].
-
-remove_monitor([{monitor, Mons}|T], Pid, Ref) ->
-    [{monitor, Mons -- [{Pid, Ref}]}|T];
-remove_monitor([H|T], Pid, Ref) ->
-    [H|remove_monitor(T, Pid, Ref)];
-remove_monitor([], _Pid, _Ref) ->
-    [].
 
 monitor_me() ->
     case ets:insert_new(?TAB, {{self(),l}}) of

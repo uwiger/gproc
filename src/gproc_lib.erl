@@ -28,8 +28,13 @@
          insert_many/4,
          insert_reg/4,
          remove_many/4,
-         remove_reg/2, remove_reg/3,
-	 notify/2,
+         remove_reg/3, remove_reg/4,
+	 add_monitor/3,
+	 remove_monitor/3,
+	 remove_monitors/3,
+	 remove_reverse_mapping/3,
+	 notify/2, notify/3,
+	 remove_wait/4,
          update_aggr_counter/3,
          update_counter/3,
 	 valid_opts/2]).
@@ -182,6 +187,51 @@ notify_waiters(Waiters, K, Pid, V) ->
          end || {P, Ref} <- Waiters],
     ok.
 
+remove_wait({T,_,_} = Key, Pid, Ref, Waiters) ->
+    Rev = {Pid,Key},
+    case remove_from_waiters(Waiters, Pid, Ref) of
+	[] ->
+	    ets:delete(?TAB, {Key,T}),
+	    ets:delete(?TAB, Rev),
+	    [{delete, [{Key,T}, Rev], []}];
+	NewWaiters ->
+	    ets:insert(?TAB, {Key, NewWaiters}),
+	    case lists:keymember(Pid, 1, NewWaiters) of
+		true ->
+		    %% should be extremely unlikely
+		    [{insert, [{Key, NewWaiters}]}];
+		false ->
+		    %% delete the reverse entry
+		    ets:delete(?TAB, Rev),
+		    [{insert, [{Key, NewWaiters}]},
+		     {delete, [Rev], []}]
+	    end
+    end.
+
+remove_from_waiters(Waiters, Pid, all) ->
+    [{P,R} || {P,R} <- Waiters,
+	      P =/= Pid];
+remove_from_waiters(Waiters, Pid, Ref) ->
+    Waiters -- [{Pid, Ref}].
+
+remove_monitors(Key, Pid, MPid) ->
+    case ets:lookup(?TAB, {Pid, Key}) of
+	[{_, r}] ->
+	    [];
+	[{K, Opts}] when is_list(Opts) ->
+	    case lists:keyfind(monitors, 1, Opts) of
+		false ->
+		    [];
+		{_, Ms} ->
+		    Ms1 = [{P,R} || {P,R} <- Ms,
+				    P =/= MPid],
+		    NewMs = lists:keyreplace(monitors, 1, {monitors,Ms1}),
+		    ets:insert(?TAB, {K, NewMs}),
+		    [{insert, [{{Pid,Key}, NewMs}]}]
+	    end;
+	_ ->
+	    []
+    end.
 
 
 mk_reg_objs(T, Scope, Pid, L) when T==n; T==a ->
@@ -209,27 +259,62 @@ ensure_monitor(Pid, Scope) when Scope==g; Scope==l ->
         true  -> erlang:monitor(process, Pid)
     end.
 
-remove_reg(Key, Pid) ->
-    remove_reg(Key, Pid, []).
+remove_reg(Key, Pid, Event) ->
+    remove_reg(Key, Pid, Event, []).
 
-remove_reg(Key, Pid, Opts) ->
+remove_reg(Key, Pid, Event, Opts) ->
     Reg = remove_reg_1(Key, Pid),
-    ets:delete(?TAB, Rev = {Pid,Key}),
-    notify(Key, Opts),
+    Rev = remove_reverse_mapping(Event, Pid, Key, Opts),
     [Reg, Rev].
 
+remove_reverse_mapping(Event, Pid, Key) ->
+    Opts = case ets:lookup(?TAB, {Pid, Key}) of
+	       [] ->       [];
+	       [{_, r}] -> [];
+	       [{_, L}] when is_list(L) ->
+		   L
+	   end,
+    remove_reverse_mapping(Event, Pid, Key, Opts).
+
+remove_reverse_mapping(Event, Pid, Key, Opts) when Event==unreg;
+						   element(1,Event)==migrated ->
+    Rev = {Pid, Key},
+    notify(Event, Key, Opts),
+    ets:delete(?TAB, Rev),
+    Rev.
+
 notify(Key, Opts) ->
+    notify(unreg, Key, Opts).
+
+notify([], _, _) ->
+    [];
+notify(Event, Key, Opts) ->
     case lists:keyfind(monitor, 1, Opts) of
 	false ->
 	    [];
 	{_, Mons} ->
-	    [begin P ! {gproc, unreg, Ref, Key}, P end || {P, Ref} <- Mons]
+	    [begin P ! {gproc, Event, Ref, Key}, P end || {P, Ref} <- Mons,
+							  node(P) == node()]
     end.
+
+add_monitor([{monitor, Mons}|T], Pid, Ref) ->
+    [{monitor, [{Pid,Ref}|Mons]}|T];
+add_monitor([H|T], Pid, Ref) ->
+    [H|add_monitor(T, Pid, Ref)];
+add_monitor([], Pid, Ref) ->
+    [{monitor, [{Pid, Ref}]}].
+
+remove_monitor([{monitor, Mons}|T], Pid, Ref) ->
+    [{monitor, Mons -- [{Pid, Ref}]}|T];
+remove_monitor([H|T], Pid, Ref) ->
+    [H|remove_monitor(T, Pid, Ref)];
+remove_monitor([], _Pid, _Ref) ->
+    [].
 
 remove_many(T, Scope, L, Pid) ->
     lists:flatmap(fun(K) ->
                           Key = {T, Scope, K},
-                          remove_reg(Key, Pid, unreg_opts(Key, Pid))
+                          remove_reg(Key, Pid, unreg, unreg_opts(Key, Pid))
                   end, L).
 
 unreg_opts(Key, Pid) ->

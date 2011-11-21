@@ -82,7 +82,7 @@ unsubscribe({T,S,_} = Key) when (T==n orelse T==a)
     catch
 	error:badarg -> ok
     end,
-    ok.
+    gen_server:cast(?SERVER, {unsubscribe, self(), Key}).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -120,6 +120,7 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init(Parent) ->
+    process_flag(priority, high),
     register(?SERVER, self()),
     proc_lib:init_ack(Parent, {ok, self()}),
     receive {'ETS-TRANSFER',?TAB,_,_} -> ok end,
@@ -155,8 +156,13 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast({subscribe, Pid, Key}, State) ->
     Status = gproc:where(Key),
+    add_subscription(Pid, Key),
     do_monitor(Key, Status),
     Pid ! {?MODULE, Key, Status},
+    monitor_pid(Pid),
+    {noreply, State};
+handle_cast({unsubscribe, Pid, Key}, State) ->
+    del_subscription(Pid, Key),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -170,16 +176,25 @@ handle_cast({subscribe, Pid, Key}, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info({gproc, unreg, _Ref, Name}, State) ->
-    ets:delete(?TAB, Name),
+    ets:delete(?TAB, {m, Name}),
     notify(Name, undefined),
     do_monitor(Name, undefined),
     {noreply, State};
+handle_info({gproc, {migrated,ToPid}, _Ref, Name}, State) ->
+    ets:delete(?TAB, {m, Name}),
+    notify(Name, {migrated, ToPid}),
+    do_monitor(Name, ToPid),
+    {noreply, State};
 handle_info({gproc, _, registered, {{T,_,_} = Name, Pid, _}}, State)
   when T==n; T==a ->
+    ets:delete(?TAB, {w, Name}),
     notify(Name, Pid),
     do_monitor(Name, Pid),
     {noreply, State};
-handle_info(_, State) ->
+handle_info({'DOWN', _, process, Pid, _}, State) ->
+    pid_is_down(Pid),
+    {noreply, State};
+handle_info(_Msg, State) ->
     {noreply, State}.
 
 
@@ -212,15 +227,55 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+add_subscription(Pid, {_,_,_} = Key) when is_pid(Pid) ->
+    ets:insert(?TAB, [{{s, Key, Pid}}, {{r, Pid, Key}}]).
+
+del_subscription(Pid, Key) ->
+    ets:delete(?TAB, {{s, Key, Pid}}),
+    ets:delete(?TAB, {{r, Pid, Key}}),
+    maybe_cancel_wait(Key).
+
 do_monitor(Name, undefined) ->
-    gproc:nb_wait(Name);
-do_monitor(Name, Pid) when is_pid(Pid) ->
-    case ets:member(?TAB, Name) of
+    case ets:member(?TAB, {w, Name}) of
 	false ->
+	    Ref = gproc:nb_wait(Name),
+	    ets:insert(?TAB, {{w, Name}, Ref})
+    end;
+do_monitor(Name, Pid) when is_pid(Pid) ->
+    case ets:member(?TAB, {m, Name}) of
+	true ->
+	    ok;
+	_ ->
 	    Ref = gproc:monitor(Name),
-	    ets:insert(?TAB, {Name, Ref});
+	    ets:insert(?TAB, {{m, Name}, Ref})
+    end.
+
+monitor_pid(Pid) when is_pid(Pid) ->
+    case ets:member(?TAB, {p,Pid}) of
+	false ->
+	    Ref = erlang:monitor(process, Pid),
+	    ets:insert(?TAB, {{p,Pid}, Ref});
 	true ->
 	    ok
+    end.
+
+pid_is_down(Pid) ->
+    Keys = ets:select(?TAB, [{ {{r, Pid, '$1'}}, [], ['$1'] }]),
+    ets:select_delete(?TAB, [{ {{r, Pid, '$1'}}, [], [true] }]),
+    lists:foreach(fun(K) ->
+			  ets:delete(?TAB, {s,K,Pid}),
+			  maybe_cancel_wait(K)
+		  end, Keys),
+    ets:delete(?TAB, {p, Pid}).
+
+maybe_cancel_wait(K) ->
+    case ets:next(?TAB, {s,K}) of
+	{s,K,P} when is_pid(P) ->
+	    ok;
+	_ ->
+	    gproc:cancel_wait_or_monitor(K),
+	    ets:delete(?TAB, {m, K}),
+	    ets:delete(?TAB, {w, K})
     end.
 
 notify(Name, Where) ->
