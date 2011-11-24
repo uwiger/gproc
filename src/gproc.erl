@@ -1233,6 +1233,8 @@ send({T,C,_} = Key, Msg) when C==l; C==g ->
        true ->
             erlang:error(badarg)
     end;
+send(P, Msg) when is_pid(P); is_atom(P) ->
+    P ! Msg;
 send(_, _) ->
     erlang:error(badarg).
 
