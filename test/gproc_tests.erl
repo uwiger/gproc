@@ -69,49 +69,55 @@ reg_test_() ->
 	     application:stop(mnesia)
      end,
      [
-      {spawn, ?_test(t_simple_reg())}
+      {spawn, ?_test(?debugVal(t_simple_reg()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_simple_counter())}
+      , {spawn, ?_test(?debugVal(t_simple_counter()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_simple_aggr_counter())}
+      , {spawn, ?_test(?debugVal(t_simple_aggr_counter()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_simple_prop())}
+      , {spawn, ?_test(?debugVal(t_simple_prop()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_await())}
+      , {spawn, ?_test(?debugVal(t_await()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_await_self())}
+      , {spawn, ?_test(?debugVal(t_await_self()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_simple_mreg())}
+      , {spawn, ?_test(?debugVal(t_simple_mreg()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_gproc_crash())}
+      , {spawn, ?_test(?debugVal(t_gproc_crash()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_cancel_wait_and_register())}
+      , {spawn, ?_test(?debugVal(t_cancel_wait_and_register()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_give_away_to_pid())}
+      , {spawn, ?_test(?debugVal(t_give_away_to_pid()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_give_away_to_self())}
+      , {spawn, ?_test(?debugVal(t_give_away_to_self()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_give_away_badarg())}
+      , {spawn, ?_test(?debugVal(t_give_away_badarg()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_give_away_to_unknown())}
+      , {spawn, ?_test(?debugVal(t_give_away_to_unknown()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_give_away_and_back())}
+      , {spawn, ?_test(?debugVal(t_give_away_and_back()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_select())}
+      , {spawn, ?_test(?debugVal(t_select()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_select_count())}
+      , {spawn, ?_test(?debugVal(t_select_count()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_qlc())}
+      , {spawn, ?_test(?debugVal(t_qlc()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_get_env())}
+      , {spawn, ?_test(?debugVal(t_get_env()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_get_set_env())}
+      , {spawn, ?_test(?debugVal(t_get_set_env()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_set_env())}
+      , {spawn, ?_test(?debugVal(t_set_env()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_get_env_inherit())}
+      , {spawn, ?_test(?debugVal(t_get_env_inherit()))}
       , ?_test(t_is_clean())
-      , {spawn, ?_test(t_gproc_info())}
+      , {spawn, ?_test(?debugVal(t_monitor()))}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_monitor_give_away()))}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_subscribe()))}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_gproc_info()))}
       , ?_test(t_is_clean())
      ]}.
 
@@ -197,8 +203,11 @@ t_await_self() ->
 
 t_is_clean() ->
     sys:get_status(gproc), % in order to synch
+    sys:get_status(gproc_monitor),
     T = ets:tab2list(gproc),
-    ?assertMatch([], T).
+    Tm = ets:tab2list(gproc_monitor),
+    ?assertMatch([], Tm),
+    ?assertMatch([], T -- [{{whereis(gproc_monitor), l}}]).
 
 t_simple_mreg() ->
     P = self(),
@@ -453,7 +462,8 @@ t_get_env_inherit() ->
 		   end),
     ?assertEqual({P,undefined}, gproc:await({n,l,get_env_p},1000)),
     ?assertEqual(bar, gproc:get_env(l, gproc, foo, [{inherit, P}])),
-    ?assertEqual(bar, gproc:get_env(l, gproc, foo, [{inherit, {n,l,get_env_p}}])),
+    ?assertEqual(bar, gproc:get_env(l, gproc, foo,
+				    [{inherit, {n,l,get_env_p}}])),
     ?assertEqual(ok, t_call(P, die)).
 
 %% What we test here is that we return the same current_function as the
@@ -490,6 +500,64 @@ t4() ->
     {_, I} = gproc:info(self(), current_function),
     {I0, I}.
 
+t_monitor() ->
+    Me = self(),
+    P = spawn_link(fun() ->
+			   gproc:reg({n,l,a}),
+			   Me ! continue,
+			   t_loop()
+		   end),
+    receive continue ->
+	    ok
+    end,
+    Ref = gproc:monitor({n,l,a}),
+    ?assertEqual(ok, t_call(P, die)),
+    receive
+	M ->
+	    ?assertEqual({gproc,unreg,Ref,{n,l,a}}, M)
+    end.
+
+t_monitor_give_away() ->
+    Me = self(),
+    P = spawn_link(fun() ->
+			   gproc:reg({n,l,a}),
+			   Me ! continue,
+			   t_loop()
+		   end),
+    receive continue ->
+	    ok
+    end,
+    Ref = gproc:monitor({n,l,a}),
+    ?assertEqual(ok, t_call(P, {give_away, {n,l,a}})),
+    receive
+	M ->
+	    ?assertEqual({gproc,{migrated,Me},Ref,{n,l,a}}, M)
+    end,
+    ?assertEqual(ok, t_call(P, die)).
+
+t_subscribe() ->
+    Key = {n,l,a},
+    ?assertEqual(ok, gproc_monitor:subscribe(Key)),
+    ?assertEqual({gproc_monitor, Key, undefined}, get_msg()),
+    P = spawn_link(fun() ->
+			   gproc:reg({n,l,a}),
+			   t_loop()
+		   end),
+    ?assertEqual({gproc_monitor, Key, P}, get_msg()),
+    ?assertEqual(ok, t_call(P, {give_away, Key})),
+    ?assertEqual({gproc_monitor, Key, {migrated,self()}}, get_msg()),
+    gproc:give_away(Key, P),
+    ?assertEqual({gproc_monitor, Key, {migrated,P}}, get_msg()),
+    ?assertEqual(ok, t_call(P, die)),
+    ?assertEqual({gproc_monitor, Key, undefined}, get_msg()),
+    ?assertEqual(ok, gproc_monitor:unsubscribe(Key)).
+
+get_msg() ->
+    receive M ->
+	    M
+    after 1000 ->
+	    timeout
+    end.
 
 t_loop() ->
     receive

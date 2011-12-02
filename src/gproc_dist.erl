@@ -279,6 +279,39 @@ handle_leader_call({reg, {C,g,Name} = K, Value, Pid}, _From, S, _E) ->
                 end,
             {reply, true, [{insert, Vals}], S}
     end;
+handle_leader_call({monitor, {T,g,_} = Key, Pid}, _From, S, _E)
+  when T==n; T==a ->
+    Ref = make_ref(),
+    case gproc:where(Key) of
+	undefined ->
+	    Pid ! {gproc, unreg, Ref, Key},
+	    {reply, Ref, [], S};
+	RegPid ->
+	    NewRev =
+		case ets:lookup_element(?TAB, K = {RegPid, Key}, 2) of
+		    r ->
+			{K, [{monitor, [{Pid,Ref}]}]};
+		    Opts ->
+			{K, gproc_lib:add_monitor(Opts, Pid, Ref)}
+		end,
+	    ets:insert(?TAB, NewRev),
+	    {reply, Ref, [{insert, [NewRev]}], S}
+    end;
+handle_leader_call({demonitor, {T,g,_} = Key, Ref, Pid}, _From, S, _E)
+  when T==n; T==a ->
+    case gproc:where(Key) of
+	undefined ->
+	    {reply, ok, [], S};
+	RegPid ->
+	    case ets:lookup_element(?TAB, K = {RegPid, Key}, 2) of
+		r ->
+		    {reply, ok, [], S};
+		Opts ->
+		    NewRev = {K, gproc_lib:remove_monitor(Opts, Pid, Ref)},
+		    ets:insert(?TAB, NewRev),
+		    {reply, Ref, [{insert, [NewRev]}], S}
+	    end
+    end;
 handle_leader_call({update_counter, {c,g,_Ctr} = Key, Incr, Pid}, _From, S, _E)
   when is_integer(Incr) ->
     try New = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
@@ -310,18 +343,18 @@ handle_leader_call({unreg, {T,g,Name} = K, Pid}, _From, S, _E) ->
           end,
     case ets:member(?TAB, Key) of
         true ->
-            _ = gproc_lib:remove_reg(K, Pid),
+            _ = gproc_lib:remove_reg(K, Pid, unreg),
             if T == c ->
                     case ets:lookup(?TAB, {{a,g,Name},a}) of
                         [Aggr] ->
-                            %% updated by remove_reg/2
-                            {reply, true, [{delete,[Key, {Pid,K}]},
+                            %% updated by remove_reg/3
+                            {reply, true, [{delete,[Key, {Pid,K}], unreg},
                                            {insert, [Aggr]}], S};
                         [] ->
-                            {reply, true, [{delete, [Key, {Pid,K}]}], S}
+                            {reply, true, [{delete, [Key, {Pid,K}], unreg}], S}
                     end;
                true ->
-                    {reply, true, [{delete, [Key]}], S}
+                    {reply, true, [{delete, [Key, {Pid,K}], unreg}], S}
             end;
         false ->
             {reply, badarg, S}
@@ -338,12 +371,12 @@ handle_leader_call({give_away, {T,g,_} = K, To, Pid}, _From, S, _E)
                     ets:insert(?TAB, [{Key, ToPid, Value},
                                       {{ToPid,K}, []}]),
                     _ = gproc_lib:ensure_monitor(ToPid, g),
-                    {reply, ToPid, [{delete, [Key, {Pid,K}]},
-                                   {insert, [{Key, ToPid, Value}]}], S};
+                    {reply, ToPid, [{delete, [Key, {Pid,K}], {migrated,ToPid}},
+				    {insert, [{Key, ToPid, Value}]}], S};
                 undefined ->
                     ets:delete(?TAB, Key),
-                    ets:delete(?TAB, {Pid, K}),
-                    {reply, undefined, [{delete, [Key, {Pid,K}]}], S}
+		    Rev = gproc_lib:remove_reverse_mapping(unreg, Pid, K),
+                    {reply, undefined, [{delete, [Key, Rev], unreg}], S}
             end;
         _ ->
             {reply, badarg, S}
@@ -363,7 +396,7 @@ handle_leader_call({munreg, T, g, L, Pid}, _From, S, _E) ->
         [] ->
             {reply, true, S};
         Objs ->
-            {reply, true, [{delete, Objs}], S}
+            {reply, true, [{delete, Objs, unreg}], S}
     catch
         error:_ -> {reply, badarg, S}
     end;
@@ -434,8 +467,25 @@ handle_leader_cast({add_globals, Missing}, S, _E) ->
     ets:insert(?TAB, Missing),
     {ok, [{insert, Missing}], S};
 handle_leader_cast({remove_globals, Globals}, S, _E) ->
-    delete_globals(Globals),
+    delete_globals(Globals, []),
     {ok, S};
+handle_leader_cast({cancel_wait, Pid, {T,_,_} = Key, Ref}, S, _E) ->
+    case ets:lookup(?TAB, {Key, T}) of
+	[{_, Waiters}] ->
+	    Ops = gproc_lib:remove_wait(Key, Pid, Ref, Waiters),
+	    {ok, Ops, S};
+	_ ->
+	    {ok, [], S}
+    end;
+handle_leader_cast({cancel_wait_or_monitor, Pid, {T,_,_} = Key}, S, _E) ->
+    case ets:lookup(?TAB, {Key, T}) of
+	[{_, Waiters}] ->
+	    Ops = gproc_lib:remove_wait(Key, Pid, all, Waiters),
+	    {ok, Ops, S};
+	[{_, OtherPid, _}] ->
+	    Ops = gproc_lib:remove_monitors(Key, OtherPid, Pid),
+	    {ok, Ops, S}
+    end;
 handle_leader_cast({pid_is_DOWN, Pid}, S, _E) ->
     Globals = ets:select(?TAB, [{{{Pid,'$1'}, '_'},
                                  [{'==',{element,2,'$1'},g}],[{{'$1',Pid}}]}]),
@@ -460,11 +510,24 @@ process_globals(Globals) ->
                        end,
                   K = ets_key(Key, Pid),
                   ets:delete(?TAB, K),
-                  ets:delete(?TAB, {Pid,Key}),
+                  remove_rev_entry(Pid, Key, unreg),
                   A1
           end, [], Globals),
-    [{Op,Objs} || {Op,Objs} <- [{insert,Modified},
-                                {delete,Globals}], Objs =/= []].
+    [{insert, Modified} || Modified =/= []] ++
+	[{delete, Globals, unreg} || Globals =/= []].
+
+remove_rev_entry(Pid, {T,g,_} = K, Event) when T==n; T==a ->
+    Key = {Pid, K},
+    case ets:lookup(?TAB, Key) of
+	[]       -> ok;
+	[{_, r}] -> ok;
+	[{_, Opts}] when is_list(Opts) ->
+	    gproc_lib:notify(Event, K, Opts)
+    end,
+    ets:delete(?TAB, Key);
+remove_rev_entry(Pid, K, _Event) ->
+    ets:delete(?TAB, {Pid, K}).
+
 
 code_change(_FromVsn, S, _Extra, _E) ->
     {ok, S}.
@@ -477,15 +540,16 @@ from_leader({sync, Ref}, S, _E) ->
     {ok, S};
 from_leader(Ops, S, _E) ->
     lists:foreach(
-      fun({delete, Globals}) ->
-              delete_globals(Globals);
+      fun({delete, Globals, Event}) ->
+              delete_globals(Globals, Event);
          ({insert, Globals}) ->
               ets:insert(?TAB, Globals),
               lists:foreach(
                 fun({{{_,g,_}=Key,_}, P, _}) ->
-                        ets:insert(?TAB, {{P,Key}, []}),
+                        ets:insert_new(?TAB, {{P,Key}, []}),
                         gproc_lib:ensure_monitor(P,g);
-                   ({{P,_K}, _}) when is_pid(P) ->
+                   ({{P,_K}, _Opts} = Obj) when is_pid(P) ->
+			ets:insert(?TAB, Obj),
                         gproc_lib:ensure_monitor(P,g);
                    (_) ->
                         skip
@@ -493,16 +557,18 @@ from_leader(Ops, S, _E) ->
       end, Ops),
     {ok, S}.
 
-delete_globals(Globals) ->
+delete_globals(Globals, Event) ->
     lists:foreach(
       fun({{_,g,_},T} = K) when is_atom(T) ->
               ets:delete(?TAB, K);
          ({Key, Pid}) when is_pid(Pid); Pid==shared ->
               K = ets_key(Key,Pid),
               ets:delete(?TAB, K),
-              ets:delete(?TAB, {Pid, Key});
-         ({Pid, K}) when is_pid(Pid); Pid==shared ->
-              ets:delete(?TAB, {Pid, K})
+	      remove_rev_entry(Pid, Key, Event);
+         ({Pid, Key}) when is_pid(Pid); Pid==shared ->
+	      K = ets_key(Key, Pid),
+	      ets:delete(?TAB, K),
+	      remove_rev_entry(Pid, Key, Event)
       end, Globals).
 
 ets_key({T,_,_} = K, _) when T==n; T==a ->
@@ -539,13 +605,18 @@ surrendered_1(Globs) ->
     Ldr_local_globs =
         lists:foldl(
           fun({{Key,_}=K, Pid, V}, Acc) when node(Pid) =/= node() ->
-                  ets:insert(?TAB, [{K, Pid, V}, {{Pid,Key}}]),
+                  ets:insert(?TAB, {K, Pid, V}),
+		  ets:insert_new(?TAB, {{Pid,Key}, r}),
                   Acc;
+	     ({{Pid,_}=K, Opts}, Acc) when node(Pid) =/= node() ->
+		     ets:insert(?TAB, {K, Opts}),
+		     Acc;
              ({_, Pid, _} = Obj, Acc) when node(Pid) == node() ->
                   [Obj|Acc]
           end, [], Globs),
     case [{K,P,V} || {K,P,V} <- My_local_globs,
-                   not(lists:keymember(K, 1, Ldr_local_globs))] of
+		     is_pid(P) andalso
+			 not(lists:keymember(K, 1, Ldr_local_globs))] of
         [] ->
             %% phew! We have the same picture
             ok;
@@ -554,7 +625,8 @@ surrendered_1(Globs) ->
             leader_cast({add_globals, Missing})
     end,
     case [{K,P} || {K,P,_} <- Ldr_local_globs,
-                   not(lists:keymember(K, 1, My_local_globs))] of
+		   is_pid(P) andalso
+		       not(lists:keymember(K, 1, My_local_globs))] of
         [] ->
             ok;
         [_|_] = Remove ->

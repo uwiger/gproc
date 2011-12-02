@@ -69,6 +69,12 @@ dist_test_() ->
 			       end,
 			       fun() ->
 				       ?debugVal(t_sync(Ns))
+			       end,
+			       fun() ->
+				       ?debugVal(t_monitor(Ns))
+			       end,
+			       fun() ->
+				       ?debugVal(t_subscribe(Ns))
 			       end
 			      ]
 		 },
@@ -164,7 +170,7 @@ t_await_reg([A,B|_]) ->
 
 t_await_self([A|_]) ->
     Name = ?T_NAME,
-    P = t_spawn(A, false),  % buffer unknowns
+    P = t_spawn(A, false),  % don't buffer unknowns
     Ref = t_call(P, {apply, gproc, nb_wait, [Name]}),
     ?assertMatch(ok, t_call(P, {selective, true})),
     ?assertMatch(true, t_call(P, {apply, gproc, reg, [Name, some_value]})),
@@ -215,6 +221,45 @@ t_sync(Ns) ->
     %% Don't really know how to test this...
     [?assertMatch(true, rpc:call(N, gproc_dist, sync, []))
      || N <- Ns].
+
+t_monitor([A,B|_]) ->
+    Na = ?T_NAME,
+    Pa = t_spawn_reg(A, Na),
+    Pb = t_spawn(B, _Selective = true),
+    Ref = t_call(Pb, {apply, gproc, monitor, [Na]}),
+    ?assert(is_reference(Ref)),
+    ?assertMatch(ok, t_call(Pa, die)),
+    ?assertMatch({gproc,unreg,Ref,Na}, got_msg(Pb, gproc)),
+    Pc = t_spawn_reg(A, Na),
+    Ref1 = t_call(Pb, {apply, gproc, monitor, [Na]}),
+    ?assertMatch(true, t_call(Pc, {apply, gproc, unreg, [Na]})),
+    ?assertMatch({gproc,unreg,Ref1,Na}, got_msg(Pb, gproc)).
+
+t_subscribe([A,B|_] = Ns) ->
+    Na = ?T_NAME,
+    Pb = t_spawn(B, _Selective = true),
+    ?assertEqual(ok, t_call(Pb, {apply, gproc_monitor, subscribe, [Na]})),
+    ?assertMatch({gproc_monitor, Na, undefined}, got_msg(Pb, gproc_monitor)),
+    Pa = t_spawn_reg(A, Na),
+    ?assertMatch({gproc_monitor, Na, Pa}, got_msg(Pb, gproc_monitor)),
+    Pc = t_spawn(A),
+    t_call(Pa, {apply, gproc, give_away, [Na, Pc]}),
+    ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pc)),
+    ?assertEqual({gproc_monitor,Na,{migrated,Pc}}, got_msg(Pb, gproc_monitor)),
+    ?assertEqual(ok, t_call(Pc, die)),
+    ?assertEqual({gproc_monitor,Na,undefined}, got_msg(Pb, gproc_monitor)).
+
+got_msg(Pb, Tag) ->
+    t_call(Pb,
+	   {apply_fun,
+	    fun() ->
+		    receive
+			M when element(1, M) == Tag ->
+			    M
+		    after 1000 ->
+			    timeout
+		    end
+	    end}).
 
 %% Verify that the gproc_dist:sync() call returns true even if a candidate dies
 %% while the sync is underway. This test makes use of sys:suspend() to ensure that
