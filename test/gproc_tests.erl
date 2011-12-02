@@ -111,6 +111,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(t_get_env_inherit())}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(t_gproc_info())}
+      , ?_test(t_is_clean())
      ]}.
 
 t_simple_reg() ->
@@ -453,6 +455,41 @@ t_get_env_inherit() ->
     ?assertEqual(bar, gproc:get_env(l, gproc, foo, [{inherit, P}])),
     ?assertEqual(bar, gproc:get_env(l, gproc, foo, [{inherit, {n,l,get_env_p}}])),
     ?assertEqual(ok, t_call(P, die)).
+
+%% What we test here is that we return the same current_function as the
+%% process_info() BIF. As we parse the backtrace dump, we check with some
+%% weirdly named functions.
+t_gproc_info() ->
+    {A,B} = '-t1-'(),
+    ?assertEqual(A,B),
+    {C,D} = '\'t2'(),
+    ?assertEqual(C,D),
+    {E,F} = '\'t3\''(),
+    ?assertEqual(E,F),
+    {G,H} = t4(),
+    ?assertEqual(G,H).
+
+'-t1-'() ->
+    {_, I0} = process_info(self(), current_function),
+    {_, I} = gproc:info(self(), current_function),
+    {I0, I}.
+
+'\'t2'() ->
+    {_, I0} = process_info(self(), current_function),
+    {_, I} = gproc:info(self(), current_function),
+    {I0, I}.
+
+'\'t3\''() ->
+    {_, I0} = process_info(self(), current_function),
+    {_, I} = gproc:info(self(), current_function),
+    {I0, I}.
+
+
+t4() ->
+    {_, I0} = process_info(self(), current_function),
+    {_, I} = gproc:info(self(), current_function),
+    {I0, I}.
+
 
 t_loop() ->
     receive

@@ -1275,8 +1275,48 @@ info(Pid) when is_pid(Pid) ->
 %% registered to the process Pid. For other values of Item, it returns the
 %% same as [http://www.erlang.org/doc/man/erlang.html#process_info-2].
 %% @end
-info(Pid, ?MODULE) ->
-    Keys = ets:select(?TAB, [{ {{Pid,'$1'}, '_'}, [], ['$1'] }]),
+info(Pid, gproc) ->
+    gproc_info(Pid, '_');
+info(Pid, {gproc, Pat}) ->
+    gproc_info(Pid, Pat);
+info(Pid, current_function) ->
+    {_, T} = process_info(Pid, backtrace),
+    info_cur_f(T, process_info(Pid, current_function));
+info(Pid, I) ->
+    process_info(Pid, I).
+
+%% We don't want to return the internal gproc:info() function as current
+%% function, so we grab the 'backtrace' and extract the call stack from it,
+%% filtering out the functions gproc:info/_ and gproc:'-info/1-lc...' entries.
+%%
+%% This is really an indication that wrapping the process_info() BIF was a
+%% bad idea to begin with... :P
+%%
+info_cur_f(T, Default) ->
+    {match, Matches} = re:run(T,<<"\\(([^\\)]+):(.+)/([0-9]+)">>,
+			      [global,{capture,[1,2,3],list}]),
+    case lists:dropwhile(fun(["gproc","info",_]) -> true;
+			    (["gproc","'-info/1-lc" ++ _, _]) -> true;
+			    (_) -> false
+			 end, Matches) of
+	[] ->
+	    Default;
+	[[M,F,A]|_] ->
+	    {current_function,
+	     {to_atom(M), to_atom(F), list_to_integer(A)}}
+    end.
+
+to_atom(S) ->
+    case erl_scan:string(S) of
+	{ok, [{atom,_,A}|_],_} ->
+	    A;
+	_ ->
+	    list_to_atom(S)
+    end.
+
+gproc_info(Pid, Pat) ->
+    Keys = ets:select(?TAB, [{ {{Pid,Pat}, '_'}, [], [{element,2,
+						       {element,1,'$_'}}] }]),
     {?MODULE, lists:zf(
                 fun(K) ->
                         try V = get_value(K, Pid),
@@ -1285,9 +1325,7 @@ info(Pid, ?MODULE) ->
                             error:_ ->
                                 false
                         end
-                end, Keys)};
-info(Pid, I) ->
-    process_info(Pid, I).
+                end, Keys)}.
 
 %% @spec () -> ok
 %%
