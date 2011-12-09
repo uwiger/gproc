@@ -225,7 +225,7 @@ remove_monitors(Key, Pid, MPid) ->
 		{_, Ms} ->
 		    Ms1 = [{P,R} || {P,R} <- Ms,
 				    P =/= MPid],
-		    NewMs = lists:keyreplace(monitors, 1, {monitors,Ms1}),
+		    NewMs = lists:keyreplace(monitors, 1, Opts, {monitors,Ms1}),
 		    ets:insert(?TAB, {K, NewMs}),
 		    [{insert, [{{Pid,Key}, NewMs}]}]
 	    end;
