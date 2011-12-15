@@ -279,7 +279,7 @@ remove_reverse_mapping(Event, Pid, Key) ->
 remove_reverse_mapping(Event, Pid, Key, Opts) when Event==unreg;
 						   element(1,Event)==migrated ->
     Rev = {Pid, Key},
-    notify(Event, Key, Opts),
+    _ = notify(Event, Key, Opts),
     ets:delete(?TAB, Rev),
     Rev.
 

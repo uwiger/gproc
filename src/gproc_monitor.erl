@@ -93,13 +93,13 @@ unsubscribe({T,S,_} = Key) when (T==n orelse T==a)
 %%--------------------------------------------------------------------
 start_link() ->
     Me = self(),
-    case ets:info(?TAB, owner) of
-	undefined ->
-	    ets:new(?TAB, [ordered_set, protected, named_table,
-			      {heir, self(), []}]);
-	Me ->
-	    ok
-    end,
+    _ = case ets:info(?TAB, owner) of
+	    undefined ->
+		ets:new(?TAB, [ordered_set, protected, named_table,
+			       {heir, self(), []}]);
+	    Me ->
+		ok
+	end,
     {ok, Pid} = proc_lib:start_link(?MODULE, init, [Me]),
     ets:give_away(?TAB, Pid, []),
     {ok, Pid}.

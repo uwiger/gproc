@@ -1406,22 +1406,22 @@ handle_cast({monitor_me, Pid}, S) ->
     erlang:monitor(process, Pid),
     {noreply, S};
 handle_cast({cancel_wait, Pid, {T,_,_} = Key, Ref}, S) ->
-    case ets:lookup(?TAB, {Key,T}) of
-        [{_, Waiters}] ->
-	    gproc_lib:remove_wait(Key, Pid, Ref, Waiters);
-        _ ->
-            ignore
-    end,
+     _ = case ets:lookup(?TAB, {Key,T}) of
+	     [{_, Waiters}] ->
+		 gproc_lib:remove_wait(Key, Pid, Ref, Waiters);
+	     _ ->
+		 ignore
+	 end,
     {noreply, S};
 handle_cast({cancel_wait_or_monitor, Pid, {T,_,_} = Key}, S) ->
-    case ets:lookup(?TAB, {Key, T}) of
-	[{_, Waiters}] ->
-	    gproc_lib:remove_wait(Key, Pid, all, Waiters);
-	[{_, OtherPid, _}] ->
-	    gproc_lib:remove_monitors(Key, OtherPid, Pid);
-	_ ->
-	    ok
-    end,
+    _ = case ets:lookup(?TAB, {Key, T}) of
+	    [{_, Waiters}] ->
+		gproc_lib:remove_wait(Key, Pid, all, Waiters);
+	    [{_, OtherPid, _}] ->
+		gproc_lib:remove_monitors(Key, OtherPid, Pid);
+	    _ ->
+		ok
+	end,
     {noreply, S}.
 
 %% @hidden
@@ -1436,32 +1436,32 @@ handle_call({reg, {_T,l,_} = Key, Val}, {Pid,_}, S) ->
 handle_call({monitor, {T,l,_} = Key, Pid}, _From, S)
   when T==n; T==a ->
     Ref = make_ref(),
-    case where(Key) of
-	undefined ->
-	    Pid ! {gproc, unreg, Ref, Key};
-	RegPid ->
-	    case ets:lookup(?TAB, {RegPid, Key}) of
-		[{K,r}] ->
-		    ets:insert(?TAB, {K, [{monitor, [{Pid,Ref}]}]});
-		[{K, Opts}] ->
-		    ets:insert(?TAB, {K, gproc_lib:add_monitor(Opts, Pid, Ref)})
-	    end
-    end,
+    _ = case where(Key) of
+	    undefined ->
+		Pid ! {gproc, unreg, Ref, Key};
+	    RegPid ->
+		case ets:lookup(?TAB, {RegPid, Key}) of
+		    [{K,r}] ->
+			ets:insert(?TAB, {K, [{monitor, [{Pid,Ref}]}]});
+		    [{K, Opts}] ->
+			ets:insert(?TAB, {K, gproc_lib:add_monitor(Opts, Pid, Ref)})
+		end
+	end,
     {reply, Ref, S};
 handle_call({demonitor, {T,l,_} = Key, Ref, Pid}, _From, S)
   when T==n; T==a ->
-    case where(Key) of
-	undefined ->
-	    ok;  % be nice
-	RegPid ->
-	    case ets:lookup(?TAB, {RegPid, Key}) of
-		[{_K,r}] ->
-		    ok;   % be nice
-		[{K, Opts}] ->
-		    ets:insert(?TAB, {K, gproc_lib:remove_monitor(
-					   Opts, Pid, Ref)})
-	    end
-    end,
+    _ = case where(Key) of
+	    undefined ->
+		ok;  % be nice
+	    RegPid ->
+		case ets:lookup(?TAB, {RegPid, Key}) of
+		    [{_K,r}] ->
+			ok;   % be nice
+		    [{K, Opts}] ->
+			ets:insert(?TAB, {K, gproc_lib:remove_monitor(
+					       Opts, Pid, Ref)})
+		end
+	end,
     {reply, ok, S};
 handle_call({reg_shared, {_T,l,_} = Key, Val}, _From, S) ->
     case try_insert_reg(Key, Val, shared) of
@@ -1483,15 +1483,15 @@ handle_call({unreg, {_,l,_} = Key}, {Pid,_}, S) ->
             {reply, badarg, S}
     end;
 handle_call({unreg_shared, {_,l,_} = Key}, _, S) ->
-    case ets:lookup(?TAB, {shared, Key}) of
-	[{_, r}] ->
-	    _ = gproc_lib:remove_reg(Key, shared, unreg);
-	[{_, Opts}] ->
-	    _ = gproc_lib:remove_reg(Key, shared, unreg, Opts);
-	[] ->
-	    %% don't crash if shared key already unregged.
-	    ok
-    end,
+    _ = case ets:lookup(?TAB, {shared, Key}) of
+	    [{_, r}] ->
+		_ = gproc_lib:remove_reg(Key, shared, unreg);
+	    [{_, Opts}] ->
+		_ = gproc_lib:remove_reg(Key, shared, unreg, Opts);
+	    [] ->
+		%% don't crash if shared key already unregged.
+		ok
+	end,
     {reply, true, S};
 handle_call({await, {_,l,_} = Key, Pid}, From, S) ->
     %% Passing the pid explicitly is needed when leader_call is used,
@@ -1521,12 +1521,12 @@ handle_call({set, {_,l,_} = Key, Value}, {Pid,_}, S) ->
             {reply, badarg, S}
     end;
 handle_call({audit_process, Pid}, _, S) ->
-    case is_process_alive(Pid) of
-        false ->
-            process_is_down(Pid);
-        true ->
-            ignore
-    end,
+    _ = case is_process_alive(Pid) of
+	    false ->
+		process_is_down(Pid);
+	    true ->
+		ignore
+	end,
     {reply, ok, S};
 handle_call({give_away, Key, To}, {Pid,_}, S) ->
     Reply = do_give_away(Key, To, Pid),
@@ -1536,7 +1536,7 @@ handle_call(_, _, S) ->
 
 %% @hidden
 handle_info({'DOWN', _MRef, process, Pid, _}, S) ->
-    process_is_down(Pid),
+    _ = process_is_down(Pid),
     {noreply, S};
 handle_info(_, S) ->
     {noreply, S}.
@@ -1682,7 +1682,7 @@ do_give_away({T,l,_} = K, To, Pid) when T==n; T==a ->
                 ToPid when is_pid(ToPid) ->
                     ets:insert(?TAB, [{Key, ToPid, Value},
                                       {{ToPid, K}, []}]),
-		    gproc_lib:remove_reverse_mapping({migrated,ToPid}, Pid, K),
+		    _ = gproc_lib:remove_reverse_mapping({migrated,ToPid}, Pid, K),
                     _ = gproc_lib:ensure_monitor(ToPid, l),
                     ToPid;
                 undefined ->
@@ -1711,7 +1711,7 @@ do_give_away({T,l,_} = K, To, Pid) when T==c; T==p ->
                             ToPid
                     end;
                 undefined ->
-                    _ = gproc_lib:remove_reg(K, Pid, migrated),
+                    _ = gproc_lib:remove_reg(K, Pid, {migrated, undefined}),
                     undefined
             end;
         _ ->

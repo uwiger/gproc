@@ -518,12 +518,12 @@ process_globals(Globals) ->
 
 remove_rev_entry(Pid, {T,g,_} = K, Event) when T==n; T==a ->
     Key = {Pid, K},
-    case ets:lookup(?TAB, Key) of
-	[]       -> ok;
-	[{_, r}] -> ok;
-	[{_, Opts}] when is_list(Opts) ->
-	    gproc_lib:notify(Event, K, Opts)
-    end,
+    _ = case ets:lookup(?TAB, Key) of
+	    []       -> ok;
+	    [{_, r}] -> ok;
+	    [{_, Opts}] when is_list(Opts) ->
+		gproc_lib:notify(Event, K, Opts)
+	end,
     ets:delete(?TAB, Key);
 remove_rev_entry(Pid, K, _Event) ->
     ets:delete(?TAB, {Pid, K}).
