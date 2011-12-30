@@ -94,8 +94,6 @@ will improve performance.
 <pre>pidpat() = pid() | <a href="#type-sel_var">sel_var()</a></pre>
 
 
-sel_var() = DollarVar | '_'.
-
 
 ###<a name="type-reg_id">reg_id()</a>##
 
@@ -137,6 +135,14 @@ l = local registration; g = global registration
 
 
 <pre>sel_type() = <a href="#type-type">type()</a> | names | props | counters | aggr_counters</pre>
+
+
+
+###<a name="type-sel_var">sel_var()</a>##
+
+
+
+<pre>sel_var() = DollarVar | '_'</pre>
 
 
 

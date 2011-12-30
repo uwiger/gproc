@@ -55,7 +55,7 @@
 %%                   l | g | sel_var(),
 %%                   any()}.
 %% @type pidpat() = pid() | sel_var().
-%% sel_var() = DollarVar | '_'.
+%% @type sel_var() = DollarVar | '_'.
 %% @type sel_pattern() = [{headpat(), Guards, Prod}].
 %% @type key()   = {type(), scope(), any()}.
 
