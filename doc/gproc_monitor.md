@@ -52,7 +52,7 @@ Starts the server
 
 
 
-<pre>subscribe(Key::[key()](#type-key)) -&gt; ok</pre>
+<pre>subscribe(Key::<a href="#type-key">key()</a>) -> ok</pre>
 <br></br>
 
 
@@ -78,7 +78,7 @@ sent immediately, indicating the current status of the name.<a name="unsubscribe
 
 
 
-<pre>unsubscribe(Key::[key()](#type-key)) -&gt; ok</pre>
+<pre>unsubscribe(Key::<a href="#type-key">key()</a>) -> ok</pre>
 <br></br>
 
 
