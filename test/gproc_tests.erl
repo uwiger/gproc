@@ -81,6 +81,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_await_self()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_await_crash()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_mreg()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_gproc_crash()))}
@@ -200,6 +202,23 @@ t_await_self() ->
 		       after 10000 ->
 			       timeout
 		       end).
+
+t_await_crash() ->
+    Name = {n,l,{dummy,?LINE}},
+    {Pid,_} = spawn_regger(Name),
+    ?assertEqual({Pid,undefined}, gproc:await(Name, 1000)),
+    exit(Pid, kill),
+    {NewPid,MRef} = spawn_regger(Name),
+    ?assertEqual(false, is_process_alive(Pid)),
+    ?assertEqual({NewPid,undefined}, gproc:await(Name, 1000)),
+    exit(NewPid, kill),
+    receive {'DOWN', MRef, _, _, _} -> ok end.
+
+spawn_regger(Name) ->
+    spawn_monitor(fun() ->
+			  gproc:reg(Name),
+			  timer:sleep(60000)
+		  end).
 
 t_is_clean() ->
     sys:get_status(gproc), % in order to synch

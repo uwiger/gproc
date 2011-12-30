@@ -1,10 +1,7 @@
 
 
-<h1>The gproc application</h1>
+#The gproc application#
 
-The gproc application
-=====================
-Extended process dictionary.
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@erlang-solutions.com`](mailto:ulf.wiger@erlang-solutions.com)), Joseph Wayne Norton ([`norton@geminimobile.com`](mailto:norton@geminimobile.com)).
 
@@ -12,8 +9,7 @@ Extended process dictionary
 
 
 
-<h2>Introduction</h2>
-
+##Introduction##
 
 
 
@@ -43,8 +39,7 @@ Gproc is a process dictionary for Erlang, which provides a number of useful feat
 
 
 
-<h3>Use case: System inspection</h3>
-
+###Use case: System inspection##
 
 
 
@@ -57,8 +52,7 @@ browse key data in a running system.
 
 
 
-<h3>Use case: Pub/Sub patterns</h3>
-
+###Use case: Pub/Sub patterns##
 
 
 
@@ -78,8 +72,7 @@ notify(EventType, Msg) ->
 
 
 
-<h3>Use case: Environment handling</h3>
-
+###Use case: Environment handling##
 
 
 
@@ -96,8 +89,7 @@ See [`gproc:get_env/4`](gproc.md#get_env-4), [`gproc:get_set_env/4`](gproc.md#ge
 
 
 
-<h2>Testing</h2>
-
+##Testing##
 
 
 
@@ -114,8 +106,7 @@ global gproc.
 
 
 
-<h2>Building Edoc</h2>
-
+##Building Edoc##
 
 
 
@@ -125,8 +116,7 @@ Gproc was first introduced at the ACM SIGPLAN Erlang Workshop in
 Freiburg 2007 ([Paper available here](erlang07-wiger.pdf)).
 
 
-<h2 class="indextitle">Modules</h2>
-
+##Modules##
 
 
 <table width="100%" border="0" summary="list of modules">

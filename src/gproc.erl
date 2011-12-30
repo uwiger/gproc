@@ -610,7 +610,19 @@ await({n,g,_} = Key, Timeout) ->
 await({n,l,_} = Key, Timeout) ->
     case ets:lookup(?TAB, {Key, n}) of
         [{_, Pid, Value}] ->
-            {Pid, Value};
+	    case is_process_alive(Pid) of
+		true ->
+		    {Pid, Value};
+		false ->
+		    %% we can send an asynchronous audit request, since the purpose is
+		    %% only to ensure that the server handles the audit before it serves
+		    %% our 'await' request. Strictly speaking, we could allow the bad Pid
+		    %% to be returned, as there are no guarantees that whatever Pid we return
+		    %% will still be alive when addressed. Still, we don't want to knowingly
+		    %% serve bad data.
+		    nb_audit_process(Pid),
+		    request_wait(Key, Timeout)
+	    end;
         _ ->
             request_wait(Key, Timeout)
     end;
@@ -1405,6 +1417,14 @@ i() ->
 handle_cast({monitor_me, Pid}, S) ->
     erlang:monitor(process, Pid),
     {noreply, S};
+handle_cast({audit_process, Pid}, S) ->
+    case is_process_alive(Pid) of
+	false ->
+	    process_is_down(Pid);
+	true ->
+	    ignore
+    end,
+    {noreply, S};
 handle_cast({cancel_wait, Pid, {T,_,_} = Key, Ref}, S) ->
      _ = case ets:lookup(?TAB, {Key,T}) of
 	     [{_, Waiters}] ->
@@ -1615,6 +1635,8 @@ try_insert_reg({T,l,_} = Key, Val, Pid) ->
 audit_process(Pid) when is_pid(Pid) ->
     ok = gen_server:call(gproc, {audit_process, Pid}, infinity).
 
+nb_audit_process(Pid) when is_pid(Pid) ->
+    ok = gen_server:cast(gproc, {audit_process, Pid}).
 
 -spec process_is_down(pid()) -> ok.
 

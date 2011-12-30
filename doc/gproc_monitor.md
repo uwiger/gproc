@@ -1,9 +1,6 @@
-Module gproc_monitor
-====================
 
 
-<h1>Module gproc_monitor</h1>
-
+#Module gproc_monitor#
 * [Description](#description)
 * [Function Index](#index)
 * [Function Details](#functions)
@@ -18,10 +15,9 @@ will be sent each time that name is registered.
 
 __Behaviours:__ [`gen_server`](gen_server.md).
 
-__Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)).
+__Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)).<a name="index"></a>
 
-<h2><a name="index">Function Index</a></h2>
-
+##Function Index##
 
 
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>
@@ -30,20 +26,18 @@ Subscribe to registration events for a certain name.</td></tr><tr><td valign="to
 Unsubscribe from registration events for a certain name.</td></tr></table>
 
 
+<a name="functions"></a>
 
-
-<h2><a name="functions">Function Details</a></h2>
-
+##Function Details##
 
 <a name="start_link-0"></a>
 
-<h3>start_link/0</h3>
+###start_link/0##
 
 
 
 
-
-<pre>start_link() -> {ok, Pid} | ignore | {error, Error}</pre>
+<pre>start_link() -&gt; {ok, Pid} | ignore | {error, Error}</pre>
 <br></br>
 
 
@@ -53,13 +47,12 @@ Unsubscribe from registration events for a certain name.</td></tr></table>
 Starts the server
 <a name="subscribe-1"></a>
 
-<h3>subscribe/1</h3>
+###subscribe/1##
 
 
 
 
-
-<pre>subscribe(Key::<a href="#type-key">key()</a>) -> ok</pre>
+<pre>subscribe(Key::[key()](#type-key)) -&gt; ok</pre>
 <br></br>
 
 
@@ -80,13 +73,12 @@ either explicitly, or because the registered process dies.
 When the subscription is first ordered, one of the above messages will be
 sent immediately, indicating the current status of the name.<a name="unsubscribe-1"></a>
 
-<h3>unsubscribe/1</h3>
+###unsubscribe/1##
 
 
 
 
-
-<pre>unsubscribe(Key::<a href="#type-key">key()</a>) -> ok</pre>
+<pre>unsubscribe(Key::[key()](#type-key)) -&gt; ok</pre>
 <br></br>
 
 
