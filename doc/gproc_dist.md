@@ -10,7 +10,7 @@ Extended process registry.
 
 
 
-__Behaviours:__ [`gen_leader`](/Users/uwiger/FL/git/gproc/deps/gen_leader/doc/gen_leader.md).
+__Behaviours:__ [`gen_leader`](/Users/uwiger/ETC/git/gproc/deps/gen_leader/doc/gen_leader.md).
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@erlang-solutions.com`](mailto:ulf.wiger@erlang-solutions.com)).<a name="description"></a>
 

@@ -138,7 +138,7 @@
 %% this shouldn't be necessary
 -export([audit_process/1]).
 
-
+-include("gproc_int.hrl").
 -include("gproc.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
@@ -149,7 +149,7 @@
 -define(CHK_DIST,
         case whereis(gproc_dist) of
             undefined ->
-                erlang:error(local_only);
+		?THROW(local_only);
             _ ->
                 ok
         end).
@@ -174,7 +174,7 @@ start_link() ->
 %% @doc Registers a local (unique) name. @equiv reg({n,l,Name})
 %% @end
 %%
-add_local_name(Name)  -> reg({n,l,Name}, undefined).
+add_local_name(Name)  -> ?CATCH(reg1({n,l,Name}, undefined), [Name]).
 
 
 %% spec(Name::any()) -> true
@@ -182,7 +182,7 @@ add_local_name(Name)  -> reg({n,l,Name}, undefined).
 %% @doc Registers a global (unique) name. @equiv reg({n,g,Name})
 %% @end
 %%
-add_global_name(Name) -> reg({n,g,Name}, undefined).
+add_global_name(Name) -> ?CATCH(reg1({n,g,Name}, undefined), [Name]).
 
 
 %% spec(Name::any(), Value::any()) -> true
@@ -190,14 +190,14 @@ add_global_name(Name) -> reg({n,g,Name}, undefined).
 %% @doc Registers a local (non-unique) property. @equiv reg({p,l,Name},Value)
 %% @end
 %%
-add_local_property(Name , Value) -> reg({p,l,Name}, Value).
+add_local_property(Name , Value) -> ?CATCH(reg1({p,l,Name}, Value), [Name, Value]).
 
 %% spec(Name::any(), Value::any()) -> true
 %%
 %% @doc Registers a global (non-unique) property. @equiv reg({p,g,Name},Value)
 %% @end
 %%
-add_global_property(Name, Value) -> reg({p,g,Name}, Value).
+add_global_property(Name, Value) -> ?CATCH(reg1({p,g,Name}, Value), [Name, Value]).
 
 %% spec(Name::any(), Initial::integer()) -> true
 %%
@@ -205,7 +205,7 @@ add_global_property(Name, Value) -> reg({p,g,Name}, Value).
 %% @end
 %%
 add_local_counter(Name, Initial) when is_integer(Initial) ->
-    reg({c,l,Name}, Initial).
+    ?CATCH(reg1({c,l,Name}, Initial), [Name, Initial]).
 
 
 %% spec(Name::any(), Initial::integer()) -> true
@@ -224,7 +224,7 @@ add_shared_local_counter(Name, Initial) when is_integer(Initial) ->
 %% @end
 %%
 add_global_counter(Name, Initial) when is_integer(Initial) ->
-    reg({c,g,Name}, Initial).
+    ?CATCH(reg1({c,g,Name}, Initial), [Name, Initial]).
 
 %% spec(Name::any()) -> true
 %%
@@ -232,7 +232,7 @@ add_global_counter(Name, Initial) when is_integer(Initial) ->
 %% @equiv reg({a,l,Name})
 %% @end
 %%
-add_local_aggr_counter(Name)  -> reg({a,l,Name}).
+add_local_aggr_counter(Name)  -> ?CATCH(reg1({a,l,Name}), [Name]).
 
 %% spec(Name::any()) -> true
 %%
@@ -240,7 +240,7 @@ add_local_aggr_counter(Name)  -> reg({a,l,Name}).
 %% @equiv reg({a,g,Name})
 %% @end
 %%
-add_global_aggr_counter(Name) -> reg({a,g,Name}).
+add_global_aggr_counter(Name) -> ?CATCH(reg1({a,g,Name}), [Name]).
 
 
 %% @spec (Name::any()) -> pid()
@@ -513,7 +513,7 @@ lookup_env(Scope, App, Key, P) ->
     end.
 
 cache_env(Scope, App, Key, Value) ->
-    reg({p, Scope, {gproc_env, App, Key}}, Value).
+    ?CATCH(reg1({p, Scope, {gproc_env, App, Key}}, Value), [Scope,App,Key,Value]).
 
 update_cached_env(Scope, App, Key, Value) ->
     case lookup_env(Scope, App, Key, self()) of
@@ -581,7 +581,10 @@ is_string(S) ->
 %% @equiv reg(Key, default(Key))
 %% @end
 reg(Key) ->
-    reg(Key, default(Key)).
+    ?CATCH(reg1(Key), [Key]).
+
+reg1(Key) ->
+    reg1(Key, default(Key)).
 
 default({T,_,_}) when T==c -> 0;
 default(_) -> undefined.
@@ -590,7 +593,7 @@ default(_) -> undefined.
 %% @equiv await(Key,infinity)
 %%
 await(Key) ->
-    await(Key, infinity).
+    ?CATCH(await1(Key, infinity), [Key]).
 
 %% @spec await(Key::key(), Timeout) -> {pid(),Value}
 %%   Timeout = integer() | infinity
@@ -604,10 +607,13 @@ await(Key) ->
 %% registered (the difference: await/2 also returns the value).
 %% @end
 %%
-await({n,g,_} = Key, Timeout) ->
+await(Key, Timeout) ->
+    ?CATCH(await1(Key, Timeout), [Key, Timeout]).
+
+await1({n,g,_} = Key, Timeout) ->
     ?CHK_DIST,
     request_wait(Key, Timeout);
-await({n,l,_} = Key, Timeout) ->
+await1({n,l,_} = Key, Timeout) ->
     case ets:lookup(?TAB, {Key, n}) of
         [{_, Pid, Value}] ->
 	    case is_process_alive(Pid) of
@@ -626,8 +632,8 @@ await({n,l,_} = Key, Timeout) ->
         _ ->
             request_wait(Key, Timeout)
     end;
-await(K, T) ->
-    erlang:error(badarg, [K, T]).
+await1(_, _) ->
+    throw(badarg).
 
 request_wait({n,C,_} = Key, Timeout) when C==l; C==g ->
     TRef = case Timeout of
@@ -635,7 +641,7 @@ request_wait({n,C,_} = Key, Timeout) when C==l; C==g ->
                T when is_integer(T), T > 0 ->
                    erlang:start_timer(T, self(), gproc_timeout);
                _ ->
-                   erlang:error(badarg, [Key, Timeout])
+                   ?THROW(badarg)
            end,
     WRef = case {call({await,Key,self()}, C), C} of
                {{R, {Kg,Pg,Vg}}, g} ->
@@ -653,7 +659,7 @@ request_wait({n,C,_} = Key, Timeout) when C==l; C==g ->
             {Pid, V};
         {timeout, TRef, gproc_timeout} ->
             cancel_wait(Key, WRef),
-            erlang:error(timeout, [Key, Timeout])
+            ?THROW(timeout)
     end.
 
 
@@ -664,13 +670,16 @@ request_wait({n,C,_} = Key, Timeout) when C==l; C==g ->
 %% {gproc, Ref, registered, {Key, Pid, Value}}, once the name is registered.
 %% @end
 %%
-nb_wait({n,g,_} = Key) ->
+nb_wait(Key) ->
+    ?CATCH(nb_wait1(Key), [Key]).
+
+nb_wait1({n,g,_} = Key) ->
     ?CHK_DIST,
     call({await, Key, self()}, g);
-nb_wait({n,l,_} = Key) ->
+nb_wait1({n,l,_} = Key) ->
     call({await, Key, self()}, l);
-nb_wait(Key) ->
-    erlang:error(badarg, [Key]).
+nb_wait1(_) ->
+    ?THROW(badarg).
 
 %% @spec cancel_wait(Key::key(), Ref) -> ok
 %%    Ref = all | reference()
@@ -681,19 +690,25 @@ nb_wait(Key) ->
 %% are canceled.
 %% @end
 %%
-cancel_wait({_,g,_} = Key, Ref) ->
+cancel_wait(Key, Ref) ->
+    ?CATCH(cancel_wait1(Key, Ref), [Key, Ref]).
+
+cancel_wait1({_,g,_} = Key, Ref) ->
     ?CHK_DIST,
     cast({cancel_wait, self(), Key, Ref}, g),
     ok;
-cancel_wait({_,l,_} = Key, Ref) ->
+cancel_wait1({_,l,_} = Key, Ref) ->
     cast({cancel_wait, self(), Key, Ref}, l),
     ok.
 
-cancel_wait_or_monitor({_,g,_} = Key) ->
+cancel_wait_or_monitor(Key) ->
+    ?CATCH(cancel_wait_or_monitor1(Key), [Key]).
+
+cancel_wait_or_monitor1({_,g,_} = Key) ->
     ?CHK_DIST,
     cast({cancel_wait_or_monitor, self(), Key}, g),
     ok;
-cancel_wait_or_monitor({_,l,_} = Key) ->
+cancel_wait_or_monitor1({_,l,_} = Key) ->
     cast({cancel_wait_or_monitor, self(), Key}, l),
     ok.
 
@@ -708,13 +723,16 @@ cancel_wait_or_monitor({_,l,_} = Key) ->
 %%
 %% If the name is not yet registered, the same message is sent immediately.
 %% @end
-monitor({T,g,_} = Key) when T==n; T==a ->
+monitor(Key) ->
+    ?CATCH(monitor1(Key), [Key]).
+
+monitor1({T,g,_} = Key) when T==n; T==a ->
     ?CHK_DIST,
     call({monitor, Key, self()}, g);
-monitor({T,l,_} = Key) when T==n; T==a ->
+monitor1({T,l,_} = Key) when T==n; T==a ->
     call({monitor, Key, self()}, l);
-monitor(Key) ->
-    erlang:error(badarg, [Key]).
+monitor1(_) ->
+    ?THROW(badarg).
 
 %% @spec demonitor(key(), reference()) -> ok
 %%
@@ -722,33 +740,39 @@ monitor(Key) ->
 %% This function is the reverse of monitor/1. It removes a monitor previously
 %% set on a unique name. This function always succeeds given legal input.
 %% @end
-demonitor({T,g,_} = Key, Ref) when T==n; T==a ->
+demonitor(Key, Ref) ->
+    ?CATCH(demonitor1(Key, Ref), [Key, Ref]).
+
+demonitor1({T,g,_} = Key, Ref) when T==n; T==a ->
     ?CHK_DIST,
     call({demonitor, Key, Ref, self()}, g);
-demonitor({T,l,_} = Key, Ref) when T==n; T==a ->
+demonitor1({T,l,_} = Key, Ref) when T==n; T==a ->
     call({demonitor, Key, Ref, self()}, l);
-demonitor(Key, Ref) ->
-    erlang:error(badarg, [Key, Ref]).
+demonitor1(_, _) ->
+    ?THROW(badarg).
 
 %% @spec reg(Key::key(), Value) -> true
 %%
 %% @doc Register a name or property for the current process
 %%
 %%
-reg({_,g,_} = Key, Value) ->
+reg(Key, Value) ->
+    ?CATCH(reg1(Key, Value), [Key, Value]).
+
+reg1({_,g,_} = Key, Value) ->
     %% anything global
     ?CHK_DIST,
     gproc_dist:reg(Key, Value);
-reg({p,l,_} = Key, Value) ->
+reg1({p,l,_} = Key, Value) ->
     local_reg(Key, Value);
-reg({a,l,_} = Key, undefined) ->
+reg1({a,l,_} = Key, undefined) ->
     call({reg, Key, undefined});
-reg({c,l,_} = Key, Value) when is_integer(Value) ->
+reg1({c,l,_} = Key, Value) when is_integer(Value) ->
     call({reg, Key, Value});
-reg({n,l,_} = Key, Value) ->
+reg1({n,l,_} = Key, Value) ->
     call({reg, Key, Value});
-reg(_, _) ->
-    erlang:error(badarg).
+reg1(_, _) ->
+    ?THROW(badarg).
 
 
 %% @spec reg_shared(Key::key()) -> true
@@ -758,9 +782,12 @@ reg(_, _) ->
 %% `reg_shared({c,l,C}) -> reg_shared({c,l,C}, 0).'
 %% `reg_shared({a,l,A}) -> reg_shared({a,l,A}, undefined).'
 %% @end
-reg_shared({c,_,_} = Key) ->
+reg_shared(Key) ->
+    ?CATCH(reg_shared1(Key), [Key]).
+
+reg_shared1({c,_,_} = Key) ->
     reg_shared(Key, 0);
-reg_shared({a,_,_} = Key) ->
+reg_shared1({a,_,_} = Key) ->
     reg_shared(Key, undefined).
 
 
@@ -779,16 +806,19 @@ reg_shared({a,_,_} = Key) ->
 %% an aggregated counter which is owned by a process.
 %% @end
 %%
-reg_shared({_,g,_} = Key, Value) ->
+reg_shared(Key, Value) ->
+    ?CATCH(reg_shared1(Key, Value), [Key, Value]).
+
+reg_shared1({_,g,_} = Key, Value) ->
     %% anything global
     ?CHK_DIST,
     gproc_dist:reg_shared(Key, Value);
-reg_shared({a,l,_} = Key, undefined) ->
+reg_shared1({a,l,_} = Key, undefined) ->
     call({reg_shared, Key, undefined});
-reg_shared({c,l,_} = Key, Value) when is_integer(Value) ->
+reg_shared1({c,l,_} = Key, Value) when is_integer(Value) ->
     call({reg_shared, Key, Value});
-reg_shared(_, _) ->
-    erlang:error(badarg).
+reg_shared1(_, _) ->
+    ?THROW(badarg).
 
 %% @spec mreg(type(), scope(), [{Key::any(), Value::any()}]) -> true
 %%
@@ -798,19 +828,22 @@ reg_shared(_, _) ->
 %% It is also atomic in regard to unique names; either all names are registered
 %% or none are.
 %% @end
-mreg(T, g, KVL) ->
+mreg(T, C, KVL) ->
+    ?CATCH(mreg1(T, C, KVL), [T, C, KVL]).
+
+mreg1(T, g, KVL) ->
     ?CHK_DIST,
     gproc_dist:mreg(T, KVL);
-mreg(T, l, KVL) when T==a; T==n ->
+mreg1(T, l, KVL) when T==a; T==n ->
     if is_list(KVL) ->
             call({mreg, T, l, KVL});
        true ->
             erlang:error(badarg)
     end;
-mreg(p, l, KVL) ->
+mreg1(p, l, KVL) ->
     local_mreg(p, KVL);
-mreg(_, _, _) ->
-    erlang:error(badarg).
+mreg1(_, _, _) ->
+    ?THROW(badarg).
 
 %% @spec munreg(type(), scope(), [Key::any()]) -> true
 %%
@@ -819,19 +852,22 @@ mreg(_, _, _) ->
 %% This function is usually more efficient than calling {@link unreg/1}
 %% repeatedly.
 %% @end
-munreg(T, g, L) ->
+munreg(T, C, L) ->
+    ?CATCH(munreg1(T, C, L), [T, C, L]).
+
+munreg1(T, g, L) ->
     ?CHK_DIST,
     gproc_dist:munreg(T, existing(T,g,L));
-munreg(T, l, L) when T==a; T==n ->
+munreg1(T, l, L) when T==a; T==n ->
     if is_list(L) ->
             call({munreg, T, l, existing(T,l,L)});
        true ->
             erlang:error(badarg)
     end;
-munreg(p, l, L) ->
+munreg1(p, l, L) ->
     local_munreg(p, existing(p,l,L));
-munreg(_, _, _) ->
-    erlang:error(badarg).
+munreg1(_, _, _) ->
+    ?THROW(badarg).
 
 existing(T,Scope,L) ->
     Keys = if T==p; T==c ->
@@ -851,6 +887,9 @@ existing(T,Scope,L) ->
 %% @doc Unregister a name or property.
 %% @end
 unreg(Key) ->
+    ?CATCH(unreg1(Key), [Key]).
+
+unreg1(Key) ->
     case Key of
         {_, g, _} ->
             ?CHK_DIST,
@@ -863,7 +902,7 @@ unreg(Key) ->
                     _ = gproc_lib:remove_reg(Key, self(), unreg),
                     true;
                 false ->
-                    erlang:error(badarg)
+                    ?THROW(badarg)
             end
     end.
 
@@ -872,6 +911,9 @@ unreg(Key) ->
 %% @doc Unregister a shared resource.
 %% @end
 unreg_shared(Key) ->
+    ?CATCH(unreg_shared1(Key), [Key]).
+
+unreg_shared1(Key) ->
     case Key of
         {_, g, _} ->
             ?CHK_DIST,
@@ -879,7 +921,7 @@ unreg_shared(Key) ->
         {T, l, _} when T == c;
                        T == a -> call({unreg_shared, Key});
         _ ->
-	    erlang:error(badarg)
+	    ?THROW(badarg)
     end.
 
 %% @spec (key(), pid()) -> yes | no
@@ -946,7 +988,7 @@ select_count(Pat) ->
 %% but the select patterns are transformed appropriately.
 %% @end
 select_count(Context, Pat) ->
-    ets: select_count(?TAB, pattern(Pat, Context)).
+    ets:select_count(?TAB, pattern(Pat, Context)).
 
 
 %%% Local properties can be registered in the local process, since
@@ -954,14 +996,14 @@ select_count(Context, Pat) ->
 %%%
 local_reg(Key, Value) ->
     case gproc_lib:insert_reg(Key, Value, self(), l) of
-        false -> erlang:error(badarg);
+        false -> ?THROW(badarg);
         true  -> monitor_me()
     end.
 
 local_mreg(_, []) -> true;
 local_mreg(T, [_|_] = KVL) ->
     case gproc_lib:insert_many(T, l, KVL, self()) of
-        false     -> erlang:error(badarg);
+        false     -> ?THROW(badarg);
         {true,_}  -> monitor_me()
     end.
 
@@ -979,16 +1021,19 @@ local_munreg(T, L) when T==p; T==c ->
 %% it must be an integer.
 %% @end
 %%
-set_value({_,g,_} = Key, Value) ->
+set_value(Key, Value) ->
+    ?CATCH(set_value1(Key, Value), [Key, Value]).
+
+set_value1({_,g,_} = Key, Value) ->
     ?CHK_DIST,
     gproc_dist:set_value(Key, Value);
-set_value({a,l,_} = Key, Value) when is_integer(Value) ->
+set_value1({a,l,_} = Key, Value) when is_integer(Value) ->
     call({set, Key, Value});
-set_value({n,l,_} = Key, Value) ->
+set_value1({n,l,_} = Key, Value) ->
     %% we cannot do this locally, since we have to check that the object
     %% exists first - not an atomic update.
     call({set, Key, Value});
-set_value({p,l,_} = Key, Value) ->
+set_value1({p,l,_} = Key, Value) ->
     %% we _can_ to this locally, since there is no race condition - no
     %% other process can update our properties.
     case gproc_lib:do_set_value(Key, Value, self()) of
@@ -996,10 +1041,10 @@ set_value({p,l,_} = Key, Value) ->
         false ->
             erlang:error(badarg)
     end;
-set_value({c,l,_} = Key, Value) when is_integer(Value) ->
+set_value1({c,l,_} = Key, Value) when is_integer(Value) ->
     gproc_lib:do_set_counter_value(Key, Value, self());
-set_value(_, _) ->
-    erlang:error(badarg).
+set_value1(_, _) ->
+    ?THROW(badarg).
 
 %% @spec (Key) -> Value
 %% @doc Reads the value stored with a key registered to the current process.
@@ -1007,7 +1052,7 @@ set_value(_, _) ->
 %% If no such key is registered to the current process, this function exits.
 %% @end
 get_value(Key) ->
-    get_value(Key, self()).
+    ?CATCH(get_value1(Key, self()), [Key]).
 
 %% @spec (Key, Pid) -> Value
 %% @doc Reads the value stored with a key registered to the process Pid.
@@ -1016,26 +1061,29 @@ get_value(Key) ->
 %% will be read.
 %% @end
 %%
-get_value({T,_,_} = Key, Pid) when is_pid(Pid) ->
+get_value(Key, Pid) ->
+    ?CATCH(get_value1(Key, Pid), [Key, Pid]).
+
+get_value1({T,_,_} = Key, Pid) when is_pid(Pid) ->
     if T==n orelse T==a ->
             case ets:lookup(?TAB, {Key, T}) of
                 [{_, P, Value}] when P == Pid -> Value;
-                _ -> erlang:error(badarg)
+                _ -> ?THROW(badarg)
             end;
        true ->
             ets:lookup_element(?TAB, {Key, Pid}, 3)
     end;
-get_value({T,_,_} = K, shared) when T==c; T==a ->
+get_value1({T,_,_} = K, shared) when T==c; T==a ->
     Key = case T of
 	      c -> {K, shared};
 	      a -> {K, a}
 	  end,
     case ets:lookup(?TAB, Key) of
 	[{_, shared, Value}] -> Value;
-	_ -> erlang:error(badarg)
+	_ -> ?THROW(badarg)
     end;
-get_value(_, _) ->
-    erlang:error(badarg).
+get_value1(_, _) ->
+    ?THROW(badarg).
 
 
 %% @spec (Key) -> Pid
@@ -1066,7 +1114,10 @@ lookup_value({T,_,_} = Key) ->
 %% cases.
 %% @end
 %%
-where({T,_,_}=Key) ->
+where(Key) ->
+    ?CATCH(where1(Key), [Key]).
+
+where1({T,_,_}=Key) ->
     if T==n orelse T==a ->
             case ets:lookup(?TAB, {Key,T}) of
                 [{_, P, _Value}] ->
@@ -1079,12 +1130,12 @@ where({T,_,_}=Key) ->
                     undefined
             end;
        true ->
-            erlang:error(badarg)
+            ?THROW(badarg)
     end.
 
 %% @equiv where/1
 whereis_name(Key) ->
-    where(Key).
+    ?CATCH(where1(Key), [Key]).
 
 %% @spec (Key::key()) -> [pid()]
 %%
@@ -1138,13 +1189,16 @@ lookup_values({T,_,_} = Key) ->
 %% will fail if the type of object referred to by Key is not a counter.
 %% @end
 %%
-update_counter({c,l,_} = Key, Incr) when is_integer(Incr) ->
+update_counter(Key, Incr) ->
+    ?CATCH(update_counter1(Key, Incr), [Key, Incr]).
+
+update_counter1({c,l,_} = Key, Incr) when is_integer(Incr) ->
     gproc_lib:update_counter(Key, Incr, self());
-update_counter({c,g,_} = Key, Incr) when is_integer(Incr) ->
+update_counter1({c,g,_} = Key, Incr) when is_integer(Incr) ->
     ?CHK_DIST,
     gproc_dist:update_counter(Key, Incr);
-update_counter(_, _) ->
-    erlang:error(badarg).
+update_counter1(_, _) ->
+    ?THROW(badarg).
 
 
 %% @spec (Key) -> {ValueBefore, ValueAfter}
@@ -1161,10 +1215,13 @@ update_counter(_, _) ->
 %% updates. Aggregated counters are updated accordingly.
 %% @end
 %%
-reset_counter({c,g,_} = Key) ->
+reset_counter(Key) ->
+    ?CATCH(reset_counter1(Key), [Key]).
+
+reset_counter1({c,g,_} = Key) ->
     ?CHK_DIST,
     gproc_dist:reset_counter(Key);
-reset_counter({c,l,_} = Key) ->
+reset_counter1({c,l,_} = Key) ->
     Current = ets:lookup_element(?TAB, {Key, self()}, 3),
     Initial = case ets:lookup(?TAB, {self(), Key}) of
 		  [{_, r}] -> 0;
@@ -1173,11 +1230,13 @@ reset_counter({c,l,_} = Key) ->
 	      end,
     {Current, update_counter(Key, Initial - Current)}.
 
+update_shared_counter(Key, Incr) ->
+    ?CATCH(update_shared_counter1(Key, Incr), [Key, Incr]).
 
-update_shared_counter({c,g,_} = Key, Incr) ->
+update_shared_counter1({c,g,_} = Key, Incr) ->
     ?CHK_DIST,
     gproc_dist:update_shared_counter(Key, Incr);
-update_shared_counter({c,l,_} = Key, Incr) ->
+update_shared_counter1({c,l,_} = Key, Incr) ->
     gproc_lib:update_counter(Key, Incr, shared).
 
 %% @spec (From::key(), To::pid() | key()) -> undefined | pid()
@@ -1198,11 +1257,14 @@ update_shared_counter({c,l,_} = Key, Incr) ->
 %% Fails with `badarg' if the calling process does not have a `From' key
 %% registered.
 %% @end
-give_away({_,l,_} = Key, ToPid) when is_pid(ToPid), node(ToPid) == node() ->
+give_away(Key, ToPid) ->
+    ?CATCH(give_away1(Key, ToPid), [Key, ToPid]).
+
+give_away1({_,l,_} = Key, ToPid) when is_pid(ToPid), node(ToPid) == node() ->
     call({give_away, Key, ToPid});
-give_away({_,l,_} = Key, {n,l,_} = ToKey) ->
+give_away1({_,l,_} = Key, {n,l,_} = ToKey) ->
     call({give_away, Key, ToKey});
-give_away({_,g,_} = Key, To) ->
+give_away1({_,g,_} = Key, To) ->
     ?CHK_DIST,
     gproc_dist:give_away(Key, To).
 
@@ -1227,13 +1289,16 @@ goodbye() ->
 %% property), Msg will be send to all processes that have such an object.
 %% @end
 %%
-send({T,C,_} = Key, Msg) when C==l; C==g ->
+send(Key, Msg) ->
+    ?CATCH(send1(Key, Msg), [Key, Msg]).
+
+send1({T,C,_} = Key, Msg) when C==l; C==g ->
     if T == n orelse T == a ->
             case ets:lookup(?TAB, {Key, T}) of
                 [{_, Pid, _}] ->
                     Pid ! Msg;
                 _ ->
-                    erlang:error(badarg)
+                    ?THROW(badarg)
             end;
        T==p orelse T==c ->
             %% BUG - if the key part contains select wildcards, we may end up
@@ -1245,8 +1310,8 @@ send({T,C,_} = Key, Msg) when C==l; C==g ->
        true ->
             erlang:error(badarg)
     end;
-send(_, _) ->
-    erlang:error(badarg).
+send1(_, _) ->
+    ?THROW(badarg).
 
 
 %% @spec (Context :: context()) -> key() | '$end_of_table'
@@ -1583,13 +1648,13 @@ call(Req) ->
     call(Req, l).
 
 call(Req, l) ->
-    chk_reply(gen_server:call(?MODULE, Req), Req);
+    chk_reply(gen_server:call(?MODULE, Req));
 call(Req, g) ->
-    chk_reply(gproc_dist:leader_call(Req), Req).
+    chk_reply(gproc_dist:leader_call(Req)).
 
-chk_reply(Reply, Req) ->
+chk_reply(Reply) ->
     case Reply of
-        badarg -> erlang:error(badarg, Req);
+        badarg -> ?THROW(badarg);
         _  -> Reply
     end.
 

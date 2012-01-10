@@ -56,7 +56,7 @@ will improve performance.
 
 
 
-<pre>context() = {<a href="#type-scope">scope()</a>, <a href="#type-type">type()</a>} | <a href="#type-type">type()</a></pre>
+<pre>context() = {[scope()](#type-scope), [type()](#type-type)} | [type()](#type-type)</pre>
 
 
 {'all','all'} is the default
@@ -67,7 +67,7 @@ will improve performance.
 
 
 
-<pre>headpat() = {<a href="#type-keypat">keypat()</a>, <a href="#type-pidpat">pidpat()</a>, ValPat}</pre>
+<pre>headpat() = {[keypat()](#type-keypat), [pidpat()](#type-pidpat), ValPat}</pre>
 
 
 
@@ -75,7 +75,7 @@ will improve performance.
 
 
 
-<pre>key() = {<a href="#type-type">type()</a>, <a href="#type-scope">scope()</a>, any()}</pre>
+<pre>key() = {[type()](#type-type), [scope()](#type-scope), any()}</pre>
 
 
 
@@ -83,7 +83,7 @@ will improve performance.
 
 
 
-<pre>keypat() = {<a href="#type-sel_type">sel_type()</a> | <a href="#type-sel_var">sel_var()</a>, l | g | <a href="#type-sel_var">sel_var()</a>, any()}</pre>
+<pre>keypat() = {[sel_type()](#type-sel_type) | [sel_var()](#type-sel_var), l | g | [sel_var()](#type-sel_var), any()}</pre>
 
 
 
@@ -91,7 +91,7 @@ will improve performance.
 
 
 
-<pre>pidpat() = pid() | <a href="#type-sel_var">sel_var()</a></pre>
+<pre>pidpat() = pid() | [sel_var()](#type-sel_var)</pre>
 
 
 
@@ -99,7 +99,7 @@ will improve performance.
 
 
 
-<pre>reg_id() = {<a href="#type-type">type()</a>, <a href="#type-scope">scope()</a>, any()}</pre>
+<pre>reg_id() = {[type()](#type-type), [scope()](#type-scope), any()}</pre>
 
 
 
@@ -118,7 +118,7 @@ l = local registration; g = global registration
 
 
 
-<pre>sel_pattern() = [{<a href="#type-headpat">headpat()</a>, Guards, Prod}]</pre>
+<pre>sel_pattern() = [{[headpat()](#type-headpat), Guards, Prod}]</pre>
 
 
 
@@ -134,7 +134,7 @@ l = local registration; g = global registration
 
 
 
-<pre>sel_type() = <a href="#type-type">type()</a> | names | props | counters | aggr_counters</pre>
+<pre>sel_type() = [type()](#type-type) | names | props | counters | aggr_counters</pre>
 
 
 
@@ -161,7 +161,7 @@ a = aggregate_counter
 
 
 
-<pre>unique_id() = {n | a, <a href="#type-scope">scope()</a>, any()}</pre>
+<pre>unique_id() = {n | a, [scope()](#type-scope), any()}</pre>
 <a name="index"></a>
 
 ##Function Index##
@@ -303,7 +303,7 @@ Registers a local shared (unique) counter.<a name="audit_process-1"></a>
 
 
 
-<pre>await(Key::<a href="#type-key">key()</a>) -> {pid(), Value}</pre>
+<pre>await(Key::[key()](#type-key)) -&gt; {pid(), Value}</pre>
 <br></br>
 
 
@@ -316,7 +316,7 @@ Equivalent to [`await(Key, infinity)`](#await-2).<a name="await-2"></a>
 
 
 
-<pre>await(Key::<a href="#type-key">key()</a>, Timeout) -> {pid(), Value}</pre>
+<pre>await(Key::[key()](#type-key), Timeout) -&gt; {pid(), Value}</pre>
 <ul class="definitions"><li><pre>Timeout = integer() | infinity</pre></li></ul>
 
 
@@ -334,7 +334,7 @@ registered (the difference: await/2 also returns the value).<a name="cancel_wait
 
 
 
-<pre>cancel_wait(Key::<a href="#type-key">key()</a>, Ref) -> ok</pre>
+<pre>cancel_wait(Key::[key()](#type-key), Ref) -&gt; ok</pre>
 <ul class="definitions"><li><pre>Ref = all | reference()</pre></li></ul>
 
 
@@ -369,7 +369,7 @@ are canceled.<a name="cancel_wait_or_monitor-1"></a>
 
 
 
-<pre>demonitor(Key::<a href="#type-key">key()</a>, Ref::reference()) -> ok</pre>
+<pre>demonitor(Key::[key()](#type-key), Ref::reference()) -&gt; ok</pre>
 <br></br>
 
 
@@ -384,7 +384,7 @@ set on a unique name. This function always succeeds given legal input.<a name="f
 
 
 
-<pre>first(Context::<a href="#type-context">context()</a>) -> <a href="#type-key">key()</a> | '$end_of_table'</pre>
+<pre>first(Context::[context()](#type-context)) -&gt; [key()](#type-key) | '$end_of_table'</pre>
 <br></br>
 
 
@@ -402,7 +402,7 @@ The registry behaves as an ordered_set table.<a name="get_env-3"></a>
 
 
 
-<pre>get_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom()) -> term()</pre>
+<pre>get_env(Scope::[scope()](#type-scope), App::atom(), Key::atom()) -&gt; term()</pre>
 <br></br>
 
 
@@ -415,8 +415,8 @@ Equivalent to [`get_env(Scope, App, Key, [app_env])`](#get_env-4).<a name="get_e
 
 
 
-<pre>get_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom(), Strategy) -> term()</pre>
-<ul class="definitions"><li><pre>Strategy = [Alternative]</pre></li><li><pre>Alternative = app_env | os_env | inherit | {inherit, pid()} | {inherit, <a href="#type-unique_id">unique_id()</a>} | init_arg | {mnesia, ActivityType, Oid, Pos} | {default, term()} | error</pre></li></ul>
+<pre>get_env(Scope::[scope()](#type-scope), App::atom(), Key::atom(), Strategy) -&gt; term()</pre>
+<ul class="definitions"><li><pre>Strategy = [Alternative]</pre></li><li><pre>Alternative = app_env | os_env | inherit | {inherit, pid()} | {inherit, &lt;a href="#type-unique_id"&gt;unique_id()&lt;/a&gt;} | init_arg | {mnesia, ActivityType, Oid, Pos} | {default, term()} | error</pre></li></ul>
 
 
 
@@ -475,7 +475,7 @@ e.g. `get_env(l, mnesia, dir, [app_env, error])`.<a name="get_set_env-3"></a>
 
 
 
-<pre>get_set_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom()) -> term()</pre>
+<pre>get_set_env(Scope::[scope()](#type-scope), App::atom(), Key::atom()) -&gt; term()</pre>
 <br></br>
 
 
@@ -488,7 +488,7 @@ Equivalent to [`get_set_env(Scope, App, Key, [app_env])`](#get_set_env-4).<a nam
 
 
 
-<pre>get_set_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom(), Strategy) -> Value</pre>
+<pre>get_set_env(Scope::[scope()](#type-scope), App::atom(), Key::atom(), Strategy) -&gt; Value</pre>
 <br></br>
 
 
@@ -545,7 +545,7 @@ will be read.<a name="give_away-2"></a>
 
 
 
-<pre>give_away(From::<a href="#type-key">key()</a>, To::pid() | <a href="#type-key">key()</a>) -> undefined | pid()</pre>
+<pre>give_away(From::[key()](#type-key), To::pid() | [key()](#type-key)) -&gt; undefined | pid()</pre>
 <br></br>
 
 
@@ -650,7 +650,7 @@ same as [`http://www.erlang.org/doc/man/erlang.html#process_info-2`](http://www.
 
 
 
-<pre>last(Context::<a href="#type-context">context()</a>) -> <a href="#type-key">key()</a> | '$end_of_table'</pre>
+<pre>last(Context::[context()](#type-context)) -&gt; [key()](#type-key) | '$end_of_table'</pre>
 <br></br>
 
 
@@ -808,7 +808,7 @@ Lookup the Pid stored with a key.
 
 
 
-<pre>lookup_pids(Key::<a href="#type-key">key()</a>) -> [pid()]</pre>
+<pre>lookup_pids(Key::[key()](#type-key)) -&gt; [pid()]</pre>
 <br></br>
 
 
@@ -841,7 +841,7 @@ Lookup the value stored with a key.
 
 
 
-<pre>lookup_values(Key::<a href="#type-key">key()</a>) -> [{pid(), Value}]</pre>
+<pre>lookup_values(Key::[key()](#type-key)) -&gt; [{pid(), Value}]</pre>
 <br></br>
 
 
@@ -860,7 +860,7 @@ object, the return value can be a list of any length.<a name="monitor-1"></a>
 
 
 
-<pre>monitor(Key::<a href="#type-key">key()</a>) -> reference()</pre>
+<pre>monitor(Key::[key()](#type-key)) -&gt; reference()</pre>
 <br></br>
 
 
@@ -881,7 +881,7 @@ If the name is not yet registered, the same message is sent immediately.<a name=
 
 
 
-<pre>mreg(T::<a href="#type-type">type()</a>, X2::<a href="#type-scope">scope()</a>, KVL::[{Key::any(), Value::any()}]) -> true</pre>
+<pre>mreg(T::[type()](#type-type), C::[scope()](#type-scope), KVL::[{Key::any(), Value::any()}]) -&gt; true</pre>
 <br></br>
 
 
@@ -900,7 +900,7 @@ or none are.<a name="munreg-3"></a>
 
 
 
-<pre>munreg(T::<a href="#type-type">type()</a>, X2::<a href="#type-scope">scope()</a>, L::[Key::any()]) -> true</pre>
+<pre>munreg(T::[type()](#type-type), C::[scope()](#type-scope), L::[Key::any()]) -&gt; true</pre>
 <br></br>
 
 
@@ -918,7 +918,7 @@ repeatedly.<a name="nb_wait-1"></a>
 
 
 
-<pre>nb_wait(Key::<a href="#type-key">key()</a>) -> Ref</pre>
+<pre>nb_wait(Key::[key()](#type-key)) -&gt; Ref</pre>
 <br></br>
 
 
@@ -933,7 +933,7 @@ The caller can expect to receive a message,
 
 
 
-<pre>next(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -> <a href="#type-key">key()</a> | '$end_of_table'</pre>
+<pre>next(Context::[context()](#type-context), Key::[key()](#type-key)) -&gt; [key()](#type-key) | '$end_of_table'</pre>
 <br></br>
 
 
@@ -951,7 +951,7 @@ The registry behaves as an ordered_set table.<a name="prev-2"></a>
 
 
 
-<pre>prev(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -> <a href="#type-key">key()</a> | '$end_of_table'</pre>
+<pre>prev(Context::[context()](#type-context), Key::[key()](#type-key)) -&gt; [key()](#type-key) | '$end_of_table'</pre>
 <br></br>
 
 
@@ -969,7 +969,7 @@ The registry behaves as an ordered_set table.<a name="reg-1"></a>
 
 
 
-<pre>reg(Key::<a href="#type-key">key()</a>) -> true</pre>
+<pre>reg(Key::[key()](#type-key)) -&gt; true</pre>
 <br></br>
 
 
@@ -982,7 +982,7 @@ Equivalent to [`reg(Key, default(Key))`](#reg-2).<a name="reg-2"></a>
 
 
 
-<pre>reg(Key::<a href="#type-key">key()</a>, Value) -> true</pre>
+<pre>reg(Key::[key()](#type-key), Value) -&gt; true</pre>
 <br></br>
 
 
@@ -999,7 +999,7 @@ Register a name or property for the current process
 
 
 
-<pre>reg_shared(Key::<a href="#type-key">key()</a>) -> true</pre>
+<pre>reg_shared(Key::[key()](#type-key)) -&gt; true</pre>
 <br></br>
 
 
@@ -1017,7 +1017,7 @@ Register a resource, but don't tie it to a particular process.
 
 
 
-<pre>reg_shared(Key::<a href="#type-key">key()</a>, Value) -> true</pre>
+<pre>reg_shared(Key::[key()](#type-key), Value) -&gt; true</pre>
 <br></br>
 
 
@@ -1044,7 +1044,7 @@ an aggregated counter which is owned by a process.<a name="register_name-2"></a>
 
 
 
-<pre>register_name(Name::<a href="#type-key">key()</a>, Pid::pid()) -> yes | no</pre>
+<pre>register_name(Name::[key()](#type-key), Pid::pid()) -&gt; yes | no</pre>
 <br></br>
 
 
@@ -1090,7 +1090,7 @@ see http://www.erlang.org/doc/man/ets.html#select-1<a name="select-2"></a>
 
 
 
-<pre>select(Context::<a href="#type-context">context()</a>, Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -> [{Key, Pid, Value}]</pre>
+<pre>select(Context::[context()](#type-context), Pat::[sel_pattern()](#type-sel_pattern)) -&gt; [{Key, Pid, Value}]</pre>
 <br></br>
 
 
@@ -1108,7 +1108,7 @@ but the select patterns are transformed appropriately.<a name="select-3"></a>
 
 
 
-<pre>select(Context::<a href="#type-context">context()</a>, Pat::<a href="#type-sel_patten">sel_patten()</a>, Limit::integer()) -> {[Match], Continuation} | '$end_of_table'</pre>
+<pre>select(Context::[context()](#type-context), Pat::[sel_patten()](#type-sel_patten), Limit::integer()) -&gt; {[Match], Continuation} | '$end_of_table'</pre>
 <br></br>
 
 
@@ -1125,7 +1125,7 @@ See [`http://www.erlang.org/doc/man/ets.html#select-3`](http://www.erlang.org/do
 
 
 
-<pre>select_count(Pat::<a href="#type-select_pattern">select_pattern()</a>) -> [<a href="#type-sel_object">sel_object()</a>]</pre>
+<pre>select_count(Pat::[select_pattern()](#type-select_pattern)) -&gt; [[sel_object()](#type-sel_object)]</pre>
 <br></br>
 
 
@@ -1138,7 +1138,7 @@ Equivalent to [`select_count(all, Pat)`](#select_count-2).<a name="select_count-
 
 
 
-<pre>select_count(Context::<a href="#type-context">context()</a>, Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -> [{Key, Pid, Value}]</pre>
+<pre>select_count(Context::[context()](#type-context), Pat::[sel_pattern()](#type-sel_pattern)) -&gt; [{Key, Pid, Value}]</pre>
 <br></br>
 
 
@@ -1156,7 +1156,7 @@ but the select patterns are transformed appropriately.<a name="send-2"></a>
 
 
 
-<pre>send(Key::<a href="#type-key">key()</a>, Msg::any()) -> Msg</pre>
+<pre>send(Key::[key()](#type-key), Msg::any()) -&gt; Msg</pre>
 <br></br>
 
 
@@ -1176,7 +1176,7 @@ property), Msg will be send to all processes that have such an object.<a name="s
 
 
 
-<pre>set_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom(), Value::term(), Strategy) -> Value</pre>
+<pre>set_env(Scope::[scope()](#type-scope), App::atom(), Key::atom(), Value::term(), Strategy) -&gt; Value</pre>
 <ul class="definitions"><li><pre>Strategy = [Alternative]</pre></li><li><pre>Alternative = app_env | os_env | {os_env, VAR} | {mnesia, ActivityType, Oid, Pos}</pre></li></ul>
 
 
@@ -1202,7 +1202,7 @@ to `undefined`.<a name="set_value-2"></a>
 
 
 
-<pre>set_value(Key::<a href="#type-key">key()</a>, Value) -> true</pre>
+<pre>set_value(Key::[key()](#type-key), Value) -&gt; true</pre>
 <br></br>
 
 
@@ -1256,7 +1256,7 @@ Equivalent to [`table({all, all})`](#table-1).<a name="table-1"></a>
 
 
 
-<pre>table(Context::<a href="#type-context">context()</a>) -> any()</pre>
+<pre>table(Context::[context()](#type-context)) -&gt; any()</pre>
 <br></br>
 
 
@@ -1269,7 +1269,7 @@ Equivalent to [`table(Context, [])`](#table-2).<a name="table-2"></a>
 
 
 
-<pre>table(Context::<a href="#type-context">context()</a>, Opts) -> any()</pre>
+<pre>table(Context::[context()](#type-context), Opts) -&gt; any()</pre>
 <br></br>
 
 
@@ -1284,7 +1284,7 @@ See [`http://www.erlang.org/doc/man/qlc.html`](http://www.erlang.org/doc/man/qlc
 
 
 
-<pre>unreg(Key::<a href="#type-key">key()</a>) -> true</pre>
+<pre>unreg(Key::[key()](#type-key)) -&gt; true</pre>
 <br></br>
 
 
@@ -1297,7 +1297,7 @@ Unregister a name or property.<a name="unreg_shared-1"></a>
 
 
 
-<pre>unreg_shared(Key::<a href="#type-key">key()</a>) -> true</pre>
+<pre>unreg_shared(Key::[key()](#type-key)) -&gt; true</pre>
 <br></br>
 
 
@@ -1321,7 +1321,7 @@ Equivalent to `unreg / 1`.<a name="update_counter-2"></a>
 
 
 
-<pre>update_counter(Key::<a href="#type-key">key()</a>, Incr::integer()) -> integer()</pre>
+<pre>update_counter(Key::[key()](#type-key), Incr::integer()) -&gt; integer()</pre>
 <br></br>
 
 
@@ -1349,7 +1349,7 @@ will fail if the type of object referred to by Key is not a counter.<a name="upd
 
 
 
-<pre>where(Key::<a href="#type-key">key()</a>) -> pid()</pre>
+<pre>where(Key::[key()](#type-key)) -&gt; pid()</pre>
 <br></br>
 
 
