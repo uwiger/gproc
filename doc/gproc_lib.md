@@ -82,7 +82,7 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.<a name="index"></a
 
 
 
-<pre>insert_many(T::[type()](#type-type), Scope::[scope()](#type-scope), KVL::[{[key()](#type-key), any()}], Pid::pid()) -&gt; {true, list()} | false</pre>
+<pre>insert_many(T::<a href="#type-type">type()</a>, Scope::<a href="#type-scope">scope()</a>, KVL::[{<a href="#type-key">key()</a>, any()}], Pid::pid()) -> {true, list()} | false</pre>
 <br></br>
 
 
@@ -93,7 +93,7 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.<a name="index"></a
 
 
 
-<pre>insert_reg(K::[key()](#type-key), Value::any(), Pid::pid() | shared, Scope::[scope()](#type-scope)) -&gt; boolean()</pre>
+<pre>insert_reg(K::<a href="#type-key">key()</a>, Value::any(), Pid::pid() | shared, Scope::<a href="#type-scope">scope()</a>) -> boolean()</pre>
 <br></br>
 
 
