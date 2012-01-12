@@ -99,45 +99,45 @@ reg({_,g,_} = Key, Value) ->
     %% anything global
     leader_call({reg, Key, Value, self()});
 reg(_, _) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 reg_shared({_,g,_} = Key, Value) ->
     leader_call({reg, Key, Value, shared});
 reg_shared(_, _) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 
 mreg(T, KVL) ->
     if is_list(KVL) -> leader_call({mreg, T, g, KVL, self()});
-       true -> ?THROW(badarg)
+       true -> ?THROW_GPROC_ERROR(badarg)
     end.
 
 munreg(T, Keys) ->
     if is_list(Keys) -> leader_call({munreg, T, g, Keys, self()});
-       true -> ?THROW(badarg)
+       true -> ?THROW_GPROC_ERROR(badarg)
     end.
 
 unreg({_,g,_} = Key) ->
     leader_call({unreg, Key, self()});
 unreg(_) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 unreg_shared({T,g,_} = Key) when T==c; T==a ->
     leader_call({unreg, Key, shared});
 unreg_shared(_) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 
 set_value({T,g,_} = Key, Value) when T==a; T==c ->
     if is_integer(Value) ->
             leader_call({set, Key, Value});
        true ->
-            ?THROW(badarg)
+            ?THROW_GPROC_ERROR(badarg)
     end;
 set_value({_,g,_} = Key, Value) ->
     leader_call({set, Key, Value, self()});
 set_value(_, _) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 give_away({_,g,_} = Key, To) ->
     leader_call({give_away, Key, To, self()}).
@@ -146,18 +146,18 @@ give_away({_,g,_} = Key, To) ->
 update_counter({c,g,_} = Key, Incr) when is_integer(Incr) ->
     leader_call({update_counter, Key, Incr, self()});
 update_counter(_, _) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 update_shared_counter({c,g,_} = Key, Incr) when is_integer(Incr) ->
     leader_call({update_counter, Key, Incr, shared});
 update_shared_counter(_, _) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 
 reset_counter({c,g,_} = Key) ->
     leader_call({reset_counter, Key, self()});
 reset_counter(_) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 
 %% @spec sync() -> true
@@ -579,7 +579,7 @@ ets_key(K, Pid) ->
 
 leader_call(Req) ->
     case gen_leader:leader_call(?MODULE, Req) of
-        badarg -> ?THROW(badarg);
+        badarg -> ?THROW_GPROC_ERROR(badarg);
         Reply  -> Reply
     end.
 

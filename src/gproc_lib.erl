@@ -39,6 +39,7 @@
          update_counter/3,
 	 valid_opts/2]).
 
+-include("gproc_int.hrl").
 -include("gproc.hrl").
 
 %% We want to store names and aggregated counters with the same
@@ -364,10 +365,42 @@ do_set_counter_value({_,C,N} = Key, Value, Pid) ->
     update_aggr_counter(C, N, Value - OldVal),
     Res.
 
-update_counter({c,l,Ctr} = Key, Incr, Pid) ->
+update_counter({c,l,Ctr} = Key, Incr, Pid) when is_integer(Incr) ->
     Res = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
     update_aggr_counter(l, Ctr, Incr),
-    Res.
+    Res;
+update_counter({c,l,Ctr} = Key, {Incr, Threshold, SetValue}, Pid)
+  when is_integer(Incr), is_integer(Threshold), is_integer(SetValue) ->
+    [Prev, New] = ets:update_counter(?TAB, {Key, Pid},
+				     [{3, 0}, {3, Incr, Threshold, SetValue}]),
+    update_aggr_counter(l, Ctr, New - Prev),
+    New;
+update_counter({c,l,Ctr} = Key, Ops, Pid) when is_list(Ops) ->
+    case ets:update_counter(?TAB, {Key, Pid},
+			    [{3, 0} | expand_ops(Ops)]) of
+	[_] ->
+	    [];
+	[Prev | Rest] ->
+	    [New | _] = lists:reverse(Rest),
+	    update_aggr_counter(l, Ctr, New - Prev),
+	    Rest
+    end;
+update_counter(_, _, _) ->
+    ?THROW_GPROC_ERROR(badarg).
+
+expand_ops([{Incr,Thr,SetV}|T])
+  when is_integer(Incr), is_integer(Thr), is_integer(SetV) ->
+    [{3, Incr, Thr, SetV}|expand_ops(T)];
+expand_ops([Incr|T]) when is_integer(Incr) ->
+    [{3, Incr}|expand_ops(T)];
+expand_ops([]) ->
+    [];
+expand_ops(_) ->
+    ?THROW_GPROC_ERROR(badarg).
+
+
+
+
 
 update_aggr_counter(C, N, Val) ->
     catch ets:update_counter(?TAB, {{a,C,N},a}, {3, Val}).

@@ -149,7 +149,7 @@
 -define(CHK_DIST,
         case whereis(gproc_dist) of
             undefined ->
-		?THROW(local_only);
+		?THROW_GPROC_ERROR(local_only);
             _ ->
                 ok
         end).
@@ -174,7 +174,7 @@ start_link() ->
 %% @doc Registers a local (unique) name. @equiv reg({n,l,Name})
 %% @end
 %%
-add_local_name(Name)  -> ?CATCH(reg1({n,l,Name}, undefined), [Name]).
+add_local_name(Name)  -> ?CATCH_GPROC_ERROR(reg1({n,l,Name}, undefined), [Name]).
 
 
 %% spec(Name::any()) -> true
@@ -182,7 +182,7 @@ add_local_name(Name)  -> ?CATCH(reg1({n,l,Name}, undefined), [Name]).
 %% @doc Registers a global (unique) name. @equiv reg({n,g,Name})
 %% @end
 %%
-add_global_name(Name) -> ?CATCH(reg1({n,g,Name}, undefined), [Name]).
+add_global_name(Name) -> ?CATCH_GPROC_ERROR(reg1({n,g,Name}, undefined), [Name]).
 
 
 %% spec(Name::any(), Value::any()) -> true
@@ -190,14 +190,16 @@ add_global_name(Name) -> ?CATCH(reg1({n,g,Name}, undefined), [Name]).
 %% @doc Registers a local (non-unique) property. @equiv reg({p,l,Name},Value)
 %% @end
 %%
-add_local_property(Name , Value) -> ?CATCH(reg1({p,l,Name}, Value), [Name, Value]).
+add_local_property(Name , Value) ->
+    ?CATCH_GPROC_ERROR(reg1({p,l,Name}, Value), [Name, Value]).
 
 %% spec(Name::any(), Value::any()) -> true
 %%
 %% @doc Registers a global (non-unique) property. @equiv reg({p,g,Name},Value)
 %% @end
 %%
-add_global_property(Name, Value) -> ?CATCH(reg1({p,g,Name}, Value), [Name, Value]).
+add_global_property(Name, Value) ->
+    ?CATCH_GPROC_ERROR(reg1({p,g,Name}, Value), [Name, Value]).
 
 %% spec(Name::any(), Initial::integer()) -> true
 %%
@@ -205,7 +207,7 @@ add_global_property(Name, Value) -> ?CATCH(reg1({p,g,Name}, Value), [Name, Value
 %% @end
 %%
 add_local_counter(Name, Initial) when is_integer(Initial) ->
-    ?CATCH(reg1({c,l,Name}, Initial), [Name, Initial]).
+    ?CATCH_GPROC_ERROR(reg1({c,l,Name}, Initial), [Name, Initial]).
 
 
 %% spec(Name::any(), Initial::integer()) -> true
@@ -224,7 +226,7 @@ add_shared_local_counter(Name, Initial) when is_integer(Initial) ->
 %% @end
 %%
 add_global_counter(Name, Initial) when is_integer(Initial) ->
-    ?CATCH(reg1({c,g,Name}, Initial), [Name, Initial]).
+    ?CATCH_GPROC_ERROR(reg1({c,g,Name}, Initial), [Name, Initial]).
 
 %% spec(Name::any()) -> true
 %%
@@ -232,7 +234,7 @@ add_global_counter(Name, Initial) when is_integer(Initial) ->
 %% @equiv reg({a,l,Name})
 %% @end
 %%
-add_local_aggr_counter(Name)  -> ?CATCH(reg1({a,l,Name}), [Name]).
+add_local_aggr_counter(Name)  -> ?CATCH_GPROC_ERROR(reg1({a,l,Name}), [Name]).
 
 %% spec(Name::any()) -> true
 %%
@@ -240,7 +242,7 @@ add_local_aggr_counter(Name)  -> ?CATCH(reg1({a,l,Name}), [Name]).
 %% @equiv reg({a,g,Name})
 %% @end
 %%
-add_global_aggr_counter(Name) -> ?CATCH(reg1({a,g,Name}), [Name]).
+add_global_aggr_counter(Name) -> ?CATCH_GPROC_ERROR(reg1({a,g,Name}), [Name]).
 
 
 %% @spec (Name::any()) -> pid()
@@ -513,7 +515,9 @@ lookup_env(Scope, App, Key, P) ->
     end.
 
 cache_env(Scope, App, Key, Value) ->
-    ?CATCH(reg1({p, Scope, {gproc_env, App, Key}}, Value), [Scope,App,Key,Value]).
+    ?CATCH_GPROC_ERROR(
+       reg1({p, Scope, {gproc_env, App, Key}}, Value),
+       [Scope,App,Key,Value]).
 
 update_cached_env(Scope, App, Key, Value) ->
     case lookup_env(Scope, App, Key, self()) of
@@ -581,7 +585,7 @@ is_string(S) ->
 %% @equiv reg(Key, default(Key))
 %% @end
 reg(Key) ->
-    ?CATCH(reg1(Key), [Key]).
+    ?CATCH_GPROC_ERROR(reg1(Key), [Key]).
 
 reg1(Key) ->
     reg1(Key, default(Key)).
@@ -593,7 +597,7 @@ default(_) -> undefined.
 %% @equiv await(Key,infinity)
 %%
 await(Key) ->
-    ?CATCH(await1(Key, infinity), [Key]).
+    ?CATCH_GPROC_ERROR(await1(Key, infinity), [Key]).
 
 %% @spec await(Key::key(), Timeout) -> {pid(),Value}
 %%   Timeout = integer() | infinity
@@ -608,7 +612,7 @@ await(Key) ->
 %% @end
 %%
 await(Key, Timeout) ->
-    ?CATCH(await1(Key, Timeout), [Key, Timeout]).
+    ?CATCH_GPROC_ERROR(await1(Key, Timeout), [Key, Timeout]).
 
 await1({n,g,_} = Key, Timeout) ->
     ?CHK_DIST,
@@ -641,7 +645,7 @@ request_wait({n,C,_} = Key, Timeout) when C==l; C==g ->
                T when is_integer(T), T > 0 ->
                    erlang:start_timer(T, self(), gproc_timeout);
                _ ->
-                   ?THROW(badarg)
+                   ?THROW_GPROC_ERROR(badarg)
            end,
     WRef = case {call({await,Key,self()}, C), C} of
                {{R, {Kg,Pg,Vg}}, g} ->
@@ -659,7 +663,7 @@ request_wait({n,C,_} = Key, Timeout) when C==l; C==g ->
             {Pid, V};
         {timeout, TRef, gproc_timeout} ->
             cancel_wait(Key, WRef),
-            ?THROW(timeout)
+            ?THROW_GPROC_ERROR(timeout)
     end.
 
 
@@ -671,7 +675,7 @@ request_wait({n,C,_} = Key, Timeout) when C==l; C==g ->
 %% @end
 %%
 nb_wait(Key) ->
-    ?CATCH(nb_wait1(Key), [Key]).
+    ?CATCH_GPROC_ERROR(nb_wait1(Key), [Key]).
 
 nb_wait1({n,g,_} = Key) ->
     ?CHK_DIST,
@@ -679,7 +683,7 @@ nb_wait1({n,g,_} = Key) ->
 nb_wait1({n,l,_} = Key) ->
     call({await, Key, self()}, l);
 nb_wait1(_) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 %% @spec cancel_wait(Key::key(), Ref) -> ok
 %%    Ref = all | reference()
@@ -691,7 +695,7 @@ nb_wait1(_) ->
 %% @end
 %%
 cancel_wait(Key, Ref) ->
-    ?CATCH(cancel_wait1(Key, Ref), [Key, Ref]).
+    ?CATCH_GPROC_ERROR(cancel_wait1(Key, Ref), [Key, Ref]).
 
 cancel_wait1({_,g,_} = Key, Ref) ->
     ?CHK_DIST,
@@ -702,7 +706,7 @@ cancel_wait1({_,l,_} = Key, Ref) ->
     ok.
 
 cancel_wait_or_monitor(Key) ->
-    ?CATCH(cancel_wait_or_monitor1(Key), [Key]).
+    ?CATCH_GPROC_ERROR(cancel_wait_or_monitor1(Key), [Key]).
 
 cancel_wait_or_monitor1({_,g,_} = Key) ->
     ?CHK_DIST,
@@ -724,7 +728,7 @@ cancel_wait_or_monitor1({_,l,_} = Key) ->
 %% If the name is not yet registered, the same message is sent immediately.
 %% @end
 monitor(Key) ->
-    ?CATCH(monitor1(Key), [Key]).
+    ?CATCH_GPROC_ERROR(monitor1(Key), [Key]).
 
 monitor1({T,g,_} = Key) when T==n; T==a ->
     ?CHK_DIST,
@@ -732,7 +736,7 @@ monitor1({T,g,_} = Key) when T==n; T==a ->
 monitor1({T,l,_} = Key) when T==n; T==a ->
     call({monitor, Key, self()}, l);
 monitor1(_) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 %% @spec demonitor(key(), reference()) -> ok
 %%
@@ -741,7 +745,7 @@ monitor1(_) ->
 %% set on a unique name. This function always succeeds given legal input.
 %% @end
 demonitor(Key, Ref) ->
-    ?CATCH(demonitor1(Key, Ref), [Key, Ref]).
+    ?CATCH_GPROC_ERROR(demonitor1(Key, Ref), [Key, Ref]).
 
 demonitor1({T,g,_} = Key, Ref) when T==n; T==a ->
     ?CHK_DIST,
@@ -749,7 +753,7 @@ demonitor1({T,g,_} = Key, Ref) when T==n; T==a ->
 demonitor1({T,l,_} = Key, Ref) when T==n; T==a ->
     call({demonitor, Key, Ref, self()}, l);
 demonitor1(_, _) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 %% @spec reg(Key::key(), Value) -> true
 %%
@@ -757,7 +761,7 @@ demonitor1(_, _) ->
 %%
 %%
 reg(Key, Value) ->
-    ?CATCH(reg1(Key, Value), [Key, Value]).
+    ?CATCH_GPROC_ERROR(reg1(Key, Value), [Key, Value]).
 
 reg1({_,g,_} = Key, Value) ->
     %% anything global
@@ -772,7 +776,7 @@ reg1({c,l,_} = Key, Value) when is_integer(Value) ->
 reg1({n,l,_} = Key, Value) ->
     call({reg, Key, Value});
 reg1(_, _) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 
 %% @spec reg_shared(Key::key()) -> true
@@ -783,7 +787,7 @@ reg1(_, _) ->
 %% `reg_shared({a,l,A}) -> reg_shared({a,l,A}, undefined).'
 %% @end
 reg_shared(Key) ->
-    ?CATCH(reg_shared1(Key), [Key]).
+    ?CATCH_GPROC_ERROR(reg_shared1(Key), [Key]).
 
 reg_shared1({c,_,_} = Key) ->
     reg_shared(Key, 0);
@@ -807,7 +811,7 @@ reg_shared1({a,_,_} = Key) ->
 %% @end
 %%
 reg_shared(Key, Value) ->
-    ?CATCH(reg_shared1(Key, Value), [Key, Value]).
+    ?CATCH_GPROC_ERROR(reg_shared1(Key, Value), [Key, Value]).
 
 reg_shared1({_,g,_} = Key, Value) ->
     %% anything global
@@ -818,7 +822,7 @@ reg_shared1({a,l,_} = Key, undefined) ->
 reg_shared1({c,l,_} = Key, Value) when is_integer(Value) ->
     call({reg_shared, Key, Value});
 reg_shared1(_, _) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 %% @spec mreg(type(), scope(), [{Key::any(), Value::any()}]) -> true
 %%
@@ -829,7 +833,7 @@ reg_shared1(_, _) ->
 %% or none are.
 %% @end
 mreg(T, C, KVL) ->
-    ?CATCH(mreg1(T, C, KVL), [T, C, KVL]).
+    ?CATCH_GPROC_ERROR(mreg1(T, C, KVL), [T, C, KVL]).
 
 mreg1(T, g, KVL) ->
     ?CHK_DIST,
@@ -843,7 +847,7 @@ mreg1(T, l, KVL) when T==a; T==n ->
 mreg1(p, l, KVL) ->
     local_mreg(p, KVL);
 mreg1(_, _, _) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 %% @spec munreg(type(), scope(), [Key::any()]) -> true
 %%
@@ -853,7 +857,7 @@ mreg1(_, _, _) ->
 %% repeatedly.
 %% @end
 munreg(T, C, L) ->
-    ?CATCH(munreg1(T, C, L), [T, C, L]).
+    ?CATCH_GPROC_ERROR(munreg1(T, C, L), [T, C, L]).
 
 munreg1(T, g, L) ->
     ?CHK_DIST,
@@ -867,7 +871,7 @@ munreg1(T, l, L) when T==a; T==n ->
 munreg1(p, l, L) ->
     local_munreg(p, existing(p,l,L));
 munreg1(_, _, _) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 existing(T,Scope,L) ->
     Keys = if T==p; T==c ->
@@ -887,7 +891,7 @@ existing(T,Scope,L) ->
 %% @doc Unregister a name or property.
 %% @end
 unreg(Key) ->
-    ?CATCH(unreg1(Key), [Key]).
+    ?CATCH_GPROC_ERROR(unreg1(Key), [Key]).
 
 unreg1(Key) ->
     case Key of
@@ -902,7 +906,7 @@ unreg1(Key) ->
                     _ = gproc_lib:remove_reg(Key, self(), unreg),
                     true;
                 false ->
-                    ?THROW(badarg)
+                    ?THROW_GPROC_ERROR(badarg)
             end
     end.
 
@@ -911,7 +915,7 @@ unreg1(Key) ->
 %% @doc Unregister a shared resource.
 %% @end
 unreg_shared(Key) ->
-    ?CATCH(unreg_shared1(Key), [Key]).
+    ?CATCH_GPROC_ERROR(unreg_shared1(Key), [Key]).
 
 unreg_shared1(Key) ->
     case Key of
@@ -921,7 +925,7 @@ unreg_shared1(Key) ->
         {T, l, _} when T == c;
                        T == a -> call({unreg_shared, Key});
         _ ->
-	    ?THROW(badarg)
+	    ?THROW_GPROC_ERROR(badarg)
     end.
 
 %% @spec (key(), pid()) -> yes | no
@@ -996,14 +1000,14 @@ select_count(Context, Pat) ->
 %%%
 local_reg(Key, Value) ->
     case gproc_lib:insert_reg(Key, Value, self(), l) of
-        false -> ?THROW(badarg);
+        false -> ?THROW_GPROC_ERROR(badarg);
         true  -> monitor_me()
     end.
 
 local_mreg(_, []) -> true;
 local_mreg(T, [_|_] = KVL) ->
     case gproc_lib:insert_many(T, l, KVL, self()) of
-        false     -> ?THROW(badarg);
+        false     -> ?THROW_GPROC_ERROR(badarg);
         {true,_}  -> monitor_me()
     end.
 
@@ -1022,7 +1026,7 @@ local_munreg(T, L) when T==p; T==c ->
 %% @end
 %%
 set_value(Key, Value) ->
-    ?CATCH(set_value1(Key, Value), [Key, Value]).
+    ?CATCH_GPROC_ERROR(set_value1(Key, Value), [Key, Value]).
 
 set_value1({_,g,_} = Key, Value) ->
     ?CHK_DIST,
@@ -1044,7 +1048,7 @@ set_value1({p,l,_} = Key, Value) ->
 set_value1({c,l,_} = Key, Value) when is_integer(Value) ->
     gproc_lib:do_set_counter_value(Key, Value, self());
 set_value1(_, _) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 %% @spec (Key) -> Value
 %% @doc Reads the value stored with a key registered to the current process.
@@ -1052,7 +1056,7 @@ set_value1(_, _) ->
 %% If no such key is registered to the current process, this function exits.
 %% @end
 get_value(Key) ->
-    ?CATCH(get_value1(Key, self()), [Key]).
+    ?CATCH_GPROC_ERROR(get_value1(Key, self()), [Key]).
 
 %% @spec (Key, Pid) -> Value
 %% @doc Reads the value stored with a key registered to the process Pid.
@@ -1062,13 +1066,13 @@ get_value(Key) ->
 %% @end
 %%
 get_value(Key, Pid) ->
-    ?CATCH(get_value1(Key, Pid), [Key, Pid]).
+    ?CATCH_GPROC_ERROR(get_value1(Key, Pid), [Key, Pid]).
 
 get_value1({T,_,_} = Key, Pid) when is_pid(Pid) ->
     if T==n orelse T==a ->
             case ets:lookup(?TAB, {Key, T}) of
                 [{_, P, Value}] when P == Pid -> Value;
-                _ -> ?THROW(badarg)
+                _ -> ?THROW_GPROC_ERROR(badarg)
             end;
        true ->
             ets:lookup_element(?TAB, {Key, Pid}, 3)
@@ -1080,10 +1084,10 @@ get_value1({T,_,_} = K, shared) when T==c; T==a ->
 	  end,
     case ets:lookup(?TAB, Key) of
 	[{_, shared, Value}] -> Value;
-	_ -> ?THROW(badarg)
+	_ -> ?THROW_GPROC_ERROR(badarg)
     end;
 get_value1(_, _) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 
 %% @spec (Key) -> Pid
@@ -1115,7 +1119,7 @@ lookup_value({T,_,_} = Key) ->
 %% @end
 %%
 where(Key) ->
-    ?CATCH(where1(Key), [Key]).
+    ?CATCH_GPROC_ERROR(where1(Key), [Key]).
 
 where1({T,_,_}=Key) ->
     if T==n orelse T==a ->
@@ -1130,12 +1134,12 @@ where1({T,_,_}=Key) ->
                     undefined
             end;
        true ->
-            ?THROW(badarg)
+            ?THROW_GPROC_ERROR(badarg)
     end.
 
 %% @equiv where/1
 whereis_name(Key) ->
-    ?CATCH(where1(Key), [Key]).
+    ?CATCH_GPROC_ERROR(where1(Key), [Key]).
 
 %% @spec (Key::key()) -> [pid()]
 %%
@@ -1180,25 +1184,32 @@ lookup_values({T,_,_} = Key) ->
         end,
     [Pair || {P,_} = Pair <- L, my_is_process_alive(P)].
 
-%% @spec (Key::key(), Incr::integer()) -> integer()
+%% @spec (Key::key(), Incr) -> integer() | [integer()]
+%%    Incr = IncrVal | UpdateOp | [UpdateOp]
+%%    UpdateOp = IncrVal | {IncrVal, Threshold, SetValue}
+%%    IncrVal = integer()
 %%
 %% @doc Updates the counter registered as Key for the current process.
 %%
-%% This function works like ets:update_counter/3
+%% This function works almost exactly like ets:update_counter/3
 %% (see [http://www.erlang.org/doc/man/ets.html#update_counter-3]), but
 %% will fail if the type of object referred to by Key is not a counter.
+%%
+%% Aggregated counters with the same name will be updated automatically.
+%% The `UpdateOp' patterns are the same as for `ets:update_counter/3', except
+%% that the position is omitted; in gproc, the value position is always `3'.
 %% @end
 %%
 update_counter(Key, Incr) ->
-    ?CATCH(update_counter1(Key, Incr), [Key, Incr]).
+    ?CATCH_GPROC_ERROR(update_counter1(Key, Incr), [Key, Incr]).
 
-update_counter1({c,l,_} = Key, Incr) when is_integer(Incr) ->
+update_counter1({c,l,_} = Key, Incr) ->
     gproc_lib:update_counter(Key, Incr, self());
-update_counter1({c,g,_} = Key, Incr) when is_integer(Incr) ->
+update_counter1({c,g,_} = Key, Incr) ->
     ?CHK_DIST,
     gproc_dist:update_counter(Key, Incr);
 update_counter1(_, _) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 
 %% @spec (Key) -> {ValueBefore, ValueAfter}
@@ -1216,7 +1227,7 @@ update_counter1(_, _) ->
 %% @end
 %%
 reset_counter(Key) ->
-    ?CATCH(reset_counter1(Key), [Key]).
+    ?CATCH_GPROC_ERROR(reset_counter1(Key), [Key]).
 
 reset_counter1({c,g,_} = Key) ->
     ?CHK_DIST,
@@ -1230,8 +1241,24 @@ reset_counter1({c,l,_} = Key) ->
 	      end,
     {Current, update_counter(Key, Initial - Current)}.
 
+%% @spec (Key::key(), Incr) -> integer() | [integer()]
+%%    Incr = IncrVal | UpdateOp | [UpdateOp]
+%%    UpdateOp = IncrVal | {IncrVal, Threshold, SetValue}
+%%    IncrVal = integer()
+%%
+%% @doc Updates the shared counter registered as Key.
+%%
+%% This function works almost exactly like ets:update_counter/3
+%% (see [http://www.erlang.org/doc/man/ets.html#update_counter-3]), but
+%% will fail if the type of object referred to by Key is not a counter.
+%%
+%% Aggregated counters with the same name will be updated automatically.
+%% The `UpdateOp' patterns are the same as for `ets:update_counter/3', except
+%% that the position is omitted; in gproc, the value position is always `3'.
+%% @end
+%%
 update_shared_counter(Key, Incr) ->
-    ?CATCH(update_shared_counter1(Key, Incr), [Key, Incr]).
+    ?CATCH_GPROC_ERROR(update_shared_counter1(Key, Incr), [Key, Incr]).
 
 update_shared_counter1({c,g,_} = Key, Incr) ->
     ?CHK_DIST,
@@ -1258,7 +1285,7 @@ update_shared_counter1({c,l,_} = Key, Incr) ->
 %% registered.
 %% @end
 give_away(Key, ToPid) ->
-    ?CATCH(give_away1(Key, ToPid), [Key, ToPid]).
+    ?CATCH_GPROC_ERROR(give_away1(Key, ToPid), [Key, ToPid]).
 
 give_away1({_,l,_} = Key, ToPid) when is_pid(ToPid), node(ToPid) == node() ->
     call({give_away, Key, ToPid});
@@ -1290,7 +1317,7 @@ goodbye() ->
 %% @end
 %%
 send(Key, Msg) ->
-    ?CATCH(send1(Key, Msg), [Key, Msg]).
+    ?CATCH_GPROC_ERROR(send1(Key, Msg), [Key, Msg]).
 
 send1({T,C,_} = Key, Msg) when C==l; C==g ->
     if T == n orelse T == a ->
@@ -1298,7 +1325,7 @@ send1({T,C,_} = Key, Msg) when C==l; C==g ->
                 [{_, Pid, _}] ->
                     Pid ! Msg;
                 _ ->
-                    ?THROW(badarg)
+                    ?THROW_GPROC_ERROR(badarg)
             end;
        T==p orelse T==c ->
             %% BUG - if the key part contains select wildcards, we may end up
@@ -1311,7 +1338,7 @@ send1({T,C,_} = Key, Msg) when C==l; C==g ->
             erlang:error(badarg)
     end;
 send1(_, _) ->
-    ?THROW(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 
 %% @spec (Context :: context()) -> key() | '$end_of_table'
@@ -1654,7 +1681,7 @@ call(Req, g) ->
 
 chk_reply(Reply) ->
     case Reply of
-        badarg -> ?THROW(badarg);
+        badarg -> ?THROW_GPROC_ERROR(badarg);
         _  -> Reply
     end.
 

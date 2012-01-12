@@ -17,11 +17,11 @@
 %%
 %% gproc_int.hrl: Shared internal definitions
 
--define(CATCH(Expr, Args),
+-define(CATCH_GPROC_ERROR(Expr, Args),
 	try Expr
 	catch
 	    throw:{gproc_error, GprocError} ->
 		erlang:error(GprocError, Args)
 	end).
 
--define(THROW(E), throw({gproc_error, E})).
+-define(THROW_GPROC_ERROR(E), throw({gproc_error, E})).
