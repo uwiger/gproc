@@ -160,7 +160,7 @@ enable_single(Scope, Event) when Scope==l; Scope==g ->
     gproc:update_counter({c,Scope,{?ETag,Event}}, {1, 1, 1}).
 
 -spec tell_singles(scope(), event(), msg()) -> [pid()].
-%% @doc Publish `Msg` to all single-shot subscribers of `Event'
+%% @doc Publish `Msg' to all single-shot subscribers of `Event'
 %%
 %% The subscriber status of each active subscriber is changed to `0' (disabled) before
 %% delivering the message. This reduces the risk that two different processes will be able
