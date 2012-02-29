@@ -33,3 +33,11 @@
 -type key()     :: {type(), scope(), any()}.
 
 -type sel_pattern() :: [{headpat(), list(), list()}].
+
+%% update_counter increment
+-type ctr_incr()   :: integer().
+-type ctr_thr()    :: integer().
+-type ctr_setval() :: integer().
+-type ctr_update()  :: ctr_incr()
+		     | {ctr_incr(), ctr_thr(), ctr_setval()}.
+-type increment() :: ctr_incr() | ctr_update() | [ctr_update()].

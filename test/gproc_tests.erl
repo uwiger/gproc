@@ -75,6 +75,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_aggr_counter()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_update_counters()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_prop()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_await()))}
@@ -151,6 +153,30 @@ t_simple_aggr_counter() ->
     ?assert(gproc:get_value({a,l,c1}) =:= 8),
     ?assert(gproc:update_counter({c,l,c1}, 4) =:= 7),
     ?assert(gproc:get_value({a,l,c1}) =:= 12),
+    P1 ! {self(), goodbye},
+    R = erlang:monitor(process, P1),
+    receive {'DOWN', R, _, _, _} ->
+	    gproc:audit_process(P1)
+    end,
+    ?assert(gproc:get_value({a,l,c1}) =:= 7).
+
+t_update_counters() ->
+    ?assert(gproc:reg({c,l,c1}, 3) =:= true),
+    ?assert(gproc:reg({a,l,c1}) =:= true),
+    ?assert(gproc:get_value({a,l,c1}) =:= 3),
+    P = self(),
+    P1 = spawn_link(fun() ->
+			    gproc:reg({c,l,c1}, 5),
+			    P ! {self(), ok},
+			    receive
+				{P, goodbye} -> ok
+			    end
+		    end),
+    receive {P1, ok} -> ok end,
+    ?assert(gproc:get_value({a,l,c1}) =:= 8),
+    ?assertEqual([7,8], gproc:update_counters(l, [{{c,l,c1}, self(), 4},
+						  {{c,l,c1}, P1, 3}])),
+    ?assert(gproc:get_value({a,l,c1}) =:= 15),
     P1 ! {self(), goodbye},
     R = erlang:monitor(process, P1),
     receive {'DOWN', R, _, _, _} ->

@@ -58,6 +58,14 @@
 %% @type sel_var() = DollarVar | '_'.
 %% @type sel_pattern() = [{headpat(), Guards, Prod}].
 %% @type key()   = {type(), scope(), any()}.
+%%
+%% update_counter increment
+%% @type ctr_incr()   = integer().
+%% @type ctr_thr()    = integer().
+%% @type ctr_setval() = integer().
+%% @type ctr_update()  = ctr_incr()
+%% 		     | {ctr_incr(), ctr_thr(), ctr_setval()}.
+%% @type increment() = ctr_incr() | ctr_update() | [ctr_update()].
 
 -module(gproc).
 -behaviour(gen_server).
@@ -81,6 +89,7 @@
          lookup_value/1,
          lookup_values/1,
          update_counter/2,
+	 update_counters/2,
 	 reset_counter/1,
 	 update_shared_counter/2,
          give_away/2,
@@ -1184,7 +1193,7 @@ lookup_values({T,_,_} = Key) ->
         end,
     [Pair || {P,_} = Pair <- L, my_is_process_alive(P)].
 
-%% @spec (Key::key(), Incr) -> integer() | [integer()]
+%% @ spec (Key::key(), Incr) -> integer() | [integer()]
 %%    Incr = IncrVal | UpdateOp | [UpdateOp]
 %%    UpdateOp = IncrVal | {IncrVal, Threshold, SetValue}
 %%    IncrVal = integer()
@@ -1200,6 +1209,7 @@ lookup_values({T,_,_} = Key) ->
 %% that the position is omitted; in gproc, the value position is always `3'.
 %% @end
 %%
+-spec update_counter(key(), increment()) -> integer().
 update_counter(Key, Incr) ->
     ?CATCH_GPROC_ERROR(update_counter1(Key, Incr), [Key, Incr]).
 
@@ -1210,6 +1220,29 @@ update_counter1({c,g,_} = Key, Incr) ->
     gproc_dist:update_counter(Key, Incr);
 update_counter1(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
+
+%% @doc Update a list of counters
+%%
+%% This function is not atomic, except (in a sense) for global counters. For local counters,
+%% it is more of a convenience function. For global counters, it is much more efficient
+%% than calling `gproc:update_counter/2' for each individual counter.
+%% @end
+-spec update_counters(scope(), [{key(), pid(), increment()}]) -> [integer()].
+update_counters(l, Cs) ->
+    ?CATCH_GPROC_ERROR(update_counters1(Cs), [Cs]);
+update_counters(g, Cs) ->
+    ?CHK_DIST,
+    gproc_dist:update_counters(Cs).
+
+
+update_counters1([{{c,l,_} = Key, Pid, Incr}|T]) ->
+    [gproc_lib:update_counter(Key, Incr, Pid)|update_counters1(T)];
+update_counters1([]) ->
+    [];
+update_counters1(_) ->
+    ?THROW_GPROC_ERROR(badarg).
+
+
 
 
 %% @spec (Key) -> {ValueBefore, ValueAfter}

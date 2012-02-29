@@ -127,5 +127,6 @@ Freiburg 2007 ([Paper available here](http://github.com/esl/gproc/blob/master/do
 <tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_init.md" class="module">gproc_init</a></td></tr>
 <tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_lib.md" class="module">gproc_lib</a></td></tr>
 <tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_monitor.md" class="module">gproc_monitor</a></td></tr>
+<tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_ps.md" class="module">gproc_ps</a></td></tr>
 <tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_sup.md" class="module">gproc_sup</a></td></tr></table>
 

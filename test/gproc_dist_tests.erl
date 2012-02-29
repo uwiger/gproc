@@ -50,6 +50,9 @@ dist_test_() ->
 			       	       ?debugVal(t_aggr_counter(Ns))
 			       end,
 			       fun() ->
+			       	       ?debugVal(t_update_counters(Ns))
+			       end,
+			       fun() ->
 			       	       ?debugVal(t_shared_counter(Ns))
 			       end,
 			       fun() ->
@@ -139,6 +142,29 @@ t_aggr_counter([H1,H2|_] = Ns) ->
     ?assertMatch(ok, t_read_everywhere(Aggr, Pa, Ns, 3)),
     ?assertMatch(ok, t_call(Pc2, die)),
     ?assertMatch(ok, t_call(Pa, die)).
+
+t_update_counters([H1,H2|_] = Ns) ->
+    {c,g,N1} = C1 = ?T_COUNTER,
+    A1 = {a,g,N1},
+    C2 = ?T_COUNTER,
+    P1 = t_spawn_reg(H1, C1, 2),
+    P12 = t_spawn_reg(H2, C1, 2),
+    P2 = t_spawn_reg(H2, C2, 1),
+    Pa1 = t_spawn_reg(H2, A1),
+    ?assertMatch(ok, t_read_everywhere(C1, P1, Ns, 2)),
+    ?assertMatch(ok, t_read_everywhere(C1, P12, Ns, 2)),
+    ?assertMatch(ok, t_read_everywhere(C2, P2, Ns, 1)),
+    ?assertMatch(ok, t_read_everywhere(A1, Pa1, Ns, 4)),
+    ?debugFmt("code:which(gproc_dist) = ~p~n", [code:which(gproc_dist)]),
+    ?assertMatch([3,4,0], t_call(P1, {apply, gproc, update_counters,
+				      [g, [{C1,P1,1},{C1,P12,2},{C2,P2,{-2,0,0}}]]})),
+    ?assertMatch(ok, t_read_everywhere(C1, P1, Ns, 3)),
+    ?assertMatch(ok, t_read_everywhere(C1, P12, Ns, 4)),
+    ?assertMatch(ok, t_read_everywhere(C2, P2, Ns, 0)),
+    ?assertMatch(ok, t_read_everywhere(A1, Pa1, Ns, 7)),
+    ?assertMatch(ok, t_call(P1, die)),
+    ?assertMatch(ok, t_call(P12, die)),
+    ?assertMatch(ok, t_call(P2, die)).
 
 
 t_mreg([H|_] = Ns) ->
