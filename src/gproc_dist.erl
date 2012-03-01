@@ -653,10 +653,10 @@ batch_update_counters(Cs) ->
 batch_update_counters([{{c,g,_} = Key, Pid, Incr}|T], Returns, Updates) ->
     case update_counter_g(Key, Incr, Pid) of
 	[{_,_,_} = A, {_, _, V} = C] ->
-	    batch_update_counters(T, [V|Returns], add_object(
-						    A, add_object(C, Updates)));
+	    batch_update_counters(T, [{Key,Pid,V}|Returns], add_object(
+							      A, add_object(C, Updates)));
 	[{_, _, V} = C] ->
-	    batch_update_counters(T, [V|Returns], add_object(C, Updates))
+	    batch_update_counters(T, [{Key,Pid,V}|Returns], add_object(C, Updates))
     end;
 batch_update_counters([], Returns, Updates) ->
     {lists:reverse(Returns), Updates}.

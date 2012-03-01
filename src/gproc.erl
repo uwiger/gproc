@@ -1226,17 +1226,22 @@ update_counter1(_, _) ->
 %% This function is not atomic, except (in a sense) for global counters. For local counters,
 %% it is more of a convenience function. For global counters, it is much more efficient
 %% than calling `gproc:update_counter/2' for each individual counter.
+%%
+%% The return value is the corresponding list of `[{Counter, Pid, NewValue}]'.
 %% @end
--spec update_counters(scope(), [{key(), pid(), increment()}]) -> [integer()].
-update_counters(l, Cs) ->
+-spec update_counters(scope(), [{key(), pid(), increment()}]) ->
+			     [{key(), pid(), integer()}].
+update_counters(_, []) ->
+    [];
+update_counters(l, [_|_] = Cs) ->
     ?CATCH_GPROC_ERROR(update_counters1(Cs), [Cs]);
-update_counters(g, Cs) ->
+update_counters(g, [_|_] = Cs) ->
     ?CHK_DIST,
     gproc_dist:update_counters(Cs).
 
 
 update_counters1([{{c,l,_} = Key, Pid, Incr}|T]) ->
-    [gproc_lib:update_counter(Key, Incr, Pid)|update_counters1(T)];
+    [{Key, Pid, gproc_lib:update_counter(Key, Incr, Pid)}|update_counters1(T)];
 update_counters1([]) ->
     [];
 update_counters1(_) ->

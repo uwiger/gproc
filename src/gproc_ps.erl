@@ -45,6 +45,7 @@
 	 disable_single/2,
 	 enable_single/2,
 	 tell_singles/3,
+	 notify_single_if_true/4,
 	 list_singles/2]).
 
 -define(ETag, gproc_ps_event).
@@ -177,7 +178,7 @@ tell_singles(Scope, Event, Msg) when Scope==l; Scope==g ->
 	     {Scope,c},
 	     [{ {{c,Scope,{?ETag,Event}}, '$1', 1}, [],
 		[{{ {{c,Scope, {{?ETag,Event}} }}, '$1', {{-1,0,0}} }}] }]),
-    gproc:update_counters(Scope, Subs),
+    _ = gproc:update_counters(Scope, Subs),
     [begin P ! {?ETag, Event, Msg}, P end || {_,P,_} <- Subs].
 
 -spec list_singles(scope(), event()) -> [{pid(), status()}].
@@ -186,3 +187,25 @@ tell_singles(Scope, Event, Msg) when Scope==l; Scope==g ->
 list_singles(Scope, Event) ->
     gproc:select({Scope,c}, [{ {{c,Scope,{?ETag,Event}}, '$1', '$2'},
 			       [], [{{'$1','$2'}}] }]).
+
+-spec notify_single_if_true(scope(), event(), fun(() -> boolean()), msg()) -> ok.
+%% @doc Create/enable a single subscription for event; notify at once if F() -> true
+%%
+%% This function is a convenience function, wrapping a single-shot pub/sub around a
+%% user-provided boolean test. `Msg' should be what the publisher will send later, if the
+%% immediate test returns `false'.
+%% @end
+notify_single_if_true(Scope, Event, F, Msg) ->
+    try enable_single(Scope, Event)
+    catch
+	error:_ ->
+	    create_single(Scope, Event)
+    end,
+    case F() of
+	true ->
+	    disable_single(Scope, Event),
+	    self() ! {?ETag, Event, Msg},
+	    ok;
+	false ->
+	    ok
+    end.

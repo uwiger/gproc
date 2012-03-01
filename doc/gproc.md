@@ -1388,7 +1388,7 @@ that the position is omitted; in gproc, the value position is always `3`.<a name
 
 
 
-<pre>update_counters(X1::<a href="#type-scope">scope()</a>, Cs::[{<a href="#type-key">key()</a>, pid(), <a href="#type-increment">increment()</a>}]) -> [integer()]</pre>
+<pre>update_counters(X1::<a href="#type-scope">scope()</a>, Cs::[{<a href="#type-key">key()</a>, pid(), <a href="#type-increment">increment()</a>}]) -> [{<a href="#type-key">key()</a>, pid(), integer()}]</pre>
 <br></br>
 
 
@@ -1398,9 +1398,13 @@ that the position is omitted; in gproc, the value position is always `3`.<a name
 
 Update a list of counters
 
+
+
 This function is not atomic, except (in a sense) for global counters. For local counters,
 it is more of a convenience function. For global counters, it is much more efficient
-than calling `gproc:update_counter/2` for each individual counter.<a name="update_shared_counter-2"></a>
+than calling `gproc:update_counter/2` for each individual counter.
+
+The return value is the corresponding list of `[{Counter, Pid, NewValue}]`.<a name="update_shared_counter-2"></a>
 
 ###update_shared_counter/2##
 
