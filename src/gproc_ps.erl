@@ -177,9 +177,17 @@ tell_singles(Scope, Event, Msg) when Scope==l; Scope==g ->
     Subs = gproc:select(
 	     {Scope,c},
 	     [{ {{c,Scope,{?ETag,Event}}, '$1', 1}, [],
-		[{{ {{c,Scope, {{?ETag,Event}} }}, '$1', {{-1,0,0}} }}] }]),
+		[{{ {{c,Scope, {{?ETag,wrap(Event)}} }}, '$1', {{-1,0,0}} }}] }]),
     _ = gproc:update_counters(Scope, Subs),
     [begin P ! {?ETag, Event, Msg}, P end || {_,P,_} <- Subs].
+
+wrap(E) when is_tuple(E) ->
+    {list_to_tuple([wrap(X) || X <- tuple_to_list(E)])};
+wrap(E) when is_list(E) ->
+    [wrap(X) || X <- E];
+wrap(X) ->
+    X.
+
 
 -spec list_singles(scope(), event()) -> [{pid(), status()}].
 %% @doc Lists all single-shot subscribers of Event, together with their status
