@@ -24,7 +24,7 @@
 
 DIRS=src
 
-all: compile eunit test doc
+all: compile
 
 check: compile dialyzer
 
