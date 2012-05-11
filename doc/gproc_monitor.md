@@ -21,8 +21,8 @@ __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.c
 
 
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>
-Starts the server.</td></tr><tr><td valign="top"><a href="#subscribe-1">subscribe/1</a></td><td>  
-Subscribe to registration events for a certain name.</td></tr><tr><td valign="top"><a href="#unsubscribe-1">unsubscribe/1</a></td><td>  
+Starts the server.</td></tr><tr><td valign="top"><a href="#subscribe-1">subscribe/1</a></td><td>
+Subscribe to registration events for a certain name.</td></tr><tr><td valign="top"><a href="#unsubscribe-1">unsubscribe/1</a></td><td>
 Unsubscribe from registration events for a certain name.</td></tr></table>
 
 
@@ -60,17 +60,13 @@ Starts the server
 
 
 
-  
+
 Subscribe to registration events for a certain name
-
-
 
 The subscribing process will receive a `{gproc_monitor, Name, Pid}` message
 whenever a process registers under the given name, and a
-`{gproc_monitor, Name, undefined}` message when the name is unregistered,  
-either explicitly, or because the registered process dies.
-
-When the subscription is first ordered, one of the above messages will be
+`{gproc_monitor, Name, undefined}` message when the name is unregistered,
+either explicitly, or because the registered process dies.When the subscription is first ordered, one of the above messages will be
 sent immediately, indicating the current status of the name.<a name="unsubscribe-1"></a>
 
 ###unsubscribe/1##
@@ -86,7 +82,5 @@ sent immediately, indicating the current status of the name.<a name="unsubscribe
 
 
 
-  
-Unsubscribe from registration events for a certain name
 
-This function is the reverse of subscribe/1. It removes the subscription.
+Unsubscribe from registration events for a certain nameThis function is the reverse of subscribe/1. It removes the subscription.

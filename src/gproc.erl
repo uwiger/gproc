@@ -13,7 +13,7 @@
 %% Portions created by Ericsson are Copyright 1999, Ericsson Utvecklings
 %% AB. All Rights Reserved.''
 %%
-%% @author Ulf Wiger <ulf.wiger@erlang-consulting.com>
+%% @author Ulf Wiger <ulf@wiger.net>
 %%
 %% @doc Extended process registry
 %% This module implements an extended process registry
@@ -32,8 +32,8 @@
 %% * `{ets_options, list()}' - Currently, the options `{write_concurrency, F}'
 %%   and `{read_concurrency, F}' are allowed. The default is
 %%   `[{write_concurrency, true}, {read_concurrency, true}]'
-%% * `{server_options, list()}' - These will be passed as spawn options when 
-%%   starting the `gproc' and `gproc_dist' servers. Default is `[]'. It is 
+%% * `{server_options, list()}' - These will be passed as spawn options when
+%%   starting the `gproc' and `gproc_dist' servers. Default is `[]'. It is
 %%   likely that `{priority, high | max}' and/or increasing `min_heap_size'
 %%   will improve performance.
 %%
@@ -221,7 +221,7 @@ add_local_counter(Name, Initial) when is_integer(Initial) ->
 
 %% spec(Name::any(), Initial::integer()) -> true
 %%
-%% @doc Registers a local shared (unique) counter. 
+%% @doc Registers a local shared (unique) counter.
 %% @equiv reg_shared({c,l,Name},Value)
 %% @end
 %%
@@ -952,26 +952,49 @@ register_name({n,_,_} = Name, Pid) when Pid == self() ->
 unregister_name(Key) ->
     unreg(Key).
 
-%% @spec (Continuation ::term()) -> {[Match],Continuation} | '$end_of_table'
-%% @doc
-%% see http://www.erlang.org/doc/man/ets.html#select-1
+%% @spec select(Arg) -> [Match] | {[Match], Continuation} | '$end_of_table'
+%%   where  Arg = Continuation
+%%                | sel_pattern()
+%%          Match = {Key, Pid, Value}
+%% @doc Perform a select operation on the process registry
+%%
+%% When Arg = Contination, resume a gproc:select/1 operation
+%% (see {@link //stdlib/ets:select/1. ets:select/1}
+%%
+%% When Arg = {@type sel_pattern()}, this function executes a select operation,
+%% emulating ets:select/1
+%%
+%% {@link select/2} offers the opportunity to narrow the search
+%% (by limiting to only global or local scope, or a single type of object).
+%% When only a pattern as single argument is given, both global and local scope,
+%% as well as all types of object can be searched. Note that the pattern may
+%% still limit the select operation so that scanning the entire table is avoided.
+%%
+%% The physical representation in the registry may differ from the above,
+%% but the select patterns are transformed appropriately. The logical
+%% representation for the gproc select operations is given by
+%% {@type headpat()}.
 %% @end
 select({?TAB, _, _, _, _, _, _, _} = Continuation) ->
     ets:select(Continuation);
-
-%% @spec (select_pattern()) -> list(sel_object())
-%% @doc
-%% @equiv select(all, Pat)
-%% @end
 select(Pat) ->
     select(all, Pat).
 
 %% @spec (Context::context(), Pat::sel_pattern()) -> [{Key, Pid, Value}]
 %%
-%% @doc Perform a select operation on the process registry.
+%% @doc Perform a select operation with limited context on the process registry
 %%
 %% The physical representation in the registry may differ from the above,
 %% but the select patterns are transformed appropriately.
+%%
+%% Note that limiting the context is just a convenience function, allowing you
+%% to write a simpler select pattern and still avoid searching the entire
+%% registry. Whenever variables are used in the head pattern, this will result
+%% in a wider scan, even if the values are restricted through a guard (e.g.
+%% <code>select([{'$1','$2','$3'}, [{'==', '$1', p}], ...])</code> will count as a wild
+%% pattern on the key and result in a full scan). In this case, specifying a
+%% Context will allow gproc to perform some variable substitution and ensure
+%% that the scan is limited.
 %% @end
 select(Context, Pat) ->
     ets:select(?TAB, pattern(Pat, Context)).
@@ -986,7 +1009,7 @@ select(Context, Pat, Limit) ->
     ets:select(?TAB, pattern(Pat, Context), Limit).
 
 
-%% @spec (select_pattern()) -> list(sel_object())
+%% @spec (sel_pattern()) -> list(sel_object())
 %% @doc
 %% @equiv select_count(all, Pat)
 %% @end

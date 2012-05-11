@@ -12,7 +12,7 @@ Extended process registry.
 
 __Behaviours:__ [`gen_leader`](/Users/uwiger/FL/git/gen_leader/doc/gen_leader.md).
 
-__Authors:__ Ulf Wiger ([`ulf.wiger@erlang-solutions.com`](mailto:ulf.wiger@erlang-solutions.com)).<a name="description"></a>
+__Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)).<a name="description"></a>
 
 ##Description##
 
@@ -288,9 +288,7 @@ Scope = l | g (global or local)<a name="reg_shared-2"></a>
 
 
 
-Synchronize with the gproc leader
-
-This function can be used to ensure that data has been replicated from the
+Synchronize with the gproc leaderThis function can be used to ensure that data has been replicated from the
 leader to the current node. It does so by asking the leader to ping all
 live participating nodes. The call will return `true` when all these nodes
 have either responded or died. In the special case where the leader dies

@@ -13,7 +13,7 @@
 %% Portions created by Ericsson are Copyright 1999, Ericsson Utvecklings
 %% AB. All Rights Reserved.''
 %%
-%% @author Ulf Wiger <ulf.wiger@feuerlabs.com>
+%% @author Ulf Wiger <ulf@wiger.net>
 %%
 %% @doc Gproc Publish/Subscribe patterns
 %% This module implements a few convenient functions for publish/subscribe.

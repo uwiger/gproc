@@ -13,7 +13,7 @@
 %% Portions created by Ericsson are Copyright 1999, Ericsson Utvecklings
 %% AB. All Rights Reserved.''
 %%
-%% @author Ulf Wiger <ulf.wiger@ericsson.com>
+%% @author Ulf Wiger <ulf@wiger.net>
 %%
 %% @doc Extended process registry
 %% <p>This module implements an extended process registry</p>

@@ -7,37 +7,29 @@
 * [Function Details](#functions)
 
 
-Extended process registry  
+Extended process registry
 This module implements an extended process registry.
 
 
 
 __Behaviours:__ [`gen_server`](gen_server.md).
 
-__Authors:__ Ulf Wiger ([`ulf.wiger@erlang-consulting.com`](mailto:ulf.wiger@erlang-consulting.com)).<a name="description"></a>
+__Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)).<a name="description"></a>
 
 ##Description##
-
-
 
 
 For a detailed description, see
 [erlang07-wiger.pdf](erlang07-wiger.pdf).
 
-
-
 ##Tuning Gproc performance##
-
-
 
 
 Gproc relies on a central server and an ordered-set ets table.
 Effort is made to perform as much work as possible in the client without
 sacrificing consistency. A few things can be tuned by setting the following
 application environment variables in the top application of `gproc`
-(usually `gproc`):
-
-* `{ets_options, list()}` - Currently, the options `{write_concurrency, F}`
+(usually `gproc`):* `{ets_options, list()}` - Currently, the options `{write_concurrency, F}`
 and `{read_concurrency, F}` are allowed. The default is
 `[{write_concurrency, true}, {read_concurrency, true}]`
 * `{server_options, list()}` - These will be passed as spawn options when
@@ -210,12 +202,11 @@ a = aggregate_counter
 
 
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_global_aggr_counter-1">add_global_aggr_counter/1</a></td><td>Registers a global (unique) aggregated counter.</td></tr><tr><td valign="top"><a href="#add_global_counter-2">add_global_counter/2</a></td><td>Registers a global (non-unique) counter.</td></tr><tr><td valign="top"><a href="#add_global_name-1">add_global_name/1</a></td><td>Registers a global (unique) name.</td></tr><tr><td valign="top"><a href="#add_global_property-2">add_global_property/2</a></td><td>Registers a global (non-unique) property.</td></tr><tr><td valign="top"><a href="#add_local_aggr_counter-1">add_local_aggr_counter/1</a></td><td>Registers a local (unique) aggregated counter.</td></tr><tr><td valign="top"><a href="#add_local_counter-2">add_local_counter/2</a></td><td>Registers a local (non-unique) counter.</td></tr><tr><td valign="top"><a href="#add_local_name-1">add_local_name/1</a></td><td>Registers a local (unique) name.</td></tr><tr><td valign="top"><a href="#add_local_property-2">add_local_property/2</a></td><td>Registers a local (non-unique) property.</td></tr><tr><td valign="top"><a href="#add_shared_local_counter-2">add_shared_local_counter/2</a></td><td>Registers a local shared (unique) counter.</td></tr><tr><td valign="top"><a href="#audit_process-1">audit_process/1</a></td><td></td></tr><tr><td valign="top"><a href="#await-1">await/1</a></td><td>Equivalent to <a href="#await-2"><tt>await(Key, infinity)</tt></a>.</td></tr><tr><td valign="top"><a href="#await-2">await/2</a></td><td>Wait for a local name to be registered.</td></tr><tr><td valign="top"><a href="#cancel_wait-2">cancel_wait/2</a></td><td>Cancels a previous call to nb_wait/1.</td></tr><tr><td valign="top"><a href="#cancel_wait_or_monitor-1">cancel_wait_or_monitor/1</a></td><td></td></tr><tr><td valign="top"><a href="#default-1">default/1</a></td><td></td></tr><tr><td valign="top"><a href="#demonitor-2">demonitor/2</a></td><td>Remove a monitor on a registered name
-This function is the reverse of monitor/1.</td></tr><tr><td valign="top"><a href="#first-1">first/1</a></td><td>Behaves as ets:first(Tab) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#get_env-3">get_env/3</a></td><td>Equivalent to <a href="#get_env-4"><tt>get_env(Scope, App, Key, [app_env])</tt></a>.</td></tr><tr><td valign="top"><a href="#get_env-4">get_env/4</a></td><td>Read an environment value, potentially cached as a <code>gproc_env</code> property.</td></tr><tr><td valign="top"><a href="#get_set_env-3">get_set_env/3</a></td><td>Equivalent to <a href="#get_set_env-4"><tt>get_set_env(Scope, App, Key, [app_env])</tt></a>.</td></tr><tr><td valign="top"><a href="#get_set_env-4">get_set_env/4</a></td><td>Fetch and cache an environment value, if not already cached.</td></tr><tr><td valign="top"><a href="#get_value-1">get_value/1</a></td><td>Reads the value stored with a key registered to the current process.</td></tr><tr><td valign="top"><a href="#get_value-2">get_value/2</a></td><td>Reads the value stored with a key registered to the process Pid.</td></tr><tr><td valign="top"><a href="#give_away-2">give_away/2</a></td><td>Atomically transfers the key <code>From</code> to the process identified by <code>To</code>.</td></tr><tr><td valign="top"><a href="#goodbye-0">goodbye/0</a></td><td>Unregister all items of the calling process and inform gproc  
+This function is the reverse of monitor/1.</td></tr><tr><td valign="top"><a href="#first-1">first/1</a></td><td>Behaves as ets:first(Tab) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#get_env-3">get_env/3</a></td><td>Equivalent to <a href="#get_env-4"><tt>get_env(Scope, App, Key, [app_env])</tt></a>.</td></tr><tr><td valign="top"><a href="#get_env-4">get_env/4</a></td><td>Read an environment value, potentially cached as a <code>gproc_env</code> property.</td></tr><tr><td valign="top"><a href="#get_set_env-3">get_set_env/3</a></td><td>Equivalent to <a href="#get_set_env-4"><tt>get_set_env(Scope, App, Key, [app_env])</tt></a>.</td></tr><tr><td valign="top"><a href="#get_set_env-4">get_set_env/4</a></td><td>Fetch and cache an environment value, if not already cached.</td></tr><tr><td valign="top"><a href="#get_value-1">get_value/1</a></td><td>Reads the value stored with a key registered to the current process.</td></tr><tr><td valign="top"><a href="#get_value-2">get_value/2</a></td><td>Reads the value stored with a key registered to the process Pid.</td></tr><tr><td valign="top"><a href="#give_away-2">give_away/2</a></td><td>Atomically transfers the key <code>From</code> to the process identified by <code>To</code>.</td></tr><tr><td valign="top"><a href="#goodbye-0">goodbye/0</a></td><td>Unregister all items of the calling process and inform gproc
 to forget about the calling process.</td></tr><tr><td valign="top"><a href="#i-0">i/0</a></td><td>Similar to the built-in shell command <code>i()</code> but inserts information
 about names and properties registered in Gproc, where applicable.</td></tr><tr><td valign="top"><a href="#info-1">info/1</a></td><td>Similar to <code>process_info(Pid)</code> but with additional gproc info.</td></tr><tr><td valign="top"><a href="#info-2">info/2</a></td><td>Similar to process_info(Pid, Item), but with additional gproc info.</td></tr><tr><td valign="top"><a href="#last-1">last/1</a></td><td>Behaves as ets:last(Tab) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#lookup_global_aggr_counter-1">lookup_global_aggr_counter/1</a></td><td>Lookup a global (unique) aggregated counter and returns its value.</td></tr><tr><td valign="top"><a href="#lookup_global_counters-1">lookup_global_counters/1</a></td><td>Look up all global (non-unique) instances of a given Counter.</td></tr><tr><td valign="top"><a href="#lookup_global_name-1">lookup_global_name/1</a></td><td>Lookup a global unique name.</td></tr><tr><td valign="top"><a href="#lookup_global_properties-1">lookup_global_properties/1</a></td><td>Look up all global (non-unique) instances of a given Property.</td></tr><tr><td valign="top"><a href="#lookup_local_aggr_counter-1">lookup_local_aggr_counter/1</a></td><td>Lookup a local (unique) aggregated counter and returns its value.</td></tr><tr><td valign="top"><a href="#lookup_local_counters-1">lookup_local_counters/1</a></td><td>Look up all local (non-unique) instances of a given Counter.</td></tr><tr><td valign="top"><a href="#lookup_local_name-1">lookup_local_name/1</a></td><td>Lookup a local unique name.</td></tr><tr><td valign="top"><a href="#lookup_local_properties-1">lookup_local_properties/1</a></td><td>Look up all local (non-unique) instances of a given Property.</td></tr><tr><td valign="top"><a href="#lookup_pid-1">lookup_pid/1</a></td><td>Lookup the Pid stored with a key.</td></tr><tr><td valign="top"><a href="#lookup_pids-1">lookup_pids/1</a></td><td>Returns a list of pids with the published key Key.</td></tr><tr><td valign="top"><a href="#lookup_value-1">lookup_value/1</a></td><td>Lookup the value stored with a key.</td></tr><tr><td valign="top"><a href="#lookup_values-1">lookup_values/1</a></td><td>Retrieve the <code>{Pid,Value}</code> pairs corresponding to Key.</td></tr><tr><td valign="top"><a href="#monitor-1">monitor/1</a></td><td>monitor a registered name
 This function works much like erlang:monitor(process, Pid), but monitors
-a unique name registered via gproc.</td></tr><tr><td valign="top"><a href="#mreg-3">mreg/3</a></td><td>Register multiple {Key,Value} pairs of a given type and scope.</td></tr><tr><td valign="top"><a href="#munreg-3">munreg/3</a></td><td>Unregister multiple Key items of a given type and scope.</td></tr><tr><td valign="top"><a href="#nb_wait-1">nb_wait/1</a></td><td>Wait for a local name to be registered.</td></tr><tr><td valign="top"><a href="#next-2">next/2</a></td><td>Behaves as ets:next(Tab,Key) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#prev-2">prev/2</a></td><td>Behaves as ets:prev(Tab,Key) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#reg-1">reg/1</a></td><td>Equivalent to <a href="#reg-2"><tt>reg(Key, default(Key))</tt></a>.</td></tr><tr><td valign="top"><a href="#reg-2">reg/2</a></td><td>Register a name or property for the current process.</td></tr><tr><td valign="top"><a href="#reg_shared-1">reg_shared/1</a></td><td>Register a resource, but don't tie it to a particular process.</td></tr><tr><td valign="top"><a href="#reg_shared-2">reg_shared/2</a></td><td>Register a resource, but don't tie it to a particular process.</td></tr><tr><td valign="top"><a href="#register_name-2">register_name/2</a></td><td>Behaviour support callback.</td></tr><tr><td valign="top"><a href="#reset_counter-1">reset_counter/1</a></td><td>Reads and resets a counter in a "thread-safe" way.</td></tr><tr><td valign="top"><a href="#select-1">select/1</a></td><td>
-see http://www.erlang.org/doc/man/ets.html#select-1.</td></tr><tr><td valign="top"><a href="#select-2">select/2</a></td><td>Perform a select operation on the process registry.</td></tr><tr><td valign="top"><a href="#select-3">select/3</a></td><td>Like <a href="#select-2"><code>select/2</code></a> but returns Limit objects at a time.</td></tr><tr><td valign="top"><a href="#select_count-1">select_count/1</a></td><td>Equivalent to <a href="#select_count-2"><tt>select_count(all, Pat)</tt></a>.</td></tr><tr><td valign="top"><a href="#select_count-2">select_count/2</a></td><td>Perform a select_count operation on the process registry.</td></tr><tr><td valign="top"><a href="#send-2">send/2</a></td><td>Sends a message to the process, or processes, corresponding to Key.</td></tr><tr><td valign="top"><a href="#set_env-5">set_env/5</a></td><td>Updates the cached value as well as underlying environment.</td></tr><tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td>Sets the value of the registeration entry given by Key.</td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the gproc server.</td></tr><tr><td valign="top"><a href="#table-0">table/0</a></td><td>Equivalent to <a href="#table-1"><tt>table({all, all})</tt></a>.</td></tr><tr><td valign="top"><a href="#table-1">table/1</a></td><td>Equivalent to <a href="#table-2"><tt>table(Context, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#table-2">table/2</a></td><td>QLC table generator for the gproc registry.</td></tr><tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td>Unregister a name or property.</td></tr><tr><td valign="top"><a href="#unreg_shared-1">unreg_shared/1</a></td><td>Unregister a shared resource.</td></tr><tr><td valign="top"><a href="#unregister_name-1">unregister_name/1</a></td><td>Equivalent to <tt>unreg / 1</tt>.</td></tr><tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td>Updates the counter registered as Key for the current process.</td></tr><tr><td valign="top"><a href="#update_counters-2">update_counters/2</a></td><td>Update a list of counters.</td></tr><tr><td valign="top"><a href="#update_shared_counter-2">update_shared_counter/2</a></td><td>Updates the shared counter registered as Key.</td></tr><tr><td valign="top"><a href="#where-1">where/1</a></td><td>Returns the pid registered as Key.</td></tr><tr><td valign="top"><a href="#whereis_name-1">whereis_name/1</a></td><td>Equivalent to <tt>where / 1</tt>.</td></tr></table>
+a unique name registered via gproc.</td></tr><tr><td valign="top"><a href="#mreg-3">mreg/3</a></td><td>Register multiple {Key,Value} pairs of a given type and scope.</td></tr><tr><td valign="top"><a href="#munreg-3">munreg/3</a></td><td>Unregister multiple Key items of a given type and scope.</td></tr><tr><td valign="top"><a href="#nb_wait-1">nb_wait/1</a></td><td>Wait for a local name to be registered.</td></tr><tr><td valign="top"><a href="#next-2">next/2</a></td><td>Behaves as ets:next(Tab,Key) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#prev-2">prev/2</a></td><td>Behaves as ets:prev(Tab,Key) for a given type of registration object.</td></tr><tr><td valign="top"><a href="#reg-1">reg/1</a></td><td>Equivalent to <a href="#reg-2"><tt>reg(Key, default(Key))</tt></a>.</td></tr><tr><td valign="top"><a href="#reg-2">reg/2</a></td><td>Register a name or property for the current process.</td></tr><tr><td valign="top"><a href="#reg_shared-1">reg_shared/1</a></td><td>Register a resource, but don't tie it to a particular process.</td></tr><tr><td valign="top"><a href="#reg_shared-2">reg_shared/2</a></td><td>Register a resource, but don't tie it to a particular process.</td></tr><tr><td valign="top"><a href="#register_name-2">register_name/2</a></td><td>Behaviour support callback.</td></tr><tr><td valign="top"><a href="#reset_counter-1">reset_counter/1</a></td><td>Reads and resets a counter in a "thread-safe" way.</td></tr><tr><td valign="top"><a href="#select-1">select/1</a></td><td>Perform a select operation on the process registry.</td></tr><tr><td valign="top"><a href="#select-2">select/2</a></td><td>Perform a select operation with limited context on the process registry.</td></tr><tr><td valign="top"><a href="#select-3">select/3</a></td><td>Like <a href="#select-2"><code>select/2</code></a> but returns Limit objects at a time.</td></tr><tr><td valign="top"><a href="#select_count-1">select_count/1</a></td><td>Equivalent to <a href="#select_count-2"><tt>select_count(all, Pat)</tt></a>.</td></tr><tr><td valign="top"><a href="#select_count-2">select_count/2</a></td><td>Perform a select_count operation on the process registry.</td></tr><tr><td valign="top"><a href="#send-2">send/2</a></td><td>Sends a message to the process, or processes, corresponding to Key.</td></tr><tr><td valign="top"><a href="#set_env-5">set_env/5</a></td><td>Updates the cached value as well as underlying environment.</td></tr><tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td>Sets the value of the registeration entry given by Key.</td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the gproc server.</td></tr><tr><td valign="top"><a href="#table-0">table/0</a></td><td>Equivalent to <a href="#table-1"><tt>table({all, all})</tt></a>.</td></tr><tr><td valign="top"><a href="#table-1">table/1</a></td><td>Equivalent to <a href="#table-2"><tt>table(Context, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#table-2">table/2</a></td><td>QLC table generator for the gproc registry.</td></tr><tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td>Unregister a name or property.</td></tr><tr><td valign="top"><a href="#unreg_shared-1">unreg_shared/1</a></td><td>Unregister a shared resource.</td></tr><tr><td valign="top"><a href="#unregister_name-1">unregister_name/1</a></td><td>Equivalent to <tt>unreg / 1</tt>.</td></tr><tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td>Updates the counter registered as Key for the current process.</td></tr><tr><td valign="top"><a href="#update_counters-2">update_counters/2</a></td><td>Update a list of counters.</td></tr><tr><td valign="top"><a href="#update_shared_counter-2">update_shared_counter/2</a></td><td>Updates the shared counter registered as Key.</td></tr><tr><td valign="top"><a href="#where-1">where/1</a></td><td>Returns the pid registered as Key.</td></tr><tr><td valign="top"><a href="#whereis_name-1">whereis_name/1</a></td><td>Equivalent to <tt>where / 1</tt>.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -383,9 +374,7 @@ registered (the difference: await/2 also returns the value).<a name="cancel_wait
 
 
 
-Cancels a previous call to nb_wait/1
-
-If `Ref = all`, all wait requests on `Key` from the calling process
+Cancels a previous call to nb_wait/1If `Ref = all`, all wait requests on `Key` from the calling process
 are canceled.<a name="cancel_wait_or_monitor-1"></a>
 
 ###cancel_wait_or_monitor/1##
@@ -434,9 +423,7 @@ set on a unique name. This function always succeeds given legal input.<a name="f
 
 
 
-Behaves as ets:first(Tab) for a given type of registration object.
-
-See [`http://www.erlang.org/doc/man/ets.html#first-1`](http://www.erlang.org/doc/man/ets.html#first-1).
+Behaves as ets:first(Tab) for a given type of registration object.See [`http://www.erlang.org/doc/man/ets.html#first-1`](http://www.erlang.org/doc/man/ets.html#first-1).
 The registry behaves as an ordered_set table.<a name="get_env-3"></a>
 
 ###get_env/3##
@@ -466,14 +453,10 @@ Equivalent to [`get_env(Scope, App, Key, [app_env])`](#get_env-4).<a name="get_e
 
 Read an environment value, potentially cached as a `gproc_env` property.
 
-
-
 This function first tries to read the value of a cached property,
 `{p, Scope, {gproc_env, App, Key}}`. If this fails, it will try the provided
-alternative strategy. `Strategy` is a list of alternatives, tried in order.  
+alternative strategy. `Strategy` is a list of alternatives, tried in order.
 Each alternative can be one of:
-
-
 
 * `app_env` - try `application:get_env(App, Key)`
 * `os_env` - try `os:getenv(ENV)`, where `ENV` is `Key` converted into an
@@ -491,23 +474,15 @@ the value in position `Pos` if object found.
 been exhausted; if not set, `undefined` will be returned.
 * `error` - raise an exception, `erlang:error(gproc_env, [App, Key, Scope])`.
 
-
-
 While any alternative can occur more than once, the only one that might make
 sense to use multiple times is `{default, Value}`.
 
-
-
 The return value will be one of:
-
-
 
 * The value of the first matching alternative, or `error` eception,
 whichever comes first
 * The last instance of `{default, Value}`, or `undefined`, if there is no
-matching alternative, default or `error` entry in the list.
-
-The `error` option can be used to assert that a value has been previously
+matching alternative, default or `error` entry in the list.The `error` option can be used to assert that a value has been previously
 cached. Alternatively, it can be used to assert that a value is either cached
 or at least defined somewhere,
 e.g. `get_env(l, mnesia, dir, [app_env, error])`.<a name="get_set_env-3"></a>
@@ -538,9 +513,7 @@ Equivalent to [`get_set_env(Scope, App, Key, [app_env])`](#get_set_env-4).<a nam
 
 
 
-Fetch and cache an environment value, if not already cached.
-
-This function does the same thing as [`get_env/4`](#get_env-4), but also updates the
+Fetch and cache an environment value, if not already cached.This function does the same thing as [`get_env/4`](#get_env-4), but also updates the
 cache. Note that the cache will be updated even if the result of the lookup
 is `undefined`.
 
@@ -560,9 +533,7 @@ __See also:__ [get_env/4](#get_env-4).<a name="get_value-1"></a>
 
 
 
-Reads the value stored with a key registered to the current process.
-
-If no such key is registered to the current process, this function exits.<a name="get_value-2"></a>
+Reads the value stored with a key registered to the current process.If no such key is registered to the current process, this function exits.<a name="get_value-2"></a>
 
 ###get_value/2##
 
@@ -577,9 +548,7 @@ If no such key is registered to the current process, this function exits.<a name
 
 
 
-Reads the value stored with a key registered to the process Pid.
-
-If `Pid == shared`, the value of a shared key (see [`reg_shared/1`](#reg_shared-1))
+Reads the value stored with a key registered to the process Pid.If `Pid == shared`, the value of a shared key (see [`reg_shared/1`](#reg_shared-1))
 will be read.<a name="give_away-2"></a>
 
 ###give_away/2##
@@ -597,24 +566,16 @@ will be read.<a name="give_away-2"></a>
 
 Atomically transfers the key `From` to the process identified by `To`.
 
-
-
-This function transfers any gproc key (name, property, counter, aggr counter)  
+This function transfers any gproc key (name, property, counter, aggr counter)
 from one process to another, and returns the pid of the new owner.
-
-
 
 `To` must be either a pid or a unique name (name or aggregated counter), but
 does not necessarily have to resolve to an existing process. If there is
 no process registered with the `To` key, `give_away/2` returns `undefined`,
 and the `From` key is effectively unregistered.
 
-
-
-It is allowed to give away a key to oneself, but of course, this operation  
-will have no effect.
-
-Fails with `badarg` if the calling process does not have a `From` key
+It is allowed to give away a key to oneself, but of course, this operation
+will have no effect.Fails with `badarg` if the calling process does not have a `From` key
 registered.<a name="goodbye-0"></a>
 
 ###goodbye/0##
@@ -630,10 +591,8 @@ registered.<a name="goodbye-0"></a>
 
 
 
-Unregister all items of the calling process and inform gproc  
-to forget about the calling process.
-
-This function is more efficient than letting gproc perform these
+Unregister all items of the calling process and inform gproc
+to forget about the calling process.This function is more efficient than letting gproc perform these
 cleanup operations.<a name="i-0"></a>
 
 ###i/0##
@@ -662,9 +621,7 @@ about names and properties registered in Gproc, where applicable.<a name="info-1
 
 
 
-Similar to `process_info(Pid)` but with additional gproc info.
-
-Returns the same information as process_info(Pid), but with the
+Similar to `process_info(Pid)` but with additional gproc info.Returns the same information as process_info(Pid), but with the
 addition of a `gproc` information item, containing the `{Key,Value}`
 pairs registered to the process.<a name="info-2"></a>
 
@@ -681,9 +638,7 @@ pairs registered to the process.<a name="info-2"></a>
 
 
 
-Similar to process_info(Pid, Item), but with additional gproc info.
-
-For `Item = gproc`, this function returns a list of `{Key, Value}` pairs
+Similar to process_info(Pid, Item), but with additional gproc info.For `Item = gproc`, this function returns a list of `{Key, Value}` pairs
 registered to the process Pid. For other values of Item, it returns the
 same as [`http://www.erlang.org/doc/man/erlang.html#process_info-2`](http://www.erlang.org/doc/man/erlang.html#process_info-2).<a name="last-1"></a>
 
@@ -700,9 +655,7 @@ same as [`http://www.erlang.org/doc/man/erlang.html#process_info-2`](http://www.
 
 
 
-Behaves as ets:last(Tab) for a given type of registration object.
-
-See [`http://www.erlang.org/doc/man/ets.html#last-1`](http://www.erlang.org/doc/man/ets.html#last-1).
+Behaves as ets:last(Tab) for a given type of registration object.See [`http://www.erlang.org/doc/man/ets.html#last-1`](http://www.erlang.org/doc/man/ets.html#last-1).
 The registry behaves as an ordered_set table.<a name="lookup_global_aggr_counter-1"></a>
 
 ###lookup_global_aggr_counter/1##
@@ -858,9 +811,7 @@ Lookup the Pid stored with a key.
 
 
 
-Returns a list of pids with the published key Key
-
-If the type of registration entry is either name or aggregated counter,
+Returns a list of pids with the published key KeyIf the type of registration entry is either name or aggregated counter,
 this function will return either an empty list, or a list of one pid.
 For non-unique types, the return value can be a list of any length.<a name="lookup_value-1"></a>
 
@@ -891,9 +842,7 @@ Lookup the value stored with a key.
 
 
 
-Retrieve the `{Pid,Value}` pairs corresponding to Key.
-
-Key refer to any type of registry object. If it refers to a unique
+Retrieve the `{Pid,Value}` pairs corresponding to Key.Key refer to any type of registry object. If it refers to a unique
 object, the list will be of length 0 or 1. If it refers to a non-unique
 object, the return value can be a list of any length.<a name="monitor-1"></a>
 
@@ -912,11 +861,9 @@ object, the return value can be a list of any length.<a name="monitor-1"></a>
 
 monitor a registered name
 This function works much like erlang:monitor(process, Pid), but monitors
-a unique name registered via gproc. A message, `{gproc, unreg, Ref, Key}`  
-will be sent to the requesting process, if the name is unregistered or  
-the registered process dies.
-
-If the name is not yet registered, the same message is sent immediately.<a name="mreg-3"></a>
+a unique name registered via gproc. A message, `{gproc, unreg, Ref, Key}`
+will be sent to the requesting process, if the name is unregistered or
+the registered process dies.If the name is not yet registered, the same message is sent immediately.<a name="mreg-3"></a>
 
 ###mreg/3##
 
@@ -931,9 +878,7 @@ If the name is not yet registered, the same message is sent immediately.<a name=
 
 
 
-Register multiple {Key,Value} pairs of a given type and scope.
-
-This function is more efficient than calling [`reg/2`](#reg-2) repeatedly.
+Register multiple {Key,Value} pairs of a given type and scope.This function is more efficient than calling [`reg/2`](#reg-2) repeatedly.
 It is also atomic in regard to unique names; either all names are registered
 or none are.<a name="munreg-3"></a>
 
@@ -950,9 +895,7 @@ or none are.<a name="munreg-3"></a>
 
 
 
-Unregister multiple Key items of a given type and scope.
-
-This function is usually more efficient than calling [`unreg/1`](#unreg-1)
+Unregister multiple Key items of a given type and scope.This function is usually more efficient than calling [`unreg/1`](#unreg-1)
 repeatedly.<a name="nb_wait-1"></a>
 
 ###nb_wait/1##
@@ -983,9 +926,7 @@ The caller can expect to receive a message,
 
 
 
-Behaves as ets:next(Tab,Key) for a given type of registration object.
-
-See [`http://www.erlang.org/doc/man/ets.html#next-2`](http://www.erlang.org/doc/man/ets.html#next-2).
+Behaves as ets:next(Tab,Key) for a given type of registration object.See [`http://www.erlang.org/doc/man/ets.html#next-2`](http://www.erlang.org/doc/man/ets.html#next-2).
 The registry behaves as an ordered_set table.<a name="prev-2"></a>
 
 ###prev/2##
@@ -1001,9 +942,7 @@ The registry behaves as an ordered_set table.<a name="prev-2"></a>
 
 
 
-Behaves as ets:prev(Tab,Key) for a given type of registration object.
-
-See [`http://www.erlang.org/doc/man/ets.html#prev-2`](http://www.erlang.org/doc/man/ets.html#prev-2).
+Behaves as ets:prev(Tab,Key) for a given type of registration object.See [`http://www.erlang.org/doc/man/ets.html#prev-2`](http://www.erlang.org/doc/man/ets.html#prev-2).
 The registry behaves as an ordered_set table.<a name="reg-1"></a>
 
 ###reg/1##
@@ -1032,9 +971,7 @@ Equivalent to [`reg(Key, default(Key))`](#reg-2).<a name="reg-2"></a>
 
 
 
-Register a name or property for the current process
-
-<a name="reg_shared-1"></a>
+Register a name or property for the current process<a name="reg_shared-1"></a>
 
 ###reg_shared/1##
 
@@ -1049,9 +986,7 @@ Register a name or property for the current process
 
 
 
-Register a resource, but don't tie it to a particular process.
-
-`reg_shared({c,l,C}) -> reg_shared({c,l,C}, 0).`
+Register a resource, but don't tie it to a particular process.`reg_shared({c,l,C}) -> reg_shared({c,l,C}, 0).`
 `reg_shared({a,l,A}) -> reg_shared({a,l,A}, undefined).`<a name="reg_shared-2"></a>
 
 ###reg_shared/2##
@@ -1069,16 +1004,12 @@ Register a resource, but don't tie it to a particular process.
 
 Register a resource, but don't tie it to a particular process.
 
-
-
 Shared resources are all unique. They remain until explicitly unregistered
 (using [`unreg_shared/1`](#unreg_shared-1)). The types of shared resources currently
 supported are `counter` and `aggregated counter`. In listings and query
 results, shared resources appear as other similar resources, except that
 `Pid == shared`. To wit, update_counter({c,l,myCounter}, 1, shared) would
-increment the shared counter `myCounter` with 1, provided it exists.
-
-A shared aggregated counter will track updates in exactly the same way as
+increment the shared counter `myCounter` with 1, provided it exists.A shared aggregated counter will track updates in exactly the same way as
 an aggregated counter which is owned by a process.<a name="register_name-2"></a>
 
 ###register_name/2##
@@ -1106,9 +1037,7 @@ Behaviour support callback<a name="reset_counter-1"></a>
 
 
 
-Reads and resets a counter in a "thread-safe" way
-
-This function reads the current value of a counter and then resets it to its
+Reads and resets a counter in a "thread-safe" wayThis function reads the current value of a counter and then resets it to its
 initial value. The reset operation is done using [`update_counter/2`](#update_counter-2),
 which allows for concurrent calls to [`update_counter/2`](#update_counter-2) without losing
 updates. Aggregated counters are updated accordingly.<a name="select-1"></a>
@@ -1118,14 +1047,29 @@ updates. Aggregated counters are updated accordingly.<a name="select-1"></a>
 
 
 
-<pre>select(Continuation::term()) -&gt; {[Match], Continuation} | '$end_of_table'</pre>
-<br></br>
+<pre>select(Continuation::Arg) -&gt; [Match] | {[Match], Continuation} | '$end_of_table'</pre>
+<ul class="definitions"><li><pre>Arg = Continuation | <a href="#type-sel_pattern">sel_pattern()</a></pre></li><li><pre>Match = {Key, Pid, Value}</pre></li></ul>
 
 
 
 
 
-see http://www.erlang.org/doc/man/ets.html#select-1<a name="select-2"></a>
+Perform a select operation on the process registry
+
+When Arg = Contination, resume a gproc:select/1 operation
+(see [ets:select/1](http://www.erlang.org/doc/man/ets.html#select-1)
+
+When Arg = <code><a href="#type-sel_pattern">sel_pattern()</a></code>, this function executes a select operation,
+emulating ets:select/1
+
+[`select/2`](#select-2) offers the opportunity to narrow the search
+(by limiting to only global or local scope, or a single type of object).
+When only a pattern as single argument is given, both global and local scope,
+as well as all types of object can be searched. Note that the pattern may
+still limit the select operation so that scanning the entire table is avoided.The physical representation in the registry may differ from the above,
+but the select patterns are transformed appropriately. The logical
+representation for the gproc select operations is given by
+<code><a href="#type-headpat">headpat()</a></code>.<a name="select-2"></a>
 
 ###select/2##
 
@@ -1140,10 +1084,17 @@ see http://www.erlang.org/doc/man/ets.html#select-1<a name="select-2"></a>
 
 
 
-Perform a select operation on the process registry.
+Perform a select operation with limited context on the process registry
 
 The physical representation in the registry may differ from the above,
-but the select patterns are transformed appropriately.<a name="select-3"></a>
+but the select patterns are transformed appropriately.Note that limiting the context is just a convenience function, allowing you
+to write a simpler select pattern and still avoid searching the entire
+registry. Whenever variables are used in the head pattern, this will result
+in a wider scan, even if the values are restricted through a guard (e.g.
+`select([{'$1','$2','$3'}, [{'==', '$1', p}], ...])` will count as a wild
+pattern on the key and result in a full scan). In this case, specifying a
+Context will allow gproc to perform some variable substitution and ensure
+that the scan is limited.<a name="select-3"></a>
 
 ###select/3##
 
@@ -1158,16 +1109,14 @@ but the select patterns are transformed appropriately.<a name="select-3"></a>
 
 
 
-Like [`select/2`](#select-2) but returns Limit objects at a time.
-
-See [`http://www.erlang.org/doc/man/ets.html#select-3`](http://www.erlang.org/doc/man/ets.html#select-3).<a name="select_count-1"></a>
+Like [`select/2`](#select-2) but returns Limit objects at a time.See [`http://www.erlang.org/doc/man/ets.html#select-3`](http://www.erlang.org/doc/man/ets.html#select-3).<a name="select_count-1"></a>
 
 ###select_count/1##
 
 
 
 
-<pre>select_count(Pat::<a href="#type-select_pattern">select_pattern()</a>) -> [<a href="#type-sel_object">sel_object()</a>]</pre>
+<pre>select_count(Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -> [<a href="#type-sel_object">sel_object()</a>]</pre>
 <br></br>
 
 
@@ -1188,9 +1137,7 @@ Equivalent to [`select_count(all, Pat)`](#select_count-2).<a name="select_count-
 
 
 
-Perform a select_count operation on the process registry.
-
-The physical representation in the registry may differ from the above,
+Perform a select_count operation on the process registry.The physical representation in the registry may differ from the above,
 but the select patterns are transformed appropriately.<a name="send-2"></a>
 
 ###send/2##
@@ -1206,9 +1153,7 @@ but the select patterns are transformed appropriately.<a name="send-2"></a>
 
 
 
-Sends a message to the process, or processes, corresponding to Key.
-
-If Key belongs to a unique object (name or aggregated counter), this
+Sends a message to the process, or processes, corresponding to Key.If Key belongs to a unique object (name or aggregated counter), this
 function will send a message to the corresponding process, or fail if there
 is no such process. If Key is for a non-unique object type (counter or
 property), Msg will be send to all processes that have such an object.<a name="set_env-5"></a>
@@ -1227,14 +1172,10 @@ property), Msg will be send to all processes that have such an object.<a name="s
 
 Updates the cached value as well as underlying environment.
 
-
-
-This function should be exercised with caution, as it affects the larger  
-environment outside gproc. This function modifies the cached value, and then  
-proceeds to update the underlying environment (OS environment variable or  
-application environment variable).
-
-When the `mnesia` alternative is used, gproc will try to update any existing
+This function should be exercised with caution, as it affects the larger
+environment outside gproc. This function modifies the cached value, and then
+proceeds to update the underlying environment (OS environment variable or
+application environment variable).When the `mnesia` alternative is used, gproc will try to update any existing
 object, changing only the `Pos` position. If no such object exists, it will
 create a new object, setting any other attributes (except `Pos` and the key)
 to `undefined`.<a name="set_value-2"></a>
@@ -1254,12 +1195,8 @@ to `undefined`.<a name="set_value-2"></a>
 
 Sets the value of the registeration entry given by Key
 
-
-
-Key is assumed to exist and belong to the calling process.  
-If it doesn't, this function will exit.
-
-Value can be any term, unless the object is a counter, in which case
+Key is assumed to exist and belong to the calling process.
+If it doesn't, this function will exit.Value can be any term, unless the object is a counter, in which case
 it must be an integer.<a name="start_link-0"></a>
 
 ###start_link/0##
@@ -1275,9 +1212,7 @@ it must be an integer.<a name="start_link-0"></a>
 
 
 
-Starts the gproc server.
-
-This function is intended to be called from gproc_sup, as part of
+Starts the gproc server.This function is intended to be called from gproc_sup, as part of
 starting the gproc application.<a name="table-0"></a>
 
 ###table/0##
@@ -1373,13 +1308,9 @@ Equivalent to `unreg / 1`.<a name="update_counter-2"></a>
 
 Updates the counter registered as Key for the current process.
 
-
-
 This function works almost exactly like ets:update_counter/3
-(see [`http://www.erlang.org/doc/man/ets.html#update_counter-3`](http://www.erlang.org/doc/man/ets.html#update_counter-3)), but  
-will fail if the type of object referred to by Key is not a counter.
-
-Aggregated counters with the same name will be updated automatically.
+(see [`http://www.erlang.org/doc/man/ets.html#update_counter-3`](http://www.erlang.org/doc/man/ets.html#update_counter-3)), but
+will fail if the type of object referred to by Key is not a counter.Aggregated counters with the same name will be updated automatically.
 The `UpdateOp` patterns are the same as for `ets:update_counter/3`, except
 that the position is omitted; in gproc, the value position is always `3`.<a name="update_counters-2"></a>
 
@@ -1398,13 +1329,9 @@ that the position is omitted; in gproc, the value position is always `3`.<a name
 
 Update a list of counters
 
-
-
 This function is not atomic, except (in a sense) for global counters. For local counters,
 it is more of a convenience function. For global counters, it is much more efficient
-than calling `gproc:update_counter/2` for each individual counter.
-
-The return value is the corresponding list of `[{Counter, Pid, NewValue}]`.<a name="update_shared_counter-2"></a>
+than calling `gproc:update_counter/2` for each individual counter.The return value is the corresponding list of `[{Counter, Pid, NewValue}]`.<a name="update_shared_counter-2"></a>
 
 ###update_shared_counter/2##
 
@@ -1420,13 +1347,9 @@ The return value is the corresponding list of `[{Counter, Pid, NewValue}]`.<a na
 
 Updates the shared counter registered as Key.
 
-
-
 This function works almost exactly like ets:update_counter/3
-(see [`http://www.erlang.org/doc/man/ets.html#update_counter-3`](http://www.erlang.org/doc/man/ets.html#update_counter-3)), but  
-will fail if the type of object referred to by Key is not a counter.
-
-Aggregated counters with the same name will be updated automatically.
+(see [`http://www.erlang.org/doc/man/ets.html#update_counter-3`](http://www.erlang.org/doc/man/ets.html#update_counter-3)), but
+will fail if the type of object referred to by Key is not a counter.Aggregated counters with the same name will be updated automatically.
 The `UpdateOp` patterns are the same as for `ets:update_counter/3`, except
 that the position is omitted; in gproc, the value position is always `3`.<a name="where-1"></a>
 
@@ -1443,9 +1366,7 @@ that the position is omitted; in gproc, the value position is always `3`.<a name
 
 
 
-Returns the pid registered as Key
-
-The type of registration entry must be either name or aggregated counter.
+Returns the pid registered as KeyThe type of registration entry must be either name or aggregated counter.
 Otherwise this function will exit. Use [`lookup_pids/1`](#lookup_pids-1) in these
 cases.<a name="whereis_name-1"></a>
 

@@ -11,11 +11,11 @@ Gproc is a process dictionary for Erlang, which provides a number of useful feat
 <li>Use any term as a process alias</li>
 <li>Register a process under several aliases</li>
 <li>Non-unique properties can be registered simultaneously by many processes</li>
-<li>QLC and match specification interface for efficient queries on the 
+<li>QLC and match specification interface for efficient queries on the
   dictionary</li>
 <li>Await registration, let's you wait until a process registers itself</li>
 <li>Atomically give away registered names and properties to another process</li>
-<li>Counters, and aggregated counters, which automatically maintain the 
+<li>Counters, and aggregated counters, which automatically maintain the
   total of all counters with a given name</li>
 <li>Global registry, with all the above functions applied to a network of nodes</li>
 </ul>
@@ -25,7 +25,7 @@ Gproc is a process dictionary for Erlang, which provides a number of useful feat
 Gproc was designed to work as a central index for "process metadata", i.e.
 properties that describe the role and characteristics of each process. Having
 a single registry that is flexible enough to hold important types of property
-makes it easier to (a) find processes of a certain type, and (b) query and 
+makes it easier to (a) find processes of a certain type, and (b) query and
 browse key data in a running system.
 
 <h3>Use case: Pub/Sub patterns</h3>
@@ -47,20 +47,20 @@ notify(EventType, Msg) ->
 
 Gproc provides a set of functions to read environment variables, possibly from
 alternative sources, and cache them for efficient lookup. Caching also provides
-a way to see which processes rely on certain configuration values, as well as 
-which values they actually ended up using. 
+a way to see which processes rely on certain configuration values, as well as
+which values they actually ended up using.
 
-See {@link gproc:get_env/4}, {@link gproc:get_set_env/4} and 
+See {@link gproc:get_env/4}, {@link gproc:get_set_env/4} and
 {@link gproc:set_env/5} for details.
 
 <h2>Testing</h2>
 
-Gproc has a QuickCheck test suite, covering a fairly large part of the local 
-gproc functionality, although none of the global registry. It requires a 
-commercial EQC license, but rebar is smart enough to detect whether EQC is 
+Gproc has a QuickCheck test suite, covering a fairly large part of the local
+gproc functionality, although none of the global registry. It requires a
+commercial EQC license, but rebar is smart enough to detect whether EQC is
 available, and if it isn't, the code in gproc_eqc.erl will be "defined away".
 
-There is also an eunit suite, covering the basic operations for local and 
+There is also an eunit suite, covering the basic operations for local and
 global gproc.
 
 <h2>Building Edoc</h2>
