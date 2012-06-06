@@ -95,6 +95,7 @@
          give_away/2,
          goodbye/0,
          send/2,
+	 bcast/2, bcast/3,
          info/1, info/2,
 	 i/0,
          select/1, select/2, select/3,
@@ -1401,6 +1402,34 @@ send1({T,C,_} = Key, Msg) when C==l; C==g ->
 send1(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
+%% @spec (Key::key(), Msg::any()) -> Msg
+%%
+%% @equiv bcast(nodes(), Key, Msg)
+%% @end
+%%
+bcast(Key, Msg) ->
+    bcast(nodes(), Key, Msg).
+
+%% @spec (Nodes::[atom()], Key::key(), Msg::any()) -> Msg
+%%
+%% @doc Sends a message to processes corresponding to Key on Nodes.
+%%
+%% This function complements `send/2' and works on locally registered resources
+%% that `send/2' supports. Messages are routed via a special broadcast server
+%% on each node to ensure that ordering is preserved. Distributed delivery
+%% is asynchronous and carries the same guarantees as normal message passing
+%% (with the added proviso that the broadcast server also needs to be available).
+%% @see send/2
+%% @end
+%%
+bcast(Ns, Key, Msg) ->
+    ?CATCH_GPROC_ERROR(bcast1(Ns, Key, Msg), [Key, Msg]).
+
+bcast1(Ns, {T,l,_} = Key, Msg) when T==p; T==a; T==c; T==n; T==p ->
+    send1(Key, Msg),
+    gen_server:abcast(Ns -- [node()], gproc_bcast, {send, Key, Msg}),
+    Msg.
+
 
 %% @spec (Context :: context()) -> key() | '$end_of_table'
 %%
@@ -1726,6 +1755,7 @@ code_change(_FromVsn, S, _Extra) ->
                 ets:select_delete(?TAB, [{{'_'},[],[true]}])
         end,
     {ok, S}.
+
 
 %% @hidden
 terminate(_Reason, _S) ->

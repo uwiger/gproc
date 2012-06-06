@@ -91,6 +91,7 @@ Freiburg 2007 ([Paper available here](http://github.com/esl/gproc/blob/master/do
 <table width="100%" border="0" summary="list of modules">
 <tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc.md" class="module">gproc</a></td></tr>
 <tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_app.md" class="module">gproc_app</a></td></tr>
+<tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_bcast.md" class="module">gproc_bcast</a></td></tr>
 <tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_dist.md" class="module">gproc_dist</a></td></tr>
 <tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_info.md" class="module">gproc_info</a></td></tr>
 <tr><td><a href="http://github.com/esl/gproc/blob/master/doc/gproc_init.md" class="module">gproc_init</a></td></tr>

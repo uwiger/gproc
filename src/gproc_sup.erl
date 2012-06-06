@@ -50,7 +50,9 @@ init(_Args) ->
            end,
     Mon = {gproc_monitor, {gproc_monitor, start_link, []},
 	   permanent, 2000, worker, [gproc_monitor]},
-    {ok,{{one_for_one, 15, 60}, [GProc| Dist] ++ [Mon]}}.
+    BCast = {gproc_bcast, {gproc_bcast, start_link, []},
+	     permanent, 2000, worker, [gproc_bcast]},
+    {ok,{{one_for_one, 15, 60}, [GProc| Dist] ++ [Mon, BCast]}}.
 
 
 %%%----------------------------------------------------------------------
