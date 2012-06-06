@@ -8,9 +8,7 @@
 
 Extended process registry.
 
-
-
-__Behaviours:__ [`gen_leader`](/Users/uwiger/FL/git/gen_leader/doc/gen_leader.md).
+__Behaviours:__ [`gen_leader`](/Users/uwiger/tmp/rebar_edoc/gproc/deps/gen_leader/doc/gen_leader.md).
 
 __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)).<a name="description"></a>
 
@@ -42,15 +40,11 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#reg_sha
 ###code_change/4##
 
 
-
-
 `code_change(FromVsn, S, Extra, E) -> any()`
 
 <a name="elected-2"></a>
 
 ###elected/2##
-
-
 
 
 `elected(S, E) -> any()`
@@ -60,15 +54,11 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#reg_sha
 ###elected/3##
 
 
-
-
 `elected(S, E, Node) -> any()`
 
 <a name="from_leader-3"></a>
 
 ###from_leader/3##
-
-
 
 
 `from_leader(Ops, S, E) -> any()`
@@ -78,19 +68,13 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#reg_sha
 ###get_leader/0##
 
 
-
-
 <pre>get_leader() -&gt; node()</pre>
 <br></br>
-
-
 
 
 Returns the node of the current gproc leader.<a name="give_away-2"></a>
 
 ###give_away/2##
-
-
 
 
 `give_away(Key, To) -> any()`
@@ -100,15 +84,11 @@ Returns the node of the current gproc leader.<a name="give_away-2"></a>
 ###handle_DOWN/3##
 
 
-
-
 `handle_DOWN(Node, S, E) -> any()`
 
 <a name="handle_call-4"></a>
 
 ###handle_call/4##
-
-
 
 
 `handle_call(X1, X2, S, E) -> any()`
@@ -118,15 +98,11 @@ Returns the node of the current gproc leader.<a name="give_away-2"></a>
 ###handle_cast/3##
 
 
-
-
 `handle_cast(Msg, S, X3) -> any()`
 
 <a name="handle_info-2"></a>
 
 ###handle_info/2##
-
-
 
 
 `handle_info(X1, S) -> any()`
@@ -136,15 +112,11 @@ Returns the node of the current gproc leader.<a name="give_away-2"></a>
 ###handle_leader_call/4##
 
 
-
-
 `handle_leader_call(X1, From, State, E) -> any()`
 
 <a name="handle_leader_cast-3"></a>
 
 ###handle_leader_cast/3##
-
-
 
 
 `handle_leader_cast(X1, S, E) -> any()`
@@ -154,15 +126,11 @@ Returns the node of the current gproc leader.<a name="give_away-2"></a>
 ###init/1##
 
 
-
-
 `init(Opts) -> any()`
 
 <a name="leader_call-1"></a>
 
 ###leader_call/1##
-
-
 
 
 `leader_call(Req) -> any()`
@@ -172,15 +140,11 @@ Returns the node of the current gproc leader.<a name="give_away-2"></a>
 ###leader_cast/1##
 
 
-
-
 `leader_cast(Msg) -> any()`
 
 <a name="mreg-2"></a>
 
 ###mreg/2##
-
-
 
 
 `mreg(T, KVL) -> any()`
@@ -190,15 +154,11 @@ Returns the node of the current gproc leader.<a name="give_away-2"></a>
 ###munreg/2##
 
 
-
-
 `munreg(T, Keys) -> any()`
 
 <a name="reg-1"></a>
 
 ###reg/1##
-
-
 
 
 `reg(Key) -> any()`
@@ -208,11 +168,7 @@ Returns the node of the current gproc leader.<a name="give_away-2"></a>
 ###reg/2##
 
 
-
-
 `reg(Key, Value) -> any()`
-
-
 
 
 Class = n  - unique name
@@ -224,15 +180,11 @@ Scope = l | g (global or local)<a name="reg_shared-2"></a>
 ###reg_shared/2##
 
 
-
-
 `reg_shared(Key, Value) -> any()`
 
 <a name="reset_counter-1"></a>
 
 ###reset_counter/1##
-
-
 
 
 `reset_counter(Key) -> any()`
@@ -242,15 +194,11 @@ Scope = l | g (global or local)<a name="reg_shared-2"></a>
 ###set_value/2##
 
 
-
-
 `set_value(Key, Value) -> any()`
 
 <a name="start_link-0"></a>
 
 ###start_link/0##
-
-
 
 
 `start_link() -> any()`
@@ -260,15 +208,11 @@ Scope = l | g (global or local)<a name="reg_shared-2"></a>
 ###start_link/1##
 
 
-
-
 `start_link(Nodes) -> any()`
 
 <a name="surrendered-3"></a>
 
 ###surrendered/3##
-
-
 
 
 `surrendered(S, X2, E) -> any()`
@@ -278,17 +222,15 @@ Scope = l | g (global or local)<a name="reg_shared-2"></a>
 ###sync/0##
 
 
-
-
 <pre>sync() -&gt; true</pre>
 <br></br>
 
 
 
 
+Synchronize with the gproc leader
 
-
-Synchronize with the gproc leaderThis function can be used to ensure that data has been replicated from the
+This function can be used to ensure that data has been replicated from the
 leader to the current node. It does so by asking the leader to ping all
 live participating nodes. The call will return `true` when all these nodes
 have either responded or died. In the special case where the leader dies
@@ -300,15 +242,11 @@ the leader died.)<a name="terminate-2"></a>
 ###terminate/2##
 
 
-
-
 `terminate(Reason, S) -> any()`
 
 <a name="unreg-1"></a>
 
 ###unreg/1##
-
-
 
 
 `unreg(Key) -> any()`
@@ -318,15 +256,11 @@ the leader died.)<a name="terminate-2"></a>
 ###unreg_shared/1##
 
 
-
-
 `unreg_shared(Key) -> any()`
 
 <a name="update_counter-2"></a>
 
 ###update_counter/2##
-
-
 
 
 `update_counter(Key, Incr) -> any()`
@@ -336,15 +270,11 @@ the leader died.)<a name="terminate-2"></a>
 ###update_counters/1##
 
 
-
-
 `update_counters(List) -> any()`
 
 <a name="update_shared_counter-2"></a>
 
 ###update_shared_counter/2##
-
-
 
 
 `update_shared_counter(Key, Incr) -> any()`

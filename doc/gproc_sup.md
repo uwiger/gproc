@@ -5,10 +5,6 @@
 * [Function Details](#functions)
 
 
-
-
-
-
 __Behaviours:__ [`supervisor`](supervisor.md).<a name="index"></a>
 
 ##Function Index##
@@ -26,17 +22,11 @@ __Behaviours:__ [`supervisor`](supervisor.md).<a name="index"></a>
 ###init/1##
 
 
-
-
 `init(Args) -> any()`
-
-
 
 The main GPROC supervisor.<a name="start_link-1"></a>
 
 ###start_link/1##
-
-
 
 
 `start_link(Args) -> any()`

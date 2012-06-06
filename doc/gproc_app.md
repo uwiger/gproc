@@ -5,10 +5,6 @@
 * [Function Details](#functions)
 
 
-
-
-
-
 __Behaviours:__ [`application`](application.md).<a name="index"></a>
 
 ##Function Index##
@@ -26,8 +22,6 @@ __Behaviours:__ [`application`](application.md).<a name="index"></a>
 ###start/0##
 
 
-
-
 `start() -> any()`
 
 <a name="start-2"></a>
@@ -35,15 +29,11 @@ __Behaviours:__ [`application`](application.md).<a name="index"></a>
 ###start/2##
 
 
-
-
 `start(Type, StartArgs) -> any()`
 
 <a name="stop-1"></a>
 
 ###stop/1##
-
-
 
 
 `stop(State) -> any()`

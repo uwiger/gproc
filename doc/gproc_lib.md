@@ -8,8 +8,6 @@
 
 Extended process registry.
 
-
-
 __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)).<a name="description"></a>
 
 ##Description##
@@ -35,15 +33,11 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.<a name="index"></a
 ###add_monitor/3##
 
 
-
-
 `add_monitor(T, Pid, Ref) -> any()`
 
 <a name="await-3"></a>
 
 ###await/3##
-
-
 
 
 `await(Key, WPid, From) -> any()`
@@ -53,15 +47,11 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.<a name="index"></a
 ###do_set_counter_value/3##
 
 
-
-
 `do_set_counter_value(Key, Value, Pid) -> any()`
 
 <a name="do_set_value-3"></a>
 
 ###do_set_value/3##
-
-
 
 
 `do_set_value(Key, Value, Pid) -> any()`
@@ -71,15 +61,11 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.<a name="index"></a
 ###ensure_monitor/2##
 
 
-
-
 `ensure_monitor(Pid, Scope) -> any()`
 
 <a name="insert_many-4"></a>
 
 ###insert_many/4##
-
-
 
 
 <pre>insert_many(T::<a href="#type-type">type()</a>, Scope::<a href="#type-scope">scope()</a>, KVL::[{<a href="#type-key">key()</a>, any()}], Pid::pid()) -> {true, list()} | false</pre>
@@ -91,8 +77,6 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.<a name="index"></a
 ###insert_reg/4##
 
 
-
-
 <pre>insert_reg(K::<a href="#type-key">key()</a>, Value::any(), Pid::pid() | shared, Scope::<a href="#type-scope">scope()</a>) -> boolean()</pre>
 <br></br>
 
@@ -102,15 +86,11 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.<a name="index"></a
 ###notify/2##
 
 
-
-
 `notify(Key, Opts) -> any()`
 
 <a name="notify-3"></a>
 
 ###notify/3##
-
-
 
 
 `notify(Event, Key, Opts) -> any()`
@@ -120,15 +100,11 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.<a name="index"></a
 ###remove_many/4##
 
 
-
-
 `remove_many(T, Scope, L, Pid) -> any()`
 
 <a name="remove_monitor-3"></a>
 
 ###remove_monitor/3##
-
-
 
 
 `remove_monitor(T, Pid, Ref) -> any()`
@@ -138,15 +114,11 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.<a name="index"></a
 ###remove_monitors/3##
 
 
-
-
 `remove_monitors(Key, Pid, MPid) -> any()`
 
 <a name="remove_reg-3"></a>
 
 ###remove_reg/3##
-
-
 
 
 `remove_reg(Key, Pid, Event) -> any()`
@@ -156,15 +128,11 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.<a name="index"></a
 ###remove_reg/4##
 
 
-
-
 `remove_reg(Key, Pid, Event, Opts) -> any()`
 
 <a name="remove_reverse_mapping-3"></a>
 
 ###remove_reverse_mapping/3##
-
-
 
 
 `remove_reverse_mapping(Event, Pid, Key) -> any()`
@@ -174,15 +142,11 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.<a name="index"></a
 ###remove_wait/4##
 
 
-
-
 `remove_wait(Key, Pid, Ref, Waiters) -> any()`
 
 <a name="update_aggr_counter-3"></a>
 
 ###update_aggr_counter/3##
-
-
 
 
 `update_aggr_counter(C, N, Val) -> any()`
@@ -192,15 +156,11 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.<a name="index"></a
 ###update_counter/3##
 
 
-
-
 `update_counter(Key, Incr, Pid) -> any()`
 
 <a name="valid_opts-2"></a>
 
 ###valid_opts/2##
-
-
 
 
 `valid_opts(Type, Default) -> any()`

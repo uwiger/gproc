@@ -5,8 +5,6 @@
 * [Function Details](#functions)
 
 
-
-
 <a name="index"></a>
 
 ##Function Index##
@@ -24,8 +22,6 @@
 ###hard_reset/0##
 
 
-
-
 <pre>hard_reset() -&gt; ok</pre>
 <br></br>
 
@@ -33,8 +29,6 @@
 <a name="soft_reset-0"></a>
 
 ###soft_reset/0##
-
-
 
 
 <pre>soft_reset() -&gt; ok</pre>
