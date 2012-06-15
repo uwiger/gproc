@@ -35,8 +35,10 @@
 -module(gproc_ps).
 
 -export([subscribe/2,
+	 subscribe_cond/3,
 	 unsubscribe/2,
 	 publish/3,
+	 publish_cond/3,
 	 list_subs/2
 	]).
 
@@ -70,6 +72,37 @@
 subscribe(Scope, Event) when Scope==l; Scope==g ->
     gproc:reg({p,Scope,{?ETag, Event}}).
 
+-spec subscribe_cond(scope(), event(), undefined | ets:match_spec()) -> true.
+%% @doc Subscribe conditionally to events of type `Event'
+%%
+%% This function is similar to {@link subscribe/2}, but adds a condition
+%% in the form of a match specification.
+%%
+%% The condition is tested by the {@link publish_cond/3} function
+%% and a message is delivered only if the condition is true. Specifically,
+%% the test is:
+%%
+%% `ets:match_spec_run([Msg], ets:match_spec_compile(Cond)) == [true]'
+%%
+%% In other words, if the match_spec returns true for a message, that message
+%% is sent to the subscriber. For any other result from the match_spec, the
+%% message is not sent. `Cond == undefined' means that all messages will be
+%% delivered (that is, `publish_cond/3' will treat 'normal' subscribers just
+%% like {@link publish/3} does, except that `publish/3' strictly speaking
+%% ignores the Value part of the property completely, whereas `publish_cond/3'
+%% expects it to be either undefined or a valid match spec).
+%%
+%% This means that `Cond=undefined' and ``Cond=[{'_',[],[true]}]'' are
+%% equivalent.
+%% @end
+subscribe_cond(Scope, Event, Spec) when Scope==l; Scope==g ->
+    case Spec of
+	undefined -> ok;
+	[_|_] -> _ = ets:match_spec_compile(Spec);  % validation
+	_ -> error(badarg)
+    end,
+    gproc:reg({p,Scope,{?ETag, Event}}, Spec).
+
 -spec unsubscribe(scope(), event()) -> true.
 %% @doc Remove subscribtion created using `subscribe(Scope, Event)'
 %%
@@ -90,6 +123,31 @@ unsubscribe(Scope, Event) when Scope==l; Scope==g ->
 %% @end
 publish(Scope, Event, Msg) when Scope==l; Scope==g ->
      gproc:send({p, Scope, {?ETag, Event}}, {?ETag, Event, Msg}).
+
+-spec publish_cond(scope(), event(), msg()) -> msg().
+%% @doc Publishes the message `Msg' to conditional subscribers of `Event'
+%%
+%% The message will be delivered to each subscriber provided their respective
+%% condition tests succeed.
+%%
+%% @see subscribe_cond/3.
+%%
+publish_cond(Scope, Event, Msg) when Scope==l; Scope==g ->
+    Message = {?ETag, Event, Msg},
+    lists:foreach(
+      fun({Pid, undefined}) -> Pid ! Message;
+	 ({Pid, Spec}) ->
+	      try   C = ets:match_spec_compile(Spec),
+		    case ets:match_spec_run([Msg], C) of
+			[true] -> Pid ! Message;
+			_ -> ok
+		    end
+	      catch
+		  error:_ ->
+		      ok
+	      end
+      end, gproc:select({Scope,p}, [{ {{p,Scope,{?ETag,Event}}, '$1', '$2'},
+				      [], [{{'$1','$2'}}] }])).
 
 
 -spec list_subs(scope(), event()) -> [pid()].

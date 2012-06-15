@@ -67,7 +67,7 @@ counters to good effect.
 ##Function Index##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#create_single-2">create_single/2</a></td><td>Creates a single-shot subscription entry for Event.</td></tr><tr><td valign="top"><a href="#delete_single-2">delete_single/2</a></td><td>Deletes the single-shot subscription for Event.</td></tr><tr><td valign="top"><a href="#disable_single-2">disable_single/2</a></td><td>Disables the single-shot subscription for Event.</td></tr><tr><td valign="top"><a href="#enable_single-2">enable_single/2</a></td><td>Enables the single-shot subscription for Event.</td></tr><tr><td valign="top"><a href="#list_singles-2">list_singles/2</a></td><td>Lists all single-shot subscribers of Event, together with their status.</td></tr><tr><td valign="top"><a href="#list_subs-2">list_subs/2</a></td><td>List the pids of all processes subscribing to <code>Event</code></td></tr><tr><td valign="top"><a href="#notify_single_if_true-4">notify_single_if_true/4</a></td><td>Create/enable a single subscription for event; notify at once if F() -> true.</td></tr><tr><td valign="top"><a href="#publish-3">publish/3</a></td><td>Publish the message <code>Msg</code> to all subscribers of <code>Event</code></td></tr><tr><td valign="top"><a href="#subscribe-2">subscribe/2</a></td><td>Subscribe to events of type <code>Event</code></td></tr><tr><td valign="top"><a href="#tell_singles-3">tell_singles/3</a></td><td>Publish <code>Msg</code> to all single-shot subscribers of <code>Event</code></td></tr><tr><td valign="top"><a href="#unsubscribe-2">unsubscribe/2</a></td><td>Remove subscribtion created using <code>subscribe(Scope, Event)</code></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#create_single-2">create_single/2</a></td><td>Creates a single-shot subscription entry for Event.</td></tr><tr><td valign="top"><a href="#delete_single-2">delete_single/2</a></td><td>Deletes the single-shot subscription for Event.</td></tr><tr><td valign="top"><a href="#disable_single-2">disable_single/2</a></td><td>Disables the single-shot subscription for Event.</td></tr><tr><td valign="top"><a href="#enable_single-2">enable_single/2</a></td><td>Enables the single-shot subscription for Event.</td></tr><tr><td valign="top"><a href="#list_singles-2">list_singles/2</a></td><td>Lists all single-shot subscribers of Event, together with their status.</td></tr><tr><td valign="top"><a href="#list_subs-2">list_subs/2</a></td><td>List the pids of all processes subscribing to <code>Event</code></td></tr><tr><td valign="top"><a href="#notify_single_if_true-4">notify_single_if_true/4</a></td><td>Create/enable a single subscription for event; notify at once if F() -> true.</td></tr><tr><td valign="top"><a href="#publish-3">publish/3</a></td><td>Publish the message <code>Msg</code> to all subscribers of <code>Event</code></td></tr><tr><td valign="top"><a href="#publish_cond-3">publish_cond/3</a></td><td>Publishes the message <code>Msg</code> to conditional subscribers of <code>Event</code></td></tr><tr><td valign="top"><a href="#subscribe-2">subscribe/2</a></td><td>Subscribe to events of type <code>Event</code></td></tr><tr><td valign="top"><a href="#subscribe_cond-3">subscribe_cond/3</a></td><td>Subscribe conditionally to events of type <code>Event</code></td></tr><tr><td valign="top"><a href="#tell_singles-3">tell_singles/3</a></td><td>Publish <code>Msg</code> to all single-shot subscribers of <code>Event</code></td></tr><tr><td valign="top"><a href="#unsubscribe-2">unsubscribe/2</a></td><td>Remove subscribtion created using <code>subscribe(Scope, Event)</code></td></tr></table>
 
 
 <a name="functions"></a>
@@ -227,7 +227,24 @@ The message delivered to each subscriber will be of the form:
 `{gproc_ps_event, Event, Msg}`
 
 The function uses `gproc:send/2` to send a message to all processes which have a
-property `{p,Scope,{gproc_ps_event,Event}}`.<a name="subscribe-2"></a>
+property `{p,Scope,{gproc_ps_event,Event}}`.<a name="publish_cond-3"></a>
+
+###publish_cond/3##
+
+
+<pre>publish_cond(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Msg::<a href="#type-msg">msg()</a>) -> <a href="#type-msg">msg()</a></pre>
+<br></br>
+
+
+
+
+Publishes the message `Msg` to conditional subscribers of `Event`
+
+The message will be delivered to each subscriber provided their respective
+condition tests succeed.
+
+
+__See also:__ [subscribe_cond/3](#subscribe_cond-3).<a name="subscribe-2"></a>
 
 ###subscribe/2##
 
@@ -246,7 +263,46 @@ Any messages published with `gproc_ps:publish(Scope, Event, Msg)` will be delive
 the current process, along with all other subscribers.
 
 This function creates a property, `{p,Scope,{gproc_ps_event,Event}}`, which can be
-searched and displayed for debugging purposes.<a name="tell_singles-3"></a>
+searched and displayed for debugging purposes.<a name="subscribe_cond-3"></a>
+
+###subscribe_cond/3##
+
+
+<pre>subscribe_cond(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Spec::undefined | <a href="ets.md#type-match_spec">ets:match_spec()</a>) -> true</pre>
+<br></br>
+
+
+
+
+Subscribe conditionally to events of type `Event`
+
+
+
+This function is similar to [`subscribe/2`](#subscribe-2), but adds a condition
+in the form of a match specification.
+
+
+
+The condition is tested by the [`publish_cond/3`](#publish_cond-3) function
+and a message is delivered only if the condition is true. Specifically,
+the test is:
+
+
+
+`ets:match_spec_run([Msg], ets:match_spec_compile(Cond)) == [true]`
+
+
+
+In other words, if the match_spec returns true for a message, that message
+is sent to the subscriber. For any other result from the match_spec, the
+message is not sent. `Cond == undefined` means that all messages will be
+delivered (that is, `publish_cond/3` will treat 'normal' subscribers just
+like [`publish/3`](#publish-3) does, except that `publish/3` strictly speaking
+ignores the Value part of the property completely, whereas `publish_cond/3`
+expects it to be either undefined or a valid match spec).
+
+This means that `Cond=undefined` and `Cond=[{'_',[],[true]}]` are
+equivalent.<a name="tell_singles-3"></a>
 
 ###tell_singles/3##
 

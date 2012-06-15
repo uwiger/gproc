@@ -8,7 +8,7 @@
 
 Extended process registry.
 
-__Behaviours:__ [`gen_leader`](/Users/uwiger/tmp/rebar_edoc/gproc/deps/gen_leader/doc/gen_leader.md).
+__Behaviours:__ [`gen_leader`](/Users/uwiger/FL/git/gen_leader/doc/gen_leader.md).
 
 __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)).<a name="description"></a>
 
