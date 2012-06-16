@@ -255,7 +255,7 @@ mk_reg_rev_objs(T, Scope, Pid, L) ->
 ensure_monitor(shared, _) ->
     ok;
 ensure_monitor(Pid, Scope) when Scope==g; Scope==l ->
-    case node(Pid) == node() andalso ets:insert_new(?TAB, {{Pid, Scope}}) of
+    case ets:insert_new(?TAB, {{Pid, Scope}}) of
         false -> ok;
         true  -> erlang:monitor(process, Pid)
     end.
