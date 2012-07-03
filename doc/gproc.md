@@ -1158,9 +1158,20 @@ Equivalent to [`table(Context, [])`](#table-2).<a name="table-2"></a>
 <br></br>
 
 
+
+
 QLC table generator for the gproc registry.
 Context specifies which subset of the registry should be queried.
-See [`http://www.erlang.org/doc/man/qlc.html`](http://www.erlang.org/doc/man/qlc.html).<a name="unreg-1"></a>
+See [`http://www.erlang.org/doc/man/qlc.html`](http://www.erlang.org/doc/man/qlc.html).
+
+NOTE: By default, the gproc table generator will not filter out entries
+belonging to processes that have just died, but which have yet to be cleared
+out of the registry. Use the option `check_pids` (or `{check_pids, true}`)
+if you want to filter out dead entries already in the query. There will be
+some overhead associated with doing so, and given that the process monitoring
+is asynchronous, there can never be any guarantee that there are no dead
+entries in the list by the time your program processes it.
+<a name="unreg-1"></a>
 
 ###unreg/1##
 

@@ -2295,21 +2295,37 @@ table(Context) ->
 %% @doc QLC table generator for the gproc registry.
 %% Context specifies which subset of the registry should be queried.
 %% See [http://www.erlang.org/doc/man/qlc.html].
+%%
+%% NOTE: By default, the gproc table generator will not filter out entries
+%% belonging to processes that have just died, but which have yet to be cleared
+%% out of the registry. Use the option `check_pids' (or `{check_pids, true}')
+%% if you want to filter out dead entries already in the query. There will be
+%% some overhead associated with doing so, and given that the process monitoring
+%% is asynchronous, there can never be any guarantee that there are no dead
+%% entries in the list by the time your program processes it.
+%%
 %% @end
 table(Context, Opts) ->
     Ctxt = {_, Type} = get_s_t(Context),
     [Traverse, NObjs] = [proplists:get_value(K,Opts,Def) ||
                             {K,Def} <- [{traverse,select}, {n_objects,100}]],
+    CheckPids = proplists:get_bool(check_pids, Opts),
     TF = case Traverse of
              first_next ->
-                 fun() -> qlc_next(Ctxt, first(Ctxt)) end;
-             last_prev -> fun() -> qlc_prev(Ctxt, last(Ctxt)) end;
+                 fun() -> qlc_next(Ctxt, first(Ctxt), CheckPids) end;
+             last_prev -> fun() -> qlc_prev(Ctxt, last(Ctxt), CheckPids) end;
              select ->
                  fun(MS) -> qlc_select(
-			      select(Ctxt, wrap_qlc_ms_prod(MS), NObjs)) end;
+			      CheckPids,
+			      select(Ctxt, wrap_qlc_ms_prod(CheckPids, MS),
+				     NObjs))
+		 end;
              {select,MS} ->
                  fun() -> qlc_select(
-			    select(Ctxt, wrap_qlc_ms_prod(MS), NObjs)) end;
+			    CheckPids,
+			    select(Ctxt, wrap_qlc_ms_prod(CheckPids, MS),
+				   NObjs))
+		 end;
              _ ->
                  erlang:error(badarg, [Ctxt,Opts])
          end,
@@ -2324,39 +2340,46 @@ table(Context, Opts) ->
     LookupFun =
         case Traverse of
             {select, _MS} -> undefined;
-            _ -> fun(Pos, Ks) -> qlc_lookup(Ctxt, Pos, Ks) end
+            _ -> fun(Pos, Ks) -> qlc_lookup(Ctxt, Pos, Ks, CheckPids) end
         end,
     qlc:table(TF, [{info_fun, InfoFun},
                    {lookup_fun, LookupFun}] ++ [{K,V} || {K,V} <- Opts,
                                                          K =/= traverse,
                                                          K =/= n_objects]).
-
-wrap_qlc_ms_prod(Pats) ->
+wrap_qlc_ms_prod(false, Pats) ->
+    Pats;
+wrap_qlc_ms_prod(true, Pats) ->
     [ wrap_qlc_ms_prod_(P) || P <- Pats ].
 
 wrap_qlc_ms_prod_({H, Gs, [P]}) ->
     {H, Gs, [{{ {element, 2, '$_'}, P }}]}.
 
-qlc_lookup(_Scope, 1, Keys) ->
+qlc_lookup(_Scope, 1, Keys, Check) ->
     lists:flatmap(
       fun(Key) ->
               remove_dead(
+		Check,
 		ets:select(?TAB, [{ {{Key,'_'},'_','_'}, [],
 				    [{{ {element,1,{element,1,'$_'}},
 					{element,2,'$_'},
 					{element,3,'$_'} }}] }]))
       end, Keys);
-qlc_lookup(Scope, 2, Pids) ->
+qlc_lookup(Scope, 2, Pids, Check) ->
     lists:flatmap(fun(Pid) ->
-			  qlc_lookup_pid(Pid, Scope)
+			  qlc_lookup_pid(Pid, Scope, Check)
 		  end, Pids).
 
-remove_dead(Objs) ->
+remove_dead(false, Objs) ->
+    Objs;
+remove_dead(true, Objs) ->
     [ Reg || {_, Pid, _} = Reg <- Objs,
 	     not ?PID_IS_DEAD(Pid) ].
 
-qlc_lookup_pid(Pid, Scope) ->
-    case ?PID_IS_DEAD(Pid) of
+%% While it may seem obsessive not to do the sensible pid liveness check here
+%% every time, we make it optional for consistency; this way, we can devise
+%% a test case that verifies the difference between having the option and not.
+qlc_lookup_pid(Pid, Scope, Check) ->
+    case Check andalso ?PID_IS_DEAD(Pid) of
 	true ->
 	    [];
 	false ->
@@ -2378,49 +2401,53 @@ qlc_lookup_pid(Pid, Scope) ->
     end.
 
 
-qlc_next(_, '$end_of_table') -> [];
-qlc_next(Scope, K) ->
+qlc_next(_, '$end_of_table', _) -> [];
+qlc_next(Scope, K, Check) ->
     case ets:lookup(?TAB, K) of
         [{{Key,_}, Pid, V}] ->
-	    case ?PID_IS_DEAD(Pid) of
+	    case Check andalso ?PID_IS_DEAD(Pid) of
 		true ->
-		    qlc_next(Scope, next(Scope, K));
+		    qlc_next(Scope, next(Scope, K), Check);
 		false ->
 		    [{Key,Pid,V}] ++ fun() ->
-					     qlc_next(Scope, next(Scope, K))
+					     qlc_next(Scope, next(Scope, K),
+						      Check)
 				     end
 	    end;
         [] ->
-            qlc_next(Scope, next(Scope, K))
+            qlc_next(Scope, next(Scope, K), Check)
     end.
 
-qlc_prev(_, '$end_of_table') -> [];
-qlc_prev(Scope, K) ->
+qlc_prev(_, '$end_of_table', _) -> [];
+qlc_prev(Scope, K, Check) ->
     case ets:lookup(?TAB, K) of
         [{{Key,_},Pid,V}] ->
-	    case ?PID_IS_DEAD(Pid) of
+	    case Check andalso ?PID_IS_DEAD(Pid) of
 		true ->
-		    qlc_prev(Scope, prev(Scope, K));
+		    qlc_prev(Scope, prev(Scope, K), Check);
 		false ->
 		    [{Key,Pid,V}] ++ fun() ->
-					     qlc_prev(Scope, prev(Scope, K))
+					     qlc_prev(Scope, prev(Scope, K),
+						      Check)
 				     end
 	    end;
         [] ->
-            qlc_prev(Scope, prev(Scope, K))
+            qlc_prev(Scope, prev(Scope, K), Check)
     end.
 
-qlc_select('$end_of_table') ->
+qlc_select(_, '$end_of_table') ->
     [];
-qlc_select({Objects, Cont}) ->
+qlc_select(true, {Objects, Cont}) ->
     case [O || {Pid,O} <- Objects,
 	       not ?PID_IS_DEAD(Pid)] of
 	[] ->
 	    %% re-run search
-	    qlc_select(ets:select(Cont));
+	    qlc_select(true, ets:select(Cont));
 	Found ->
-	    Found ++ fun() -> qlc_select(ets:select(Cont)) end
-    end.
+	    Found ++ fun() -> qlc_select(true, ets:select(Cont)) end
+    end;
+qlc_select(false, {Objects, Cont}) ->
+    Objects ++ fun() -> qlc_select(false, ets:select(Cont)) end.
 
 
 is_unique(n) -> true;

@@ -474,38 +474,55 @@ t_qlc_dead() ->
 	 %% local names
 	 Exp1 = [{{n,l,{n,1}},self(),x}],
 	 ?assertEqual(Exp1,
-		      qlc:e(qlc:q([N || N <- gproc:table(names)]))),
+		      qlc:e(qlc:q([N || N <-
+					    gproc:table(names, [check_pids])]))),
 	 ?assertEqual(Exp1,
 		      qlc:e(qlc:q([N || {{n,l,_},_,_} = N <-
-					    gproc:table(names)]))),
+					    gproc:table(names, [check_pids])]))),
 	 %% match local names on value
 	 Exp2 = [{{n,l,{n,1}},self(),x}],
 	 ?assertEqual(Exp2,
 		      qlc:e(qlc:q([N || {{n,l,_},_,x} = N <-
-					    gproc:table(names)]))),
+					    gproc:table(names, [check_pids])]))),
 	 ?assertEqual([],
 		      qlc:e(qlc:q([N || {{n,l,_},_,y} = N <-
-					    gproc:table(names)]))),
+					    gproc:table(names, [check_pids])]))),
 	 %% match all on value
 	 Exp3 = [{{n,l,{n,1}},self(),x},
 		 {{p,l,{p,1}},self(),x}],
 	 ?assertEqual(Exp3,
-		      qlc:e(qlc:q([N || {_,_,x} = N <- gproc:table(all)]))),
+		      qlc:e(qlc:q([N || {_,_,x} = N <-
+					    gproc:table(all, [check_pids])]))),
 	 ?assertEqual([],
-		      qlc:e(qlc:q([N || {_,_,y} = N <- gproc:table(all)]))),
+		      qlc:e(qlc:q([N || {_,_,y} = N <-
+					    gproc:table(all, [check_pids])]))),
+	 Exp3b = [{{n,l,{n,2}},P1,y},
+		  {{p,l,{p,2}},P1,y}],
+	 ?assertEqual(Exp3b,
+		      qlc:e(qlc:q([N || {_,_,y} = N <-
+					    gproc:table(all)]))),
 
 	 %% match all
 	 Exp4 = [{{n,l,{n,1}},self(),x},
 		 {{p,l,{p,1}},self(),x}],
 	 ?assertEqual(Exp4,
-		      qlc:e(qlc:q([X || X <- gproc:table(all)]))),
+		      qlc:e(qlc:q([X || X <-
+					    gproc:table(all, [check_pids])]))),
 	 %% match on pid
 	 ?assertEqual(Exp4,
 		 qlc:e(qlc:q([{K,P,V} || {K,P,V} <-
-					     gproc:table(all), P =:= self()]))),
+					     gproc:table(all, [check_pids]),
+					 P =:= self()]))),
 	 ?assertEqual([],
 		 qlc:e(qlc:q([{K,P,V} || {K,P,V} <-
-					     gproc:table(all), P =:= P1])))
+					     gproc:table(all, [check_pids]),
+					 P =:= P1]))),
+	 Exp4b = [{{n,l,{n,2}},P1,y},
+		  {{p,l,{p,2}},P1,y}],
+	 ?assertEqual(Exp4b,
+		 qlc:e(qlc:q([{K,P,V} || {K,P,V} <-
+					     gproc:table(all),
+					 P =:= P1])))
     after
 	sys:resume(gproc)
     end.
