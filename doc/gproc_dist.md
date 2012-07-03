@@ -28,7 +28,7 @@ Class = n  - unique name
 | p  - non-unique property
 | c  - counter
 | a  - aggregated counter
-Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#reg_shared-2">reg_shared/2</a></td><td></td></tr><tr><td valign="top"><a href="#reset_counter-1">reset_counter/1</a></td><td></td></tr><tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-1">start_link/1</a></td><td></td></tr><tr><td valign="top"><a href="#surrendered-3">surrendered/3</a></td><td></td></tr><tr><td valign="top"><a href="#sync-0">sync/0</a></td><td>Synchronize with the gproc leader.</td></tr><tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr><tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td></td></tr><tr><td valign="top"><a href="#unreg_shared-1">unreg_shared/1</a></td><td></td></tr><tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td></td></tr><tr><td valign="top"><a href="#update_counters-1">update_counters/1</a></td><td></td></tr><tr><td valign="top"><a href="#update_shared_counter-2">update_shared_counter/2</a></td><td></td></tr></table>
+Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#reg_or_locate-2">reg_or_locate/2</a></td><td></td></tr><tr><td valign="top"><a href="#reg_shared-2">reg_shared/2</a></td><td></td></tr><tr><td valign="top"><a href="#reset_counter-1">reset_counter/1</a></td><td></td></tr><tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-1">start_link/1</a></td><td></td></tr><tr><td valign="top"><a href="#surrendered-3">surrendered/3</a></td><td></td></tr><tr><td valign="top"><a href="#sync-0">sync/0</a></td><td>Synchronize with the gproc leader.</td></tr><tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr><tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td></td></tr><tr><td valign="top"><a href="#unreg_shared-1">unreg_shared/1</a></td><td></td></tr><tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td></td></tr><tr><td valign="top"><a href="#update_counters-1">update_counters/1</a></td><td></td></tr><tr><td valign="top"><a href="#update_shared_counter-2">update_shared_counter/2</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
@@ -175,7 +175,14 @@ Class = n  - unique name
 | p  - non-unique property
 | c  - counter
 | a  - aggregated counter
-Scope = l | g (global or local)<a name="reg_shared-2"></a>
+Scope = l | g (global or local)<a name="reg_or_locate-2"></a>
+
+###reg_or_locate/2##
+
+
+`reg_or_locate(Key, Value) -> any()`
+
+<a name="reg_shared-2"></a>
 
 ###reg_shared/2##
 

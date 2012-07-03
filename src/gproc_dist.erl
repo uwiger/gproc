@@ -24,6 +24,7 @@
 
 -export([start_link/0, start_link/1,
          reg/1, reg/2, unreg/1,
+	 reg_or_locate/2,
 	 reg_shared/2, unreg_shared/1,
          mreg/2,
          munreg/2,
@@ -86,6 +87,13 @@ start_link({Nodes, Opts}) ->
 %%
 reg(Key) ->
     reg(Key, gproc:default(Key)).
+
+%% {@see gproc:reg_or_locate/2}
+%%
+reg_or_locate({n,g,_} = Key, Value) ->
+    leader_call({reg_or_locate, Key, Value, self()});
+reg_or_locate(_, _) ->
+    ?THROW_GPROC_ERROR(badarg).
 
 
 %%% @spec({Class,Scope, Key}, Value) -> true
@@ -285,6 +293,20 @@ handle_leader_call({reg, {C,g,Name} = K, Value, Pid}, _From, S, _E) ->
                         [{{K,Pid},Pid,Value}]
                 end,
             {reply, true, [{insert, Vals}], S}
+    end;
+handle_leader_call({reg_or_locate, {n,g,Name} = K, Value, Pid}, _From, S, _E) ->
+    case gproc_lib:insert_reg(K, Value, Pid, g) of
+	false ->
+	    case ets:lookup(?TAB, {K,n}) of
+		[{_, OtherPid, OtherVal}] ->
+		    {reply, {OtherPid, OtherVal}, S};
+		[] ->
+		    {reply, badarg, S}
+	    end;
+	true ->
+	    _ = gproc_lib:ensure_monitor(Pid,g),
+	    Vals = [{{K,n},Pid,Value}],
+	    {reply, {Pid, Value}, [{insert, Vals}], S}
     end;
 handle_leader_call({monitor, {T,g,_} = Key, Pid}, _From, S, _E)
   when T==n; T==a ->

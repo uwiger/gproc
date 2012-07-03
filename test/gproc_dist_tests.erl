@@ -44,6 +44,9 @@ dist_test_() ->
 			       	       ?debugVal(t_simple_reg(Ns))
 			       end,
 			       fun() ->
+			       	       ?debugVal(t_simple_reg_or_locate(Ns))
+			       end,
+			       fun() ->
 			       	       ?debugVal(t_simple_counter(Ns))
 			       end,
 			       fun() ->
@@ -102,6 +105,20 @@ t_simple_reg([H|_] = Ns) ->
     ?assertMatch(true, t_call(P, {apply, gproc, unreg, [Name]})),
     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
     ?assertMatch(ok, t_call(P, die)).
+
+t_simple_reg_or_locate([A,B|_] = Ns) ->
+    Name = ?T_NAME,
+    P1 = t_spawn(A),
+    Ref = erlang:monitor(process, P1),
+    ?assertMatch({P1, the_value},
+		 t_call(P1, {apply, gproc, reg_or_locate, [Name, the_value]})),
+    P2 = t_spawn(B),
+    Ref2 = erlang:monitor(process, P2),
+    ?assertMatch({P1, the_value},
+		 t_call(P2, {apply, gproc, reg_or_locate, [Name, other_value]})),
+    ?assertMatch(ok, t_call(P1, die)),
+    ?assertMatch(ok, t_call(P2, die)).
+
 
 t_simple_counter([H|_] = Ns) ->
     Ctr = ?T_COUNTER,

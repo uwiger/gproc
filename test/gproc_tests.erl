@@ -71,6 +71,10 @@ reg_test_() ->
      [
       {spawn, ?_test(?debugVal(t_simple_reg()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_simple_reg_or_locate()))}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_reg_or_locate2()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_counter()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_aggr_counter()))}
@@ -132,6 +136,32 @@ t_simple_reg() ->
     ?assert(gproc:where({n,l,name}) =:= self()),
     ?assert(gproc:unreg({n,l,name}) =:= true),
     ?assert(gproc:where({n,l,name}) =:= undefined).
+
+t_simple_reg_or_locate() ->
+    P = self(),
+    ?assertMatch({P, undefined}, gproc:reg_or_locate({n,l,name})),
+    ?assertMatch(P, gproc:where({n,l,name})),
+    ?assertMatch({P, my_val}, gproc:reg_or_locate({n,l,name2}, my_val)),
+    ?assertMatch(my_val, gproc:get_value({n,l,name2})).
+
+t_reg_or_locate2() ->
+    P = self(),
+    {P1,R1} = spawn_monitor(fun() ->
+				    Ref = erlang:monitor(process, P),
+				    gproc:reg({n,l,foo}, the_value),
+				    P ! {self(), ok},
+				    receive
+					{'DOWN',Ref,_,_,_} -> ok
+				    end
+			    end),
+    receive {P1, ok} -> ok end,
+    ?assertMatch({P1, the_value}, gproc:reg_or_locate({n,l,foo})),
+    exit(P1, kill),
+    receive
+	{'DOWN',R1,_,_,_} ->
+	    ok
+    end.
+
 
 t_simple_counter() ->
     ?assert(gproc:reg({c,l,c1}, 3) =:= true),

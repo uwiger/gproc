@@ -72,6 +72,7 @@
 
 -export([start_link/0,
          reg/1, reg/2, unreg/1,
+	 reg_or_locate/1, reg_or_locate/2,
 	 reg_shared/1, reg_shared/2, unreg_shared/1,
          mreg/3,
          munreg/3,
@@ -604,6 +605,17 @@ reg(Key) ->
 reg1(Key) ->
     reg1(Key, default(Key)).
 
+%% @spec reg_or_locate(Key::key()) -> true
+%%
+%% @doc
+%% @equiv reg_or_locate(Key, default(Key))
+%% @end
+reg_or_locate(Key) ->
+    ?CATCH_GPROC_ERROR(reg_or_locate1(Key), [Key]).
+
+reg_or_locate1(Key) ->
+    reg_or_locate1(Key, default(Key)).
+
 default({T,_,_}) when T==c -> 0;
 default(_) -> undefined.
 
@@ -924,6 +936,24 @@ reg1({n,l,_} = Key, Value) ->
 reg1(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
+%% @spec reg_or_locate(Key::key(), Value) -> {pid(), NewValue}
+%%
+%% @doc Try registering a unique name, or return existing registration.
+%%
+%% This function tries to register the name `Key', if available.
+%% If such a registration already exists, the pid and value of
+%% the current registration is returned instead.
+%% @end
+reg_or_locate(Key, Value) ->
+    ?CATCH_GPROC_ERROR(reg_or_locate1(Key, Value), [Key, Value]).
+
+reg_or_locate1({_,g,_} = Key, Value) ->
+    ?CHK_DIST,
+    gproc_dist:reg_or_locate(Key, Value);
+reg_or_locate1({n,l,_} = Key, Value) ->
+    call({reg_or_locate, Key, Value});
+reg_or_locate1(_, _) ->
+    ?THROW_GPROC_ERROR(badarg).
 
 %% @spec reg_shared(Key::key()) -> true
 %%
@@ -1770,6 +1800,20 @@ handle_call({reg, {_T,l,_} = Key, Val}, {Pid,_}, S) ->
             {reply, true, S};
         false ->
             {reply, badarg, S}
+    end;
+handle_call({reg_or_locate, {T,l,_} = Key, Val}, {Pid,_}, S) ->
+    case try_insert_reg(Key, Val, Pid) of
+	true ->
+	    _ = gproc_lib:ensure_monitor(Pid, l),
+	    {reply, {Pid, Val}, S};
+	false ->
+	    case ets:lookup(?TAB, {Key, T}) of
+		[{_, OtherPid, OtherValue}] ->
+		    {reply, {OtherPid, OtherValue}, S};
+		_ ->
+		    %% ?? - shouldn't be possible, but don't let the server crash
+		    {reply, badarg, S}
+	    end
     end;
 handle_call({monitor, {T,l,_} = Key, Pid}, _From, S)
   when T==n; T==a ->
