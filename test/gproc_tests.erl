@@ -107,6 +107,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_qlc()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_qlc_dead()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_get_env()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_get_set_env()))}
@@ -449,6 +451,65 @@ t_qlc() ->
     ?assertEqual(Exp4,
 		 qlc:e(qlc:q([{K,P,V} || {K,P,V} <-
 					     gproc:table(all), P == self()]))).
+
+t_qlc_dead() ->
+    P0 = self(),
+    ?assertEqual(true, gproc:reg({n, l, {n,1}}, x)),
+    ?assertEqual(true, gproc:reg({p, l, {p,1}}, x)),
+    P1 = spawn(fun() ->
+		       Ref = erlang:monitor(process, P0),
+		       gproc:reg({n, l, {n,2}}, y),
+		       gproc:reg({p, l, {p,2}}, y),
+		       P0 ! {self(), ok},
+		       receive
+			   {P, goodbye} -> ok;
+			   {'DOWN', Ref, _, _, _} ->
+			       ok
+		       end
+	       end),
+    receive {P1, ok} -> ok end,
+    %% now, suspend gproc so it doesn't do cleanup
+    try  sys:suspend(gproc),
+	 exit(P1, kill),
+	 %% local names
+	 Exp1 = [{{n,l,{n,1}},self(),x}],
+	 ?assertEqual(Exp1,
+		      qlc:e(qlc:q([N || N <- gproc:table(names)]))),
+	 ?assertEqual(Exp1,
+		      qlc:e(qlc:q([N || {{n,l,_},_,_} = N <-
+					    gproc:table(names)]))),
+	 %% match local names on value
+	 Exp2 = [{{n,l,{n,1}},self(),x}],
+	 ?assertEqual(Exp2,
+		      qlc:e(qlc:q([N || {{n,l,_},_,x} = N <-
+					    gproc:table(names)]))),
+	 ?assertEqual([],
+		      qlc:e(qlc:q([N || {{n,l,_},_,y} = N <-
+					    gproc:table(names)]))),
+	 %% match all on value
+	 Exp3 = [{{n,l,{n,1}},self(),x},
+		 {{p,l,{p,1}},self(),x}],
+	 ?assertEqual(Exp3,
+		      qlc:e(qlc:q([N || {_,_,x} = N <- gproc:table(all)]))),
+	 ?assertEqual([],
+		      qlc:e(qlc:q([N || {_,_,y} = N <- gproc:table(all)]))),
+
+	 %% match all
+	 Exp4 = [{{n,l,{n,1}},self(),x},
+		 {{p,l,{p,1}},self(),x}],
+	 ?assertEqual(Exp4,
+		      qlc:e(qlc:q([X || X <- gproc:table(all)]))),
+	 %% match on pid
+	 ?assertEqual(Exp4,
+		 qlc:e(qlc:q([{K,P,V} || {K,P,V} <-
+					     gproc:table(all), P =:= self()]))),
+	 ?assertEqual([],
+		 qlc:e(qlc:q([{K,P,V} || {K,P,V} <-
+					     gproc:table(all), P =:= P1])))
+    after
+	sys:resume(gproc)
+    end.
+
 
 t_get_env() ->
     ?assertEqual(ok, application:set_env(gproc, ssss, "s1")),
