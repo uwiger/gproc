@@ -75,6 +75,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_reg_or_locate2()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_reg_or_locate3()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_counter()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_aggr_counter()))}
@@ -162,6 +164,30 @@ t_reg_or_locate2() ->
 	    ok
     end.
 
+t_reg_or_locate3() ->
+    P = self(),
+    {P1, Value} = gproc:reg_or_locate(
+		     {n,l,foo}, the_value,
+		     fun() ->
+			     P ! {self(), ok},
+			     receive
+				 {'DOWN',Ref,_,_,_} -> ok
+			     end
+		     end),
+    ?assert(P =/= P1),
+    ?assert(Value =:= the_value),
+    Ref = erlang:monitor(process, P1),
+    receive
+	{P1, ok} -> ok;
+	{'DOWN', Ref, _, _, Reason} ->
+	    ?assert(process_died_unexpectedly)
+    end,
+    ?assertMatch({P1, the_value}, gproc:reg_or_locate({n,l,foo})),
+    exit(P1, kill),
+    receive
+	{'DOWN',R1,_,_,_} ->
+	    ok
+    end.
 
 t_simple_counter() ->
     ?assert(gproc:reg({c,l,c1}, 3) =:= true),

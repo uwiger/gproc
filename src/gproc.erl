@@ -72,7 +72,7 @@
 
 -export([start_link/0,
          reg/1, reg/2, unreg/1,
-	 reg_or_locate/1, reg_or_locate/2,
+	 reg_or_locate/1, reg_or_locate/2, reg_or_locate/3,
 	 reg_shared/1, reg_shared/2, unreg_shared/1,
          mreg/3,
          munreg/3,
@@ -614,7 +614,7 @@ reg_or_locate(Key) ->
     ?CATCH_GPROC_ERROR(reg_or_locate1(Key), [Key]).
 
 reg_or_locate1(Key) ->
-    reg_or_locate1(Key, default(Key)).
+    reg_or_locate1(Key, default(Key), self()).
 
 default({T,_,_}) when T==c -> 0;
 default(_) -> undefined.
@@ -945,14 +945,29 @@ reg1(_, _) ->
 %% the current registration is returned instead.
 %% @end
 reg_or_locate(Key, Value) ->
-    ?CATCH_GPROC_ERROR(reg_or_locate1(Key, Value), [Key, Value]).
+    ?CATCH_GPROC_ERROR(reg_or_locate1(Key, Value, self()), [Key, Value]).
 
-reg_or_locate1({_,g,_} = Key, Value) ->
+%% @spec reg_or_locate(Key::key(), Value, Fun::fun()) -> {pid(), NewValue}
+%%
+%% @doc Spawn a process with a registered name, or return existing registration.
+%%
+%% This function checks whether a local name is registered; if not, it spawns
+%% a new process (with `spawn(Fun)') and gives it the name.
+%% The pid and value of the resulting registration is returned.
+%%
+%% This function is only available for local registration. While it could
+%% theoretically be done in the global case, the spawning of a new process
+%% on a remote node by the leader instance is more problematic.
+%% @end
+reg_or_locate({_,l,_} = Key, Value, F) when is_function(F, 0) ->
+    ?CATCH_GPROC_ERROR(reg_or_locate1(Key, Value, F), [Key, Value, F]).
+
+reg_or_locate1({_,g,_} = Key, Value, P) ->
     ?CHK_DIST,
-    gproc_dist:reg_or_locate(Key, Value);
-reg_or_locate1({n,l,_} = Key, Value) ->
-    call({reg_or_locate, Key, Value});
-reg_or_locate1(_, _) ->
+    gproc_dist:reg_or_locate(Key, Value, P);
+reg_or_locate1({n,l,_} = Key, Value, P) ->
+    call({reg_or_locate, Key, Value, P});
+reg_or_locate1(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 %% @spec reg_shared(Key::key()) -> true
@@ -1801,19 +1816,19 @@ handle_call({reg, {_T,l,_} = Key, Val}, {Pid,_}, S) ->
         false ->
             {reply, badarg, S}
     end;
-handle_call({reg_or_locate, {T,l,_} = Key, Val}, {Pid,_}, S) ->
-    case try_insert_reg(Key, Val, Pid) of
-	true ->
+handle_call({reg_or_locate, {T,l,_} = Key, Val, P}, _, S) ->
+    case ets:lookup(?TAB, {Key, T}) of
+	[] ->
+	    Pid = if is_function(P, 0) ->
+			  spawn(P);
+		     is_pid(P) ->
+			  P
+		  end,
+	    true = gproc_lib:insert_reg(Key, Val, Pid, l),
 	    _ = gproc_lib:ensure_monitor(Pid, l),
 	    {reply, {Pid, Val}, S};
-	false ->
-	    case ets:lookup(?TAB, {Key, T}) of
-		[{_, OtherPid, OtherValue}] ->
-		    {reply, {OtherPid, OtherValue}, S};
-		_ ->
-		    %% ?? - shouldn't be possible, but don't let the server crash
-		    {reply, badarg, S}
-	    end
+	[{_, OtherPid, OtherValue}] ->
+	    {reply, {OtherPid, OtherValue}, S}
     end;
 handle_call({monitor, {T,l,_} = Key, Pid}, _From, S)
   when T==n; T==a ->

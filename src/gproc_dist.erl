@@ -24,7 +24,7 @@
 
 -export([start_link/0, start_link/1,
          reg/1, reg/2, unreg/1,
-	 reg_or_locate/2,
+	 reg_or_locate/3,
 	 reg_shared/2, unreg_shared/1,
          mreg/2,
          munreg/2,
@@ -90,9 +90,9 @@ reg(Key) ->
 
 %% {@see gproc:reg_or_locate/2}
 %%
-reg_or_locate({n,g,_} = Key, Value) ->
-    leader_call({reg_or_locate, Key, Value, self()});
-reg_or_locate(_, _) ->
+reg_or_locate({n,g,_} = Key, Value, Pid) when is_pid(Pid) ->
+    leader_call({reg_or_locate, Key, Value, Pid});
+reg_or_locate(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 
@@ -294,7 +294,7 @@ handle_leader_call({reg, {C,g,Name} = K, Value, Pid}, _From, S, _E) ->
                 end,
             {reply, true, [{insert, Vals}], S}
     end;
-handle_leader_call({reg_or_locate, {n,g,Name} = K, Value, Pid}, _From, S, _E) ->
+handle_leader_call({reg_or_locate, {n,g,_} = K, Value, Pid}, _From, S, _E) ->
     case gproc_lib:insert_reg(K, Value, Pid, g) of
 	false ->
 	    case ets:lookup(?TAB, {K,n}) of
