@@ -36,6 +36,7 @@
 
 -export([subscribe/2,
 	 subscribe_cond/3,
+	 change_cond/3,
 	 unsubscribe/2,
 	 publish/3,
 	 publish_cond/3,
@@ -102,6 +103,26 @@ subscribe_cond(Scope, Event, Spec) when Scope==l; Scope==g ->
 	_ -> error(badarg)
     end,
     gproc:reg({p,Scope,{?ETag, Event}}, Spec).
+
+-spec change_cond(scope(), event(), undefined | ets:match_spec()) -> true.
+%% @doc Change the condition specification of an existing subscription.
+%%
+%% This function atomically changes the condition spec of an existing
+%% subscription (see {@link subscribe_cond/3}). An exception is raised if
+%% the subscription doesn't already exist.
+%%
+%% Note that this function can also be used to change a conditional subscription
+%% to an unconditional one (by setting `Spec = undefined'), or a 'normal'
+%% subscription to a conditional one.
+%% @end
+change_cond(Scope, Event, Spec) when Scope==l; Scope==g ->
+    case Spec of
+	undefined -> ok;
+	[_|_] -> _ = ets:match_spec_compile(Spec);  % validation
+	_ -> error(badarg)
+    end,
+    gproc:set_value({p,Scope,{?ETag, Event}}, Spec).
+
 
 -spec unsubscribe(scope(), event()) -> true.
 %% @doc Remove subscribtion created using `subscribe(Scope, Event)'
