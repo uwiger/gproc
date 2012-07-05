@@ -64,11 +64,15 @@
 -spec subscribe(scope(), event()) -> true.
 %% @doc Subscribe to events of type `Event'
 %%
-%% Any messages published with `gproc_ps:publish(Scope, Event, Msg)' will be delivered to
-%% the current process, along with all other subscribers.
+%% Any messages published with `gproc_ps:publish(Scope, Event, Msg)' will be
+%% delivered to the current process, along with all other subscribers.
 %%
-%% This function creates a property, `{p,Scope,{gproc_ps_event,Event}}', which can be
-%% searched and displayed for debugging purposes.
+%% This function creates a property, `{p,Scope,{gproc_ps_event,Event}}', which
+%% can be searched and displayed for debugging purposes.
+%%
+%% Note that, as with {@link gproc:reg/1}, this function will raise an
+%% exception if you try to subscribe to the same event twice from the same
+%% process.
 %% @end
 subscribe(Scope, Event) when Scope==l; Scope==g ->
     gproc:reg({p,Scope,{?ETag, Event}}).
@@ -95,6 +99,10 @@ subscribe(Scope, Event) when Scope==l; Scope==g ->
 %%
 %% This means that `Cond=undefined' and ``Cond=[{'_',[],[true]}]'' are
 %% equivalent.
+%%
+%% Note that, as with {@link gproc:reg/1}, this function will raise an
+%% exception if you try to subscribe to the same event twice from the same
+%% process.
 %% @end
 subscribe_cond(Scope, Event, Spec) when Scope==l; Scope==g ->
     case Spec of
