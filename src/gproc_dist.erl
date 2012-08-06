@@ -701,7 +701,7 @@ update_counter_g({c,g,_} = Key, {Incr, Threshold, SetValue}, Pid)
     [Prev, New] = ets:update_counter(?TAB, {Key, Pid},
 				     [{3, 0}, {3, Incr, Threshold, SetValue}]),
     update_aggr_counter(Key, New - Prev, [{{Key,Pid},Pid,New}]);
-update_counter_g({c,l,_} = Key, Ops, Pid) when is_list(Ops) ->
+update_counter_g({c,g,_} = Key, Ops, Pid) when is_list(Ops) ->
     case ets:update_counter(?TAB, {Key, Pid},
 			    [{3, 0} | expand_ops(Ops)]) of
 	[_] ->
