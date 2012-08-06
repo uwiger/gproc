@@ -818,9 +818,7 @@ nb_wait1(_) ->
     ?THROW_GPROC_ERROR(badarg).
 
 nb_wait1(Node, {n,l,_} = Key) when is_atom(Node) ->
-    call(Node, {await, Key, self()}, l);
-nb_wait1(_, _) ->
-    ?THROW_GPROC_ERROR(badarg).
+    call(Node, {await, Key, self()}, l).
 
 
 %% @spec cancel_wait(Key::key(), Ref) -> ok
