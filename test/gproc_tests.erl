@@ -171,21 +171,21 @@ t_reg_or_locate3() ->
 		     fun() ->
 			     P ! {self(), ok},
 			     receive
-				 {'DOWN',Ref,_,_,_} -> ok
+				 {'DOWN',_Ref,_,_,_} -> ok
 			     end
 		     end),
     ?assert(P =/= P1),
     ?assert(Value =:= the_value),
-    Ref = erlang:monitor(process, P1),
+    _Ref = erlang:monitor(process, P1),
     receive
 	{P1, ok} -> ok;
-	{'DOWN', Ref, _, _, Reason} ->
+	{'DOWN', _Ref, _, _, _Reason} ->
 	    ?assert(process_died_unexpectedly)
     end,
     ?assertMatch({P1, the_value}, gproc:reg_or_locate({n,l,foo})),
     exit(P1, kill),
     receive
-	{'DOWN',R1,_,_,_} ->
+	{'DOWN',_R1,_,_,_} ->
 	    ok
     end.
 
@@ -518,7 +518,7 @@ t_qlc_dead() ->
 		       gproc:reg({p, l, {p,2}}, y),
 		       P0 ! {self(), ok},
 		       receive
-			   {P, goodbye} -> ok;
+			   {_P, goodbye} -> ok;
 			   {'DOWN', Ref, _, _, _} ->
 			       ok
 		       end
