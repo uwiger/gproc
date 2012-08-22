@@ -106,14 +106,14 @@ t_simple_reg([H|_] = Ns) ->
     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
     ?assertMatch(ok, t_call(P, die)).
 
-t_simple_reg_or_locate([A,B|_] = Ns) ->
+t_simple_reg_or_locate([A,B|_] = _Ns) ->
     Name = ?T_NAME,
     P1 = t_spawn(A),
-    Ref = erlang:monitor(process, P1),
+    _Ref = erlang:monitor(process, P1),
     ?assertMatch({P1, the_value},
 		 t_call(P1, {apply, gproc, reg_or_locate, [Name, the_value]})),
     P2 = t_spawn(B),
-    Ref2 = erlang:monitor(process, P2),
+    _Ref2 = erlang:monitor(process, P2),
     ?assertMatch({P1, the_value},
 		 t_call(P2, {apply, gproc, reg_or_locate, [Name, other_value]})),
     ?assertMatch(ok, t_call(P1, die)),
