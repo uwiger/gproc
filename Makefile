@@ -25,13 +25,15 @@ REBAR=$(shell which rebar || echo ./rebar)
 
 DIRS=src
 
-all: compile
+all: deps compile
 
 check: compile dialyzer
 
 compile:
 	$(REBAR) compile
 
+deps:
+	$(REBAR) get-deps
 
 clean:
 	$(REBAR) clean
