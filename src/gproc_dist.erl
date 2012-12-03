@@ -195,7 +195,7 @@ sync() ->
 %% @end
 get_leader() ->
     GenLeader = gen_leader,
-    GenLEader:call(?MODULE, get_leader).
+    GenLeader:call(?MODULE, get_leader).
 
 %% ==========================================================
 %% Server-side
