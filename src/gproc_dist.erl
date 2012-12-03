@@ -194,7 +194,8 @@ sync() ->
 %% @doc Returns the node of the current gproc leader.
 %% @end
 get_leader() ->
-    gen_leader:call(?MODULE, get_leader).
+    GenLeader = gen_leader,
+    GenLEader:call(?MODULE, get_leader).
 
 %% ==========================================================
 %% Server-side
@@ -269,11 +270,12 @@ check_sync_requests(Node, #state{sync_requests = SReqs} = S) ->
     S#state{sync_requests = SReqs1}.
 
 handle_leader_call(sync, From, #state{sync_requests = SReqs} = S, E) ->
-    case gen_leader:alive(E) -- [node()] of
+    GenLeader = gen_leader,
+    case GenLeader:alive(E) -- [node()] of
         [] ->
             {reply, true, S};
         Alive ->
-            gen_leader:broadcast({from_leader, {sync, From}}, Alive, E),
+            GenLeader:broadcast({from_leader, {sync, From}}, Alive, E),
             {noreply, S#state{sync_requests = [{From, Alive}|SReqs]}}
     end;
 handle_leader_call({reg, {C,g,Name} = K, Value, Pid}, _From, S, _E) ->
