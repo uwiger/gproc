@@ -77,6 +77,7 @@
          mreg/3,
          munreg/3,
          set_value/2,
+         set_shared_value/2,
          get_value/1, get_value/2,
          where/1,
          await/1, await/2, await/3,
@@ -1261,6 +1262,26 @@ set_value1({c,l,_} = Key, Value) when is_integer(Value) ->
     gproc_lib:do_set_counter_value(Key, Value, self());
 set_value1(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
+
+%% @spec (Key :: key(), Value) -> true
+%% @doc Sets the value of a shared key (see {@link reg_shared/1})
+%%
+%% Key is assumed to exist and belong to the calling process.
+%% If it doesn't, this function will exit.
+%%
+%% Value can be any term, unless the object is a counter, in which case
+%% it must be an integer.
+%% @end
+%%
+set_shared_value(Key, Value) ->
+    ?CATCH_GPROC_ERROR(set_shared_value1(Key, Value), [Key, Value]).
+
+set_shared_value1(Key, Value) ->
+    case gproc_lib:do_set_value(Key, Value, shared) of
+        true -> true;
+        false ->
+            erlang:error(badarg)
+    end.
 
 %% @spec (Key) -> Value
 %% @doc Reads the value stored with a key registered to the current process.
