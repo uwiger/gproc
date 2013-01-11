@@ -44,7 +44,7 @@ eunit:
 test: eunit
 
 doc:
-	$(REBAR) doc
+	$(REBAR) get-deps doc
 
 dialyzer:
 	$(REBAR) skip_deps=true dialyze
