@@ -280,11 +280,17 @@ Subscribe to events of type `Event`
 
 
 
-Any messages published with `gproc_ps:publish(Scope, Event, Msg)` will be delivered to
-the current process, along with all other subscribers.
+Any messages published with `gproc_ps:publish(Scope, Event, Msg)` will be
+delivered to the current process, along with all other subscribers.
 
-This function creates a property, `{p,Scope,{gproc_ps_event,Event}}`, which can be
-searched and displayed for debugging purposes.<a name="subscribe_cond-3"></a>
+
+
+This function creates a property, `{p,Scope,{gproc_ps_event,Event}}`, which
+can be searched and displayed for debugging purposes.
+
+Note that, as with [`gproc:reg/1`](gproc.md#reg-1), this function will raise an
+exception if you try to subscribe to the same event twice from the same
+process.<a name="subscribe_cond-3"></a>
 
 ###subscribe_cond/3##
 
@@ -322,8 +328,14 @@ like [`publish/3`](#publish-3) does, except that `publish/3` strictly speaking
 ignores the Value part of the property completely, whereas `publish_cond/3`
 expects it to be either undefined or a valid match spec).
 
+
+
 This means that `Cond=undefined` and `Cond=[{'_',[],[true]}]` are
-equivalent.<a name="tell_singles-3"></a>
+equivalent.
+
+Note that, as with [`gproc:reg/1`](gproc.md#reg-1), this function will raise an
+exception if you try to subscribe to the same event twice from the same
+process.<a name="tell_singles-3"></a>
 
 ###tell_singles/3##
 
