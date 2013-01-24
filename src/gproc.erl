@@ -1547,7 +1547,7 @@ give_away1({_,g,_} = Key, To) ->
 goodbye() ->
     process_is_down(self()).
 
-%% @spec (Key::key(), Msg::any()) -> Msg
+%% @spec (Key::key(), Msg::any()) -> pid() | [pid()]
 %%
 %% @doc Sends a message to the process, or processes, corresponding to Key.
 %%
@@ -1564,17 +1564,19 @@ send1({T,C,_} = Key, Msg) when C==l; C==g ->
     if T == n orelse T == a ->
             case ets:lookup(?TAB, {Key, T}) of
                 [{_, Pid, _}] ->
-                    Pid ! Msg;
+                    Pid ! Msg,
+                    Pid;
                 _ ->
                     ?THROW_GPROC_ERROR(badarg)
             end;
        T==p orelse T==c ->
             %% BUG - if the key part contains select wildcards, we may end up
             %% sending multiple messages to the same pid
-            lists:foreach(fun(Pid) ->
-                                  Pid ! Msg
-                          end, lookup_pids(Key)),
-            Msg;
+            Pids = lists:foldl(fun(Pid, Acc) ->
+                                       Pid ! Msg,
+                                       [Pid | Acc]
+                               end, [], lookup_pids(Key)),
+            lists:reverse(Pids);
        true ->
             erlang:error(badarg)
     end;
