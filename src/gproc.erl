@@ -152,7 +152,6 @@
 
 -include("gproc_int.hrl").
 -include("gproc.hrl").
--include_lib("eunit/include/eunit.hrl").
 
 -define(SERVER, ?MODULE).
 %%-define(l, l(?LINE)). % when activated, calls a traceable empty function
