@@ -608,7 +608,17 @@ from_leader(Ops, S, _E) ->
       fun({delete, Globals, Event}) ->
               delete_globals(Globals, Event);
          ({insert, Globals}) ->
-	      _ = insert_globals(Globals)
+              ets:insert(?TAB, Globals),
+              lists:foreach(
+                fun({{{_,g,_}=Key,_}, P, _}) ->
+                        ets:insert_new(?TAB, {{P,Key}, []}),
+                        gproc_lib:ensure_monitor(P,g);
+                   ({{P,_K}, _Opts} = Obj) when is_pid(P) ->
+			ets:insert(?TAB, Obj),
+                        gproc_lib:ensure_monitor(P,g);
+                   (_) ->
+                        skip
+                end, Globals)
       end, Ops),
     {ok, S}.
 
@@ -705,7 +715,7 @@ surrendered_1(Globs) ->
             ok;
         [_|_] = Missing ->
             %% This is very unlikely, I think
-            leader_cast({add_globals, mk_broadcast_insert_vals(Missing)})
+            leader_cast({add_globals, Missing})
     end,
     case [{K,P} || {K,P,_} <- Ldr_local_globs,
 		   is_pid(P) andalso
