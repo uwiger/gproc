@@ -301,7 +301,7 @@ got_msg(Pb, Tag) ->
 		    receive
 			M when element(1, M) == Tag ->
 			    M
-		    after 1000 ->
+		    after 5000 ->
 			    timeout
 		    end
 	    end}).

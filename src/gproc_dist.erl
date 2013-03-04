@@ -615,17 +615,10 @@ from_leader(Ops, S, _E) ->
 insert_globals(Globals) ->
     ets:insert(?TAB, Globals),
     lists:foldl(
-      fun({{{T,_,_} = Key,Pid}, Pid, _}, A) ->
-	      A1 = case T of
-		       c ->
-			   Incr = ets:lookup_element(?TAB, {Key,Pid}, 3),
-			   update_aggr_counter(Key, -Incr) ++ A;
-		       _ ->
-			   A
-		   end,
+      fun({{{_,_,_} = Key,Pid}, Pid, _}, A) ->
 	      ets:insert_new(?TAB, {{Pid,Key}, []}),
 	      gproc_lib:ensure_monitor(Pid,g),
-	      A1;
+	      A;
 	 ({{{_,_,_}, n}, Pid, _}, A) ->
 	      gproc_lib:ensure_monitor(Pid,g),
 	      A;
