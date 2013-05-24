@@ -57,7 +57,7 @@ browse key data in a running system.
 An interesting application of gproc is building publish/subscribe patterns.
 Example:
 
-```
+```erlang
 
 subscribe(EventType) ->
     %% Gproc notation: {p, l, Name} means {(p)roperty, (l)ocal, Name}
