@@ -1709,7 +1709,7 @@ give_away1({_,g,_} = Key, To) ->
 goodbye() ->
     process_is_down(self()).
 
-%% @spec (Key::key(), Msg::any()) -> Msg
+%% @spec (Key::process() | key(), Msg::any()) -> Msg
 %%
 %% @doc Sends a message to the process, or processes, corresponding to Key.
 %%
@@ -1717,8 +1717,15 @@ goodbye() ->
 %% function will send a message to the corresponding process, or fail if there
 %% is no such process. If Key is for a non-unique object type (counter or
 %% property), Msg will be send to all processes that have such an object.
+%%
+%% Key can also be anything that the erlang:send/2, or '!' operator accepts as a process
+%% identifier, namely a pid(), an atom(), or `{Name::atom(), Node::atom()}'.
 %% @end
 %%
+send(P, Msg) when is_pid(P); is_atom(P) ->
+    P ! Msg;
+send({Name, Node} = P, Msg) when is_atom(Node), is_atom(Name) ->
+    P ! Msg;
 send(Key, Msg) ->
     ?CATCH_GPROC_ERROR(send1(Key, Msg), [Key, Msg]).
 
@@ -1770,7 +1777,6 @@ bcast1(Ns, {T,l,_} = Key, Msg) when T==p; T==a; T==c; T==n; T==p ->
     send1(Key, Msg),
     gen_server:abcast(Ns -- [node()], gproc_bcast, {send, Key, Msg}),
     Msg.
-
 
 %% @spec (Context :: context()) -> key() | '$end_of_table'
 %%

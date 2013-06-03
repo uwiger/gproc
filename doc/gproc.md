@@ -1479,7 +1479,7 @@ but the select patterns are transformed appropriately.
 
 
 <pre><code>
-send(Key::<a href="#type-key">key()</a>, Msg::any()) -&gt; Msg
+send(Key::<a href="#type-process">process()</a> | <a href="#type-key">key()</a>, Msg::any()) -&gt; Msg
 </code></pre>
 
 <br></br>
@@ -1489,10 +1489,15 @@ send(Key::<a href="#type-key">key()</a>, Msg::any()) -&gt; Msg
 Sends a message to the process, or processes, corresponding to Key.
 
 
+
 If Key belongs to a unique object (name or aggregated counter), this
 function will send a message to the corresponding process, or fail if there
 is no such process. If Key is for a non-unique object type (counter or
 property), Msg will be send to all processes that have such an object.
+
+
+Key can also be anything that the erlang:send/2, or '!' operator accepts as a process
+identifier, namely a pid(), an atom(), or `{Name::atom(), Node::atom()}`.
 <a name="set_attributes-2"></a>
 
 ### set_attributes/2 ###
