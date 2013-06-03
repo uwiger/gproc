@@ -52,7 +52,9 @@ init(_Args) ->
 	   permanent, 2000, worker, [gproc_monitor]},
     BCast = {gproc_bcast, {gproc_bcast, start_link, []},
 	     permanent, 2000, worker, [gproc_bcast]},
-    {ok,{{one_for_one, 15, 60}, [GProc| Dist] ++ [Mon, BCast]}}.
+    Pool = {gproc_pool, {gproc_pool, start_link, []},
+	    permanent, 2000, worker, [gproc_pool]},
+    {ok,{{one_for_one, 15, 60}, [GProc| Dist] ++ [Mon, BCast, Pool]}}.
 
 
 %%%----------------------------------------------------------------------

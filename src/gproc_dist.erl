@@ -26,11 +26,13 @@
          reg/1, reg/2, unreg/1,
 	 reg_or_locate/3,
 	 reg_shared/2, unreg_shared/1,
+	 set_attributes/2,
+	 set_attributes_shared/2,
          mreg/2,
          munreg/2,
          set_value/2,
          give_away/2,
-         update_counter/2,
+         update_counter/3,
 	 update_counters/1,
 	 update_shared_counter/2,
 	 reset_counter/1]).
@@ -115,6 +117,16 @@ reg_shared({_,g,_} = Key, Value) ->
 reg_shared(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
+set_attributes({_,g,_} = Key, Attrs) ->
+    leader_call({set_attributes, Key, Attrs, self()});
+set_attributes(_, _) ->
+    ?THROW_GPROC_ERROR(badarg).
+
+set_attributes_shared({_,g,_} = Key, Attrs) ->
+    leader_call({set_attributes, Key, Attrs, shared});
+set_attributes_shared(_, _) ->
+    ?THROW_GPROC_ERROR(badarg).
+
 
 mreg(T, KVL) ->
     if is_list(KVL) -> leader_call({mreg, T, g, KVL, self()});
@@ -152,9 +164,10 @@ give_away({_,g,_} = Key, To) ->
     leader_call({give_away, Key, To, self()}).
 
 
-update_counter({c,g,_} = Key, Incr) when is_integer(Incr) ->
-    leader_call({update_counter, Key, Incr, self()});
-update_counter(_, _) ->
+update_counter({T,g,_} = Key, Pid, Incr) when is_integer(Incr), T==c;
+					      is_integer(Incr), T==n ->
+    leader_call({update_counter, Key, Incr, Pid});
+update_counter(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 update_counters(List) when is_list(List) ->
@@ -239,8 +252,9 @@ elected(S, _E, _Node) ->
 
 globs() ->
     Gs = ets:select(?TAB, [{{{{'_',g,'_'},'_'},'_','_'},[],['$_']}]),
+    As = ets:select(?TAB, [{{{'$1',{'_',g,'_'}}, '$2'},[],['$_']}]),
     _ = [gproc_lib:ensure_monitor(Pid, g) || {_, Pid, _} <- Gs],
-    Gs.
+    Gs ++ As.
 
 surrendered(#state{is_leader = true} = S, {globals, Globs}, _E) ->
     %% Leader conflict!
@@ -307,6 +321,13 @@ handle_leader_call({reg, {_C,g,_Name} = K, Value, Pid}, _From, S, _E) ->
             %%     end,
             {reply, true, [{insert, Vals}], S}
     end;
+handle_leader_call({set_attributes, {_,g,_} = K, Attrs, Pid}, _From, S, _E) ->
+    case gproc_lib:insert_attr(K, Attrs, Pid, g) of
+	false ->
+	    {reply, badarg, S};
+	NewAttrs when is_list(NewAttrs) ->
+	    {reply, true, [{insert, [{{Pid,K}, NewAttrs}]}], S}
+    end;
 handle_leader_call({reg_or_locate, {n,g,_} = K, Value, Pid}, _From, S, _E) ->
     case gproc_lib:insert_reg(K, Value, Pid, g) of
 	false ->
@@ -354,10 +375,16 @@ handle_leader_call({demonitor, {T,g,_} = Key, Ref, Pid}, _From, S, _E)
 		    {reply, Ref, [{insert, [NewRev]}], S}
 	    end
     end;
-handle_leader_call({update_counter, {c,g,_Ctr} = Key, Incr, Pid}, _From, S, _E)
-  when is_integer(Incr) ->
+handle_leader_call({update_counter, {T,g,_Ctr} = Key, Incr, Pid}, _From, S, _E)
+  when is_integer(Incr), T==c;
+       is_integer(Incr), T==n ->
     try New = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
-        Vals = [{{Key,Pid},Pid,New} | update_aggr_counter(Key, Incr)],
+	 RealPid = case Pid of
+		       n -> ets:lookup_element(?TAB, {Key,Pid}, 2);
+		       shared -> shared;
+		       P when is_pid(P) -> P
+		   end,
+	 Vals = [{{Key,Pid},RealPid,New} | update_aggr_counter(Key, Incr)],
         {reply, New, [{insert, Vals}], S}
     catch
         error:_ ->
@@ -674,7 +701,10 @@ surrendered_1(Globs) ->
     %% remove all remote globals.
     ets:select_delete(?TAB, [{{{{'_',g,'_'},'_'}, '$1', '_'},
                               [{'=/=', {node,'$1'}, node()}],
-                              [true]}]),
+                              [true]},
+			     {{{'$1',{'_',g,'_'}}, '_'},
+			      [{'=/=', {node,'$1'}, node()}],
+			      [true]}]),
     %% insert new non-local globals, collect the leader's version of
     %% what my globals are
     Ldr_local_globs =
@@ -764,6 +794,8 @@ expand_ops([]) ->
 expand_ops(_) ->
     ?THROW_GPROC_ERROR(badarg).
 
+update_aggr_counter({n,_,_}, _) ->
+    [];
 update_aggr_counter(Key, Incr) ->
     update_aggr_counter(Key, Incr, []).
 

@@ -71,13 +71,16 @@
 -behaviour(gen_server).
 
 -export([start_link/0,
-         reg/1, reg/2, unreg/1,
+         reg/1, reg/2, unreg/1, set_attributes/2,
 	 reg_or_locate/1, reg_or_locate/2, reg_or_locate/3,
 	 reg_shared/1, reg_shared/2, unreg_shared/1,
+	 set_attributes_shared/2, set_value_shared/2,
          mreg/3,
          munreg/3,
          set_value/2,
          get_value/1, get_value/2,
+	 get_attribute/2, get_attribute/3,
+	 get_attributes/1, get_attributes/2,
          where/1,
          await/1, await/2, await/3,
 	 wide_await/3,
@@ -90,7 +93,7 @@
          lookup_pids/1,
          lookup_value/1,
          lookup_values/1,
-         update_counter/2,
+         update_counter/2, update_counter/3,
 	 update_counters/2,
 	 reset_counter/1,
 	 update_shared_counter/2,
@@ -938,7 +941,7 @@ reg1(_, _) ->
 %% @doc Try registering a unique name, or return existing registration.
 %%
 %% This function tries to register the name `Key', if available.
-%% If such a registration already exists, the pid and value of
+%% If such a registration object already exists, the pid and value of
 %% the current registration is returned instead.
 %% @end
 reg_or_locate(Key, Value) ->
@@ -977,11 +980,8 @@ reg_or_locate1(_, _, _) ->
 reg_shared(Key) ->
     ?CATCH_GPROC_ERROR(reg_shared1(Key), [Key]).
 
-reg_shared1({c,_,_} = Key) ->
-    reg_shared(Key, 0);
-reg_shared1({a,_,_} = Key) ->
-    reg_shared(Key, undefined).
-
+reg_shared1({T,_,_} = Key) when T==a; T==p; T==c ->
+    reg_shared(Key, default(Key)).
 
 %% @spec reg_shared(Key::key(), Value) -> true
 %%
@@ -991,7 +991,7 @@ reg_shared1({a,_,_} = Key) ->
 %% (using {@link unreg_shared/1}). The types of shared resources currently
 %% supported are `counter' and `aggregated counter'. In listings and query
 %% results, shared resources appear as other similar resources, except that
-%% `Pid == shared'. To wit, update_counter({c,l,myCounter}, 1, shared) would
+%% `Pid == shared'. To wit, update_counter({c,l,myCounter}, shared, 1) would
 %% increment the shared counter `myCounter' with 1, provided it exists.
 %%
 %% A shared aggregated counter will track updates in exactly the same way as
@@ -1008,6 +1008,8 @@ reg_shared1({_,g,_} = Key, Value) ->
 reg_shared1({a,l,_} = Key, undefined) ->
     call({reg_shared, Key, undefined});
 reg_shared1({c,l,_} = Key, Value) when is_integer(Value) ->
+    call({reg_shared, Key, Value});
+reg_shared1({p,l,_} = Key, Value) ->
     call({reg_shared, Key, Value});
 reg_shared1(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
@@ -1098,6 +1100,28 @@ unreg1(Key) ->
             end
     end.
 
+%% @spec (Key::key(), Props::[{atom(), any()}]) -> true
+%%
+%% @doc Add/modify `{Key, Value}' attributes associated with a registration.
+%%
+%% Gproc registration objects can have `{Key, Value}' attributes associated with
+%% them. These are stored in a way that doesn't affect the cost of name lookup.
+%%
+%% Attributs can be retrieved using `gproc:get_attribute/3' or
+%% `gproc:get_attributes/2'.
+%% @end
+set_attributes(Key, Props) ->
+    ?CATCH_GPROC_ERROR(set_attributes1(Key, Props), [Key, Props]).
+
+set_attributes1(Key, Props) ->
+    case Key of
+	{_, g, _} ->
+	    ?CHK_DIST,
+	    gproc_dist:set_attributes(Key, Props);
+	{_, l, _} ->
+	    call({set_attributes, Key, Props})
+    end.
+
 %% @spec (Key:: key()) -> true
 %%
 %% @doc Unregister a shared resource.
@@ -1111,9 +1135,32 @@ unreg_shared1(Key) ->
             ?CHK_DIST,
             gproc_dist:unreg_shared(Key);
         {T, l, _} when T == c;
-                       T == a -> call({unreg_shared, Key});
+                       T == a;
+		       T == p -> call({unreg_shared, Key});
         _ ->
 	    ?THROW_GPROC_ERROR(badarg)
+    end.
+
+%% @spec (Key::key(), Props::[{K,V}]) -> true
+%% @doc Add/modify `{Key, Value}' attributes associated with a shared registration.
+%%
+%% Gproc registration objects can have `{Key, Value}' attributes associated with
+%% them. These are stored in a way that doesn't affect the cost of name lookup.
+%%
+%% Attributes can be retrieved using `gproc:get_attribute/3' or
+%% `gproc:get_attributes/2'.
+%% @end
+%%
+set_attributes_shared(Key, Attrs) ->
+    ?CATCH_GPROC_ERROR(set_attributes_shared1(Key, Attrs), [Key, Attrs]).
+
+set_attributes_shared1(Key, Attrs) ->
+    case Key of
+	{_, g, _} ->
+	    ?CHK_DIST,
+	    gproc_dist:set_attributes_shared(Key, Attrs);
+	{_, l, _} ->
+	    call({set_attributes_shared, Key, Attrs})
     end.
 
 %% @spec (key(), pid()) -> yes | no
@@ -1227,7 +1274,7 @@ local_munreg(T, L) when T==p; T==c ->
     true.
 
 %% @spec (Key :: key(), Value) -> true
-%% @doc Sets the value of the registeration entry given by Key
+%% @doc Sets the value of the registration given by Key
 %%
 %% Key is assumed to exist and belong to the calling process.
 %% If it doesn't, this function will exit.
@@ -1238,6 +1285,21 @@ local_munreg(T, L) when T==p; T==c ->
 %%
 set_value(Key, Value) ->
     ?CATCH_GPROC_ERROR(set_value1(Key, Value), [Key, Value]).
+
+%% @spec (Key :: key(), Value) -> true
+%% @doc Sets the value of the shared registration given by Key
+%%
+%% Key is assumed to exist as a shared entity.
+%% If it doesn't, this function will exit.
+%%
+%% Value can be any term, unless the object is a counter, in which case
+%% it must be an integer.
+%% @end
+%%
+set_value_shared({T,_,_} = Key, Value) when T == c;
+					    T == a;
+					    T == p->
+    ?CATCH_GPROC_ERROR(set_value_shared1(Key, Value), [Key, Value]).
 
 set_value1({_,g,_} = Key, Value) ->
     ?CHK_DIST,
@@ -1260,6 +1322,13 @@ set_value1({c,l,_} = Key, Value) when is_integer(Value) ->
     gproc_lib:do_set_counter_value(Key, Value, self());
 set_value1(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
+
+set_value_shared1({_,g,_} = Key, Value) ->
+    ?CHK_DIST,
+    gproc_dist:set_value_shared(Key, Value);
+set_value_shared1({_,l,_} = Key, Value) ->
+    call({set_shared, Key, Value}).
+
 
 %% @spec (Key) -> Value
 %% @doc Reads the value stored with a key registered to the current process.
@@ -1288,9 +1357,10 @@ get_value1({T,_,_} = Key, Pid) when is_pid(Pid) ->
        true ->
             ets:lookup_element(?TAB, {Key, Pid}, 3)
     end;
-get_value1({T,_,_} = K, shared) when T==c; T==a ->
+get_value1({T,_,_} = K, shared) when T==c; T==a; T==p ->
     Key = case T of
 	      c -> {K, shared};
+	      p -> {K, shared};
 	      a -> {K, a}
 	  end,
     case ets:lookup(?TAB, Key) of
@@ -1298,6 +1368,78 @@ get_value1({T,_,_} = K, shared) when T==c; T==a ->
 	_ -> ?THROW_GPROC_ERROR(badarg)
     end;
 get_value1(_, _) ->
+    ?THROW_GPROC_ERROR(badarg).
+
+
+%% @spec (Key, Attribute::atom()) -> Value
+%% @doc Get attribute value of `Attr' associated with `Key' for most likely Pid.
+%%
+%% The most likely Pid in this case is `self()' for properties and counters,
+%% and the current registration holder in case of names or aggregated counters.
+%% An exception is raised if `Key' is not registered for the given process.
+%% @end
+get_attribute(Key, A) ->
+    Pid = case Key of
+	      {T,_,_} when T==n; T==a ->
+		  where(Key);
+	      {T,_,_} when T==p; T==c ->
+		  self()
+	  end,
+    ?CATCH_GPROC_ERROR(get_attribute1(Key, Pid, A), [Key, A]).
+
+%% @spec (Key, Pid::pid() | shared, Attr::atom()) -> Value
+%% @doc Get the attribute value of `Attr' associated with `Key' for process Pid.
+%%
+%% If `Pid == shared', the attribute of a shared key (see {@link reg_shared/1})
+%% will be read.
+%% @end
+%%
+get_attribute(Key, Pid, A) ->
+    ?CATCH_GPROC_ERROR(get_attribute1(Key, Pid, A), [Key, Pid, A]).
+
+get_attribute1({_,_,_} = Key, Pid, A) when is_pid(Pid); Pid==shared ->
+    case ets:lookup(?TAB, {Pid, Key}) of
+	[{_, Attrs}] ->
+	    case lists:keyfind(attrs, 1, Attrs) of
+		false -> undefined;
+		{_, As} ->
+		    case lists:keyfind(A, 1, As) of
+			false  -> undefined;
+			{_, V} -> V
+		    end
+	    end;
+	_ -> ?THROW_GPROC_ERROR(badarg)
+    end;
+get_attribute1(_, _, _) ->
+    ?THROW_GPROC_ERROR(badarg).
+
+%% @spec get_attributes(Key::key()) -> [{K, V}]
+%% @doc Get attributes associated with registration.
+%% @equiv get_attributes(Key, self())
+%%
+get_attributes(Key) ->
+    ?CATCH_GPROC_ERROR(get_attributes1(Key, self()), [Key]).
+
+%% @spec (Key::key(), Pid::pid() | shared) -> [{K, V}]
+%%
+%% @doc Returns the list of attributes associated with the registration.
+%%
+%% This function raises a `badarg' exception if there is no corresponding
+%% registration.
+%%
+get_attributes(Key, Pid) ->
+    ?CATCH_GPROC_ERROR(get_attributes1(Key, Pid), [Key, Pid]).
+
+get_attributes1({_,_,_} = Key, Pid) when is_pid(Pid); Pid==shared ->
+    case ets:lookup(?TAB, {Pid, Key}) of
+	[{_, Attrs}] ->
+	    case lists:keyfind(attrs, 1, Attrs) of
+		false   -> [];
+		{_, As} -> As
+	    end;
+	_ -> ?THROW_GPROC_ERROR(badarg)
+    end;
+get_attributes1(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 
@@ -1324,7 +1466,7 @@ lookup_value({T,_,_} = Key) ->
 %%
 %% @doc Returns the pid registered as Key
 %%
-%% The type of registration entry must be either name or aggregated counter.
+%% The type of registration must be either name or aggregated counter.
 %% Otherwise this function will exit. Use {@link lookup_pids/1} in these
 %% cases.
 %% @end
@@ -1356,16 +1498,21 @@ whereis_name(Key) ->
 %%
 %% @doc Returns a list of pids with the published key Key
 %%
-%% If the type of registration entry is either name or aggregated counter,
+%% If the type of registration is either name or aggregated counter,
 %% this function will return either an empty list, or a list of one pid.
 %% For non-unique types, the return value can be a list of any length.
+%%
+%% Note: shared resources are not associated with any pid, and will
+%% therefore be excluded.
 %% @end
 %%
 lookup_pids({T,_,_} = Key) ->
     L = if T==n orelse T==a ->
-                ets:select(?TAB, [{{{Key,T}, '$1', '_'},[],['$1']}]);
+                ets:select(?TAB, [{{{Key,T}, '$1', '_'},
+				   [{is_pid, '$1'}], ['$1']}]);
            true ->
-                ets:select(?TAB, [{{{Key,'_'}, '$1', '_'},[],['$1']}])
+                ets:select(?TAB, [{{{Key,'_'}, '$1', '_'},
+				   [{is_pid, '$1'}], ['$1']}])
         end,
     [P || P <- L, my_is_process_alive(P)].
 
@@ -1404,23 +1551,39 @@ lookup_values({T,_,_} = Key) ->
 %%
 %% This function works almost exactly like ets:update_counter/3
 %% (see [http://www.erlang.org/doc/man/ets.html#update_counter-3]), but
-%% will fail if the type of object referred to by Key is not a counter.
+%% will fail if the type of object referred to by Key is not a counter or
+%% a unique name (update_counter/2 can be performed on names as well, but they
+%% do not count as counter objects, and do not affect aggregated counters).
 %%
 %% Aggregated counters with the same name will be updated automatically.
 %% The `UpdateOp' patterns are the same as for `ets:update_counter/3', except
 %% that the position is omitted; in gproc, the value position is always `3'.
+%%
+%% If `Key' refers to a unique name, the operation will depend on the value
+%% part of the registration being an integer(). While non-integer values are
+%% not permitted at all for counter objects, it is the user's responsibility to
+%% ensure that a name, on which `update_counter/2' is to be performed, has the
+%% appropriate value type.
 %% @end
 %%
 -spec update_counter(key(), increment()) -> integer().
 update_counter(Key, Incr) ->
-    ?CATCH_GPROC_ERROR(update_counter1(Key, Incr), [Key, Incr]).
+    Pid = case Key of
+	      {n,_,_} -> n;
+	      {c,_,_} -> self()
+	  end,
+    ?CATCH_GPROC_ERROR(update_counter1(Key, Pid, Incr), [Key, Incr]).
 
-update_counter1({c,l,_} = Key, Incr) ->
-    gproc_lib:update_counter(Key, Incr, self());
-update_counter1({c,g,_} = Key, Incr) ->
+update_counter(Key, Pid, Incr) when is_pid(Pid);
+				    Pid == shared; Pid == n ->
+    ?CATCH_GPROC_ERROR(update_counter1(Key, Pid, Incr), [Key, Pid, Incr]).
+
+update_counter1({T,l,_} = Key, Pid, Incr) when T==c; T==n ->
+    gproc_lib:update_counter(Key, Incr, Pid);
+update_counter1({T,g,_} = Key, Pid, Incr) when T==c; T==n ->
     ?CHK_DIST,
-    gproc_dist:update_counter(Key, Incr);
-update_counter1(_, _) ->
+    gproc_dist:update_counter(Key, Pid, Incr);
+update_counter1(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 %% @doc Update a list of counters
@@ -1611,7 +1774,7 @@ bcast1(Ns, {T,l,_} = Key, Msg) when T==p; T==a; T==c; T==n; T==p ->
 
 %% @spec (Context :: context()) -> key() | '$end_of_table'
 %%
-%% @doc Behaves as ets:first(Tab) for a given type of registration object.
+%% @doc Behaves as ets:first(Tab) for a given type of registration.
 %%
 %% See [http://www.erlang.org/doc/man/ets.html#first-1].
 %%  The registry behaves as an ordered_set table.
@@ -1629,7 +1792,7 @@ first(Context) ->
 
 %% @spec (Context :: context()) -> key() | '$end_of_table'
 %%
-%% @doc Behaves as ets:last(Tab) for a given type of registration object.
+%% @doc Behaves as ets:last(Tab) for a given type of registration.
 %%
 %% See [http://www.erlang.org/doc/man/ets.html#last-1].
 %% The registry behaves as an ordered_set table.
@@ -1646,7 +1809,7 @@ last(Context) ->
 
 %% @spec (Context::context(), Key::key()) -> key() | '$end_of_table'
 %%
-%% @doc Behaves as ets:next(Tab,Key) for a given type of registration object.
+%% @doc Behaves as ets:next(Tab,Key) for a given type of registration.
 %%
 %% See [http://www.erlang.org/doc/man/ets.html#next-2].
 %% The registry behaves as an ordered_set table.
@@ -1654,11 +1817,24 @@ last(Context) ->
 %%
 next(Context, K) ->
     {S,T} = get_s_t(Context),
-    step(ets:next(?TAB,K), S, T).
+    {Prev,Unwrap} =
+	case K of
+	    {{_,_,_},_} ->
+		{K, false};
+	    {_,_,_} ->
+		{{K,[]}, true}  % [] is higher than pid(), shared, p, c...
+	end,
+    unwrap(Unwrap, step(ets:next(?TAB,Prev), S, T)).
+
+unwrap(true, {{_,_,_} = R,_}) ->
+    R;
+unwrap(_, R) ->
+    R.
+
 
 %% @spec (Context::context(), Key::key()) -> key() | '$end_of_table'
 %%
-%% @doc Behaves as ets:prev(Tab,Key) for a given type of registration object.
+%% @doc Behaves as ets:prev(Tab,Key) for a given type of registration.
 %%
 %% See [http://www.erlang.org/doc/man/ets.html#prev-2].
 %% The registry behaves as an ordered_set table.
@@ -1666,7 +1842,13 @@ next(Context, K) ->
 %%
 prev(Context, K) ->
     {S, T} = get_s_t(Context),
-    step(ets:prev(?TAB, K), S, T).
+    {Prev, Unwrap} =
+	case K of
+	    {{_,_,_},_} -> {K, false};
+	    {_,_,_} ->
+		{{K,1}, true}
+	end,
+    unwrap(Unwrap, step(ets:prev(?TAB, Prev), S, T)).
 
 step(Key, '_', '_') ->
     case Key of
@@ -1813,6 +1995,19 @@ handle_call({reg, {_T,l,_} = Key, Val}, {Pid,_}, S) ->
         false ->
             {reply, badarg, S}
     end;
+handle_call({set_attributes, {_,l,_} = Key, Attrs}, {Pid,_}, S) ->
+    case gproc_lib:insert_attr(Key, Attrs, Pid, l) of
+	false -> {reply, badarg, S};
+	L when is_list(L)  ->
+	    {reply, true, S}
+    end;
+handle_call({set_attributes_shared, {_,l,_} = Key, Attrs}, _, S) ->
+    case gproc_lib:insert_attr(Key, Attrs, shared, l) of
+	false ->
+	    {reply, badarg, S};
+	L when is_list(L) ->
+	    {reply, true, S}
+    end;
 handle_call({reg_or_locate, {T,l,_} = Key, Val, P}, _, S) ->
     case ets:lookup(?TAB, {Key, T}) of
 	[] ->
@@ -1909,6 +2104,13 @@ handle_call({munreg, T, l, L}, {Pid,_}, S) ->
     {reply, true, S};
 handle_call({set, {_,l,_} = Key, Value}, {Pid,_}, S) ->
     case gproc_lib:do_set_value(Key, Value, Pid) of
+        true ->
+            {reply, true, S};
+        false ->
+            {reply, badarg, S}
+    end;
+handle_call({set_shared, {_,l,_} = Key, Value}, {_,_}, S) ->
+    case gproc_lib:do_set_value(Key, Value, shared) of
         true ->
             {reply, true, S};
         false ->

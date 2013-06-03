@@ -27,6 +27,7 @@
          ensure_monitor/2,
          insert_many/4,
          insert_reg/4,
+	 insert_attr/4,
          remove_many/4,
          remove_reg/3, remove_reg/4,
 	 add_monitor/3,
@@ -71,6 +72,11 @@ insert_reg({T,_,Name} = K, Value, Pid, Scope) when T==a; T==n ->
                     false
             end
     end;
+insert_reg({p,Scope,_} = K, Value, shared, Scope)
+  when Scope == g; Scope == l ->
+    %% shared properties are unique
+    Info = [{{K, shared}, shared, Value}, {{shared,K}, []}],
+    ets:insert_new(?TAB, Info);
 insert_reg({c,Scope,Ctr} = Key, Value, Pid, Scope) when Scope==l; Scope==g ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
@@ -90,6 +96,20 @@ insert_reg({_,_,_} = Key, Value, Pid, _Scope) when is_pid(Pid) ->
     ets:insert_new(?TAB, [{K, Pid, Value}, {Kr, []}]).
 
 
+insert_attr({_,Scope,_} = Key, Attrs, Pid, Scope) when Scope==l;
+						       Scope==g ->
+    case ets:lookup(?TAB,  K = {Pid, Key}) of
+	[{_, Attrs0}] when is_list(Attrs) ->
+	    As = proplists:get_value(attrs, Attrs0, []),
+	    As1 = lists:foldl(fun({K1,_} = Attr, Acc) ->
+				     lists:keystore(K1, 1, Acc, Attr)
+			     end, As, Attrs),
+	    Attrs1 = lists:keystore(attrs, 1, Attrs0, {attrs, As1}),
+	    ets:insert(?TAB, {K, Attrs1}),
+	    Attrs1;
+	_ ->
+	    false
+    end.
 
 -spec insert_many(type(), scope(), [{key(),any()}], pid()) ->
           {true,list()} | false.
@@ -347,8 +367,9 @@ remove_counter_1({c,C,N} = Key, Val, Pid) ->
     Res.
 
 do_set_value({T,_,_} = Key, Value, Pid) ->
-    K2 = if T==n orelse T==a -> T;
-            true -> Pid
+    K2 = if Pid == shared -> shared;
+	    T==n orelse T==a -> T;
+	    true -> Pid
          end,
     case (catch ets:lookup_element(?TAB, {Key,K2}, 2)) of
         {'EXIT', {badarg, _}} ->
@@ -365,17 +386,20 @@ do_set_counter_value({_,C,N} = Key, Value, Pid) ->
     update_aggr_counter(C, N, Value - OldVal),
     Res.
 
-update_counter({c,l,Ctr} = Key, Incr, Pid) when is_integer(Incr) ->
+update_counter({T,l,Ctr} = Key, Incr, Pid) when is_integer(Incr), T==c;
+						is_integer(Incr), T==n ->
     Res = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
     update_aggr_counter(l, Ctr, Incr),
     Res;
-update_counter({c,l,Ctr} = Key, {Incr, Threshold, SetValue}, Pid)
-  when is_integer(Incr), is_integer(Threshold), is_integer(SetValue) ->
+update_counter({T,l,Ctr} = Key, {Incr, Threshold, SetValue}, Pid)
+  when is_integer(Incr), is_integer(Threshold), is_integer(SetValue), T==c;
+       is_integer(Incr), is_integer(Threshold), is_integer(SetValue), T==n ->
     [Prev, New] = ets:update_counter(?TAB, {Key, Pid},
 				     [{3, 0}, {3, Incr, Threshold, SetValue}]),
     update_aggr_counter(l, Ctr, New - Prev),
     New;
-update_counter({c,l,Ctr} = Key, Ops, Pid) when is_list(Ops) ->
+update_counter({T,l,Ctr} = Key, Ops, Pid) when is_list(Ops), T==c;
+					       is_list(Ops), T==n ->
     case ets:update_counter(?TAB, {Key, Pid},
 			    [{3, 0} | expand_ops(Ops)]) of
 	[_] ->
