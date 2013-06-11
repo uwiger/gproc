@@ -82,8 +82,8 @@
 	 terminate/2,
 	 code_change/3]).
 
--export([test/1, test/3, test_run/2, test_run1/2,
-	 setup_test_pool/3, remove_test_pool/1]).
+-export([test/1, test/3, ptest/4, test_run/2, test_run1/2, test_run2/2,
+	 test_run0/2, setup_test_pool/3, remove_test_pool/1]).
 
 -define(POOL(Pool), {p,l,{?MODULE,Pool}}).
 -define(POOL_CUR(Pool), {c,l,{?MODULE,Pool,cur}}).
@@ -847,16 +847,48 @@ test(N, Type, Opts) when Type==round_robin;
 			 Type==claim ->
     P = ?LINE,
     setup_test_pool(P, Type, Opts),
-    F = if Type==hash; Type==direct -> test_run1;
-	   true -> test_run
-	end,
-    try timer:tc(?MODULE, F, [N, P])
+    try timer:tc(?MODULE, f(Type), [N, P])
     after
         remove_test_pool(P)
     end.
 
+ptest(N, I, Type, Opts) ->
+    P = ?LINE,
+    setup_test_pool(P, Type, Opts),
+    F = f(Type),
+    Pids =
+	[spawn_monitor(fun() -> exit({ok, timer:tc(?MODULE, F, [I, P])}) end)
+	 || _ <- lists:seq(1, N)],
+    try collect(Pids)
+    after
+	remove_test_pool(P)
+    end.
+
+collect(Pids) ->
+    Results = [receive
+		   {'DOWN', Ref, _, _, Reason} ->
+		       Reason
+	       end || {_, Ref} <- Pids],
+    {Times, Avgs} = lists:foldr(fun({ok, {T, Avg}}, {A,B}) ->
+					{[T|A], [Avg|B]} end,
+				{[],[]}, Results),
+    {Times, lists:sum(Times)/length(Times),
+    lists:sum(Avgs)/length(Avgs)}.
+
+f(Type) when Type==hash; Type==direct ->
+    test_run1;
+f(Type) when Type==claim ->
+    test_run2;
+f({empty,_}) ->
+    test_run0;
+f(_) ->
+    test_run.
+
+
+
 %% @private
-setup_test_pool(P, Type, Opts) ->
+setup_test_pool(P, Type0, Opts) ->
+    Type = case Type0 of {_, T} -> T; T when is_atom(T) -> T end,
     new(P, Type, Opts),
     [begin R = add_worker(P, W),
 	   io:fwrite("add_worker(~p, ~p) -> ~p; Ws = ~p~n",
@@ -879,19 +911,42 @@ remove_test_pool(P) ->
 test_workers() -> [a,b,c,d,e,f].
 
 %% @private
-test_run(N, P) when N > 0 ->
-    Worker = pick(P),
+test_run(N, P) ->
+    test_run(N, P, 0, 0).
+
+test_run(N, P, S, M) when N > 0 ->
+    {T, Worker} = timer:tc(?MODULE, pick, [P]),
     true = (Worker =/= false),
     log(Worker),
-    test_run(N-1, P);
-test_run(_, _) ->
-    ok.
+    timer:sleep(crypto:rand_uniform(1,50)),
+    test_run(N-1, P, S+T, M+1);
+test_run(_, _, S, M) ->
+    S/M.
 
 %% @private
-test_run1(N, P) when N > 0 ->
-    Worker = pick(P, N),
+test_run1(N, P) ->
+    test_run1(N, P, 0, 0).
+test_run1(N, P, S, M) when N > 0 ->
+    {T, Worker} = timer:tc(?MODULE, pick, [P, N]),
     true = (Worker =/= false),
     log(Worker),
-    test_run1(N-1, P);
-test_run1(_, _) ->
+    timer:sleep(crypto:rand_uniform(1,50)),
+    test_run1(N-1, P, S+T, M+1);
+test_run1(_, _, S, M) ->
+    S/M.
+
+%% @private
+test_run2(N, P) ->
+    test_run2(N, P, fun(K,_) -> log(K) end, 0, 0).
+
+test_run2(N, P, F, S, M) when N > 0 ->
+    {T, {true, _}} = timer:tc(?MODULE, claim, [P, F]),
+    timer:sleep(crypto:rand_uniform(1,50)),
+    test_run2(N-1, P, F, S+T, M+1);
+test_run2(_, _, _, S, M) ->
+    S/M.
+
+test_run0(N, X) when N > 0 ->
+    test_run0(N-1, X);
+test_run0(_, _) ->
     ok.
