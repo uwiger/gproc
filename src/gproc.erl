@@ -76,6 +76,7 @@
 	 reg_shared/1, reg_shared/2, reg_shared/3, unreg_shared/1,
 	 set_attributes_shared/2, set_value_shared/2,
          mreg/3,
+	 deconflict/1,
          munreg/3,
          set_value/2,
          get_value/1, get_value/2,
@@ -1072,6 +1073,28 @@ mreg1(p, l, KVL) ->
     local_mreg(p, KVL);
 mreg1(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
+
+%% @spec deconflict(Type) -> {gproc_deconflict, Type}.
+%% @doc Attribute controlling reconciliation after split-brain.
+%%
+%% Certain network failures can result in gproc nodes becoming separated from
+%% each other - a so-called 'split-brain' scenario. When the nodes reconnect,
+%% there may be conflicting registrations in the gproc database. This function
+%% instructs gproc on how to resolve such conflicts.
+%%
+%% The following deconflict methods are supported
+%%
+%% * `exit_all' - send an `exit(Pid, {gproc_conflict, Key})' signal to all
+%%    involved pids, and remove the registrations
+%% * `smallest_pid' - send an `exit(Pid, {gproc_conflict, Key})' signal to the
+%%    smallest pid, and remove the corresponding registration.
+%% * `largest_pid' - send an `exit(Pid, {gproc_conflict, Key})' signal to the
+%%    largest pid, and remove the corresponding registration.
+%%
+%% @end
+deconflict(exit_all    ) -> {gproc_deconflict, exit_all};
+deconflict(smallest_pid) -> {gproc_deconflict, smallest_pid};
+deconflict(largest_pid ) -> {gproc_deconflict, largest_pid}.
 
 %% @spec munreg(type(), scope(), [Key::any()]) -> true
 %%

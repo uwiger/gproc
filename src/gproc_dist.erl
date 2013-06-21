@@ -832,8 +832,8 @@ resolve_conflicts(Conflicts) ->
 		  {_, PidB, ValueB, AttrsB} ->
 		      case deconflict_method(AttrsA, AttrsB) of
 			  exit_all ->
-			      exit_pid(PidA, conflict),
-			      exit_pid(PidB, conflict),
+			      exit_pid(PidA, {gproc_conflict, Key}),
+			      exit_pid(PidB, {gproc_conflict, Key}),
 			      {Add, [{Key, PidA}, {Key, PidB} | Del]};
 			  smallest_pid ->
 			      resolve_smallest(Key, PidA, PidB, ValueA, ValueB,
@@ -849,11 +849,11 @@ resolve_conflicts(Conflicts) ->
 
 resolve_smallest(Key, PidA, PidB, ValueA, ValueB, AttrsA, AttrsB, Add, Del) ->
     if PidB < PidA ->
-	    exit_pid(PidA, conflict),
+	    exit_pid(PidA, {gproc_conflict, Key}),
 	    {[{Key, PidB, ValueB, AttrsB} | Add],
 	     [{Key, PidA} | Del]};
        true ->
-	    exit_pid(PidB, conflict),
+	    exit_pid(PidB, {gproc_conflict, Key}),
 	    {[{Key, PidA, ValueA, AttrsA} | Add],
 	     [{Key, PidB} | Del]}
     end.
