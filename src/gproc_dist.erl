@@ -23,9 +23,9 @@
 -behaviour(gen_leader).
 
 -export([start_link/0, start_link/1,
-         reg/1, reg/2, unreg/1,
+         reg/1, reg/3, unreg/1,
 	 reg_or_locate/3,
-	 reg_shared/2, unreg_shared/1,
+	 reg_shared/3, unreg_shared/1,
 	 set_attributes/2,
 	 set_attributes_shared/2,
          mreg/2,
@@ -88,7 +88,7 @@ start_link({Nodes, Opts}) ->
 %% {@see gproc:reg/1}
 %%
 reg(Key) ->
-    reg(Key, gproc:default(Key)).
+    reg(Key, gproc:default(Key), gproc_lib:default_attrs(Key)).
 
 %% {@see gproc:reg_or_locate/2}
 %%
@@ -98,7 +98,7 @@ reg_or_locate(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 
-%%% @spec({Class,Scope, Key}, Value) -> true
+%%% @spec({Class,Scope, Key}, Value, Attrs) -> true
 %%% @doc
 %%%    Class = n  - unique name
 %%%          | p  - non-unique property
@@ -106,15 +106,15 @@ reg_or_locate(_, _, _) ->
 %%%          | a  - aggregated counter
 %%%    Scope = l | g (global or local)
 %%% @end
-reg({_,g,_} = Key, Value) ->
+reg({_,g,_} = Key, Value, Attrs) ->
     %% anything global
-    leader_call({reg, Key, Value, self()});
-reg(_, _) ->
+    leader_call({reg, Key, Value, Attrs, self()});
+reg(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
-reg_shared({_,g,_} = Key, Value) ->
-    leader_call({reg, Key, Value, shared});
-reg_shared(_, _) ->
+reg_shared({_,g,_} = Key, Value, Attrs) ->
+    leader_call({reg, Key, Value, Attrs, shared});
+reg_shared(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 set_attributes({_,g,_} = Key, Attrs) ->
@@ -251,19 +251,35 @@ elected(S, _E, _Node) ->
     end.
 
 globs() ->
-    Gs = ets:select(?TAB, [{{{{'_',g,'_'},'_'},'_','_'},[],['$_']}]),
-    As = ets:select(?TAB, [{{{'$1',{'_',g,'_'}}, '$2'},[],['$_']}]),
-    _ = [gproc_lib:ensure_monitor(Pid, g) || {_, Pid, _} <- Gs],
-    Gs ++ As.
+    Gs = ets:select(?TAB, [{ {{{'_',g,'_'},'_'},'$2','$3'}, [],
+			     [ {{{element,1,{element,1,'$_'}}, '$2', '$3'}} ] },
+			   { {{'$1',{'_',g,'_'}}, '$2'}, [{is_pid, '$1'}],
+			     [ {{ {{'$1', {element,2,{element,1,'$_'}} }},
+				  '$2' }} ] }
+			   ]),
+    %% Gs = ets:select(?TAB, [{{{{'_',g,'_'},'_'},'_','_'},[],['$_']}]),
+    %% As = ets:select(?TAB, [{{{'_',{'_',g,'_'}}, '_'},[],['$_']}]),
+    Merged = merge_objs(Gs),
+    _ = [gproc_lib:ensure_monitor(Pid, g) || {_, Pid, _, _} <- Merged],
+    Merged.
 
-surrendered(#state{is_leader = true} = S, {globals, Globs}, _E) ->
-    %% Leader conflict!
-    surrendered_1(Globs),
-    {ok, S#state{is_leader = false}};
-surrendered(S, {globals, Globs}, _E) ->
-    %% globals from this node should be more correct in our table than
-    %% in the leader's
-    surrendered_1(Globs),
+merge_objs(Objs) ->
+    lists:foldr(
+      fun({K, Pid, Val}, Acc) ->
+	      case lists:keyfind({Pid,K}, 1, Objs) of
+		  {_, As} ->
+		      [{K, Pid, Val, As}|Acc];
+		  false ->
+		      [{K, Pid, Val, []}|Acc]
+	      end;
+	 (_, Acc) ->
+	      Acc
+      end, [], Objs).
+
+surrendered(#state{is_leader = WasLeader} = S, {globals, Globs}, _E) ->
+    if WasLeader -> surrendered_1(Globs);
+       true -> surrendered_2(Globs, [])
+    end,
     {ok, S#state{is_leader = false}}.
 
 
@@ -302,8 +318,8 @@ handle_leader_call(sync, From, #state{sync_requests = SReqs} = S, E) ->
             GenLeader:broadcast({from_leader, {sync, From}}, Alive, E),
             {noreply, S#state{sync_requests = [{From, Alive}|SReqs]}}
     end;
-handle_leader_call({reg, {_C,g,_Name} = K, Value, Pid}, _From, S, _E) ->
-    case gproc_lib:insert_reg(K, Value, Pid, g) of
+handle_leader_call({reg, {_C,g,_Name} = K, Value, Attrs, Pid}, _From, S, _E) ->
+    case gproc_lib:insert_reg(K, Value, Pid, g, Attrs) of
         false ->
             {reply, badarg, S};
         true ->
@@ -545,6 +561,11 @@ handle_leader_cast({add_globals, Missing}, S, _E) ->
 handle_leader_cast({remove_globals, Globals}, S, _E) ->
     delete_globals(Globals, []),
     {ok, S};
+handle_leader_cast({conflicts, From, Conflicts}, S, _E) ->
+    %% TODO: resolve conflicts
+    io:fwrite("Leader (~p) received conflict list from ~p:~n"
+	      "  ~p~n", [self(), From, Conflicts]),
+    {ok, {resolve, resolve_conflicts(Conflicts)}, S};
 handle_leader_cast({cancel_wait, Pid, {T,_,_} = Key, Ref}, S, _E) ->
     case ets:lookup(?TAB, {Key, T}) of
 	[{_, Waiters}] ->
@@ -630,6 +651,17 @@ terminate(_Reason, _S) ->
 from_leader({sync, Ref}, S, _E) ->
     gen_leader:leader_cast(?MODULE, {sync_reply, node(), Ref}),
     {ok, S};
+from_leader({resolve, {Add, Delete}}, S, _E) ->
+    lists:foreach(fun({Key, Pid}) ->
+			  ets:delete(?TAB, ets_key(Key, Pid)),
+			  remove_rev_entry(Pid, Key, resolve)
+		  end, Delete),
+    lists:foreach(fun({Key, Pid, Val, Attrs}) ->
+			  ets:insert(?TAB, {ets_key(Key, Pid), Pid, Val}),
+			  ets:insert(?TAB, {{Pid, Key}, Attrs}),
+			  _ = gproc_lib:ensure_monitor(Pid,g)
+		  end, Add),
+    {ok, S};
 from_leader(Ops, S, _E) ->
     lists:foreach(
       fun({delete, Globals, Event}) ->
@@ -640,20 +672,29 @@ from_leader(Ops, S, _E) ->
     {ok, S}.
 
 insert_globals(Globals) ->
-    ets:insert(?TAB, Globals),
+    %% ets:insert(?TAB, Globals),
     lists:foldl(
-      fun({{{_,_,_} = Key,Pid}, Pid, _}, A) ->
-	      ets:insert_new(?TAB, {{Pid,Key}, []}),
+      fun({Key, Pid, Value, Attrs}, A) ->
+	      ets:insert(?TAB, {ets_key(Key, Pid), Pid, Value}),
+	      ets:insert(?TAB, {{Pid, Key}, Attrs}),
+	      gproc_lib:ensure_monitor(Pid, g),
+	      A;
+	 ({{{_,_,_} = Key,Pid}, Pid, _} = Obj, A) ->
+	      ets:insert(?TAB, Obj),
+	      ets:insert_new(?TAB, {{Pid,Key},
+				    [{attrs, gproc_lib:default_attrs(Key)}]}),
 	      gproc_lib:ensure_monitor(Pid,g),
 	      A;
-	 ({{{_,_,_}, n}, Pid, _}, A) ->
+	 ({{{_,_,_}, n}, Pid, _} = Obj, A) ->
+	      ets:insert(?TAB, Obj),
 	      gproc_lib:ensure_monitor(Pid,g),
 	      A;
 	 ({{P,_K}, Opts} = Obj, A) when is_pid(P), is_list(Opts),Opts =/= [] ->
 	      ets:insert(?TAB, Obj),
 	      gproc_lib:ensure_monitor(P,g),
 	      [Obj] ++ A;
-	 (_Other, A) ->
+	 (Obj, A) ->
+	      ets:insert(?TAB, Obj),
 	      A
       end, Globals, Globals).
 
@@ -693,6 +734,30 @@ init(Opts) ->
     {ok, #state{always_broadcast = AlwaysBcast}}.
 
 surrendered_1(Globs) ->
+    Conflicts =
+	lists:foldr(
+	  %% fun({{{T,g,_} = Key,_} = K, Pid, Val}, Acc1) ->
+	  fun({K, Pid, Val, Attrs}, Acc) ->
+		  case ets:lookup(?TAB, ets_key(K, Pid)) of
+		      [{_, MyPid, MyVal}] ->
+			  MyAttrs = case ets:lookup(?TAB, {MyPid, K}) of
+					[] -> [];
+					[{_, As1}] -> As1
+				    end,
+			  case {Pid,Val,Attrs, MyPid, MyVal, MyAttrs} of
+			      {P, V, A, P, V, A} -> Acc;
+			      _ ->
+				  [{K, MyPid, MyVal, MyAttrs} | Acc]
+			  end;
+		      _ ->
+			  Acc
+		  end;
+	     (_, Acc) ->
+		  Acc
+	  end, [], Globs),
+    leader_cast({conflicts, self(), Conflicts}),
+    surrendered_2(Globs, Conflicts).
+surrendered_2(Globs, Conflicts) ->
     My_local_globs =
         ets:select(?TAB, [{{{{'_',g,'_'},'_'},'$1', '$2'},
                            [{'==', {node,'$1'}, node()}],
@@ -708,19 +773,28 @@ surrendered_1(Globs) ->
     %% insert new non-local globals, collect the leader's version of
     %% what my globals are
     Ldr_local_globs =
-        lists:foldl(
-          fun({{Key,_}=K, Pid, V}, Acc) when node(Pid) =/= node() ->
-                  ets:insert(?TAB, {K, Pid, V}),
+	lists:foldl(
+	  fun({_, Pid, _, _} = Obj, Acc) when node(Pid) == node() ->
+		  [Obj|Acc];
+	     ({K, Pid, V, As}, Acc) ->
+		  ets:insert(?TAB, {ets_key(K, Pid), Pid, V}),
+		  ets:insert(?TAB, {{Pid, K}, As}),
 		  _ = gproc_lib:ensure_monitor(Pid, g),
-		  ets:insert_new(?TAB, {{Pid,Key}, []}),
-                  Acc;
-	     ({{Pid,_}=K, Opts}, Acc) when node(Pid) =/= node() ->
-		     ets:insert(?TAB, {K, Opts}),
-		     Acc;
-             ({_, Pid, _} = Obj, Acc) when node(Pid) == node() ->
-                  [Obj|Acc]
-          end, [], Globs),
-    case [{K,P,V} || {K,P,V} <- My_local_globs,
+		  Acc
+	  end, [], remove_conflict_objs(Globs, Conflicts)),
+        %% lists:foldl(
+        %%   fun({{Key,_}=K, Pid, V}, Acc) when node(Pid) =/= node() ->
+        %%           ets:insert(?TAB, {K, Pid, V}),
+	%% 	  _ = gproc_lib:ensure_monitor(Pid, g),
+	%% 	  ets:insert_new(?TAB, {{Pid,Key}, []}),
+        %%           Acc;
+	%%      ({{Pid,_}=K, Opts}, Acc) when node(Pid) =/= node() ->
+	%% 	     ets:insert(?TAB, {K, Opts}),
+	%% 	     Acc;
+        %%      ({_, Pid, _} = Obj, Acc) when node(Pid) == node() ->
+        %%           [Obj|Acc]
+        %%   end, [], remove_conflict_objs(Globs, Conflicts)),
+    case [{K,P,V,As} || {K,P,V,As} <- My_local_globs,
 		     is_pid(P) andalso
 			 not(lists:keymember(K, 1, Ldr_local_globs))] of
         [] ->
@@ -738,6 +812,95 @@ surrendered_1(Globs) ->
         [_|_] = Remove ->
             leader_cast({remove_globals, Remove})
     end.
+
+remove_conflict_objs(Objs, Cs) ->
+    lists:filter(fun(Obj) ->
+			 Key = case Obj of
+				   {K, _, _, _} -> K;
+				   {{_Pid,K}, _} -> K
+			       end,
+			 not lists:keymember(Key, 1, Cs)
+		 end, Objs).
+
+resolve_conflicts(Conflicts) ->
+    lists:foldr(
+      fun({Key, PidA, ValueA, AttrsA}, {Add, Del} = Acc) ->
+	      case fetch(Key) of
+		  {_, PidA, ValueA, AttrsA} ->
+		      %% Oh well, if it ain't broken...!
+		      Acc;
+		  {_, PidB, ValueB, AttrsB} ->
+		      case deconflict_method(AttrsA, AttrsB) of
+			  exit_all ->
+			      exit_pid(PidA, conflict),
+			      exit_pid(PidB, conflict),
+			      {Add, [{Key, PidA}, {Key, PidB} | Del]};
+			  smallest_pid ->
+			      resolve_smallest(Key, PidA, PidB, ValueA, ValueB,
+					       AttrsA, AttrsB, Add, Del);
+			  largest_pid ->
+			      resolve_smallest(Key, PidB, PidA, ValueB, ValueA,
+					       AttrsB, AttrsA, Add, Del)
+		      end;
+		  [] ->
+		      {[{Key, PidA, ValueA, AttrsA} | Add], Del}
+	      end
+      end, {[], []}, Conflicts).
+
+resolve_smallest(Key, PidA, PidB, ValueA, ValueB, AttrsA, AttrsB, Add, Del) ->
+    if PidB < PidA ->
+	    exit_pid(PidA, conflict),
+	    {[{Key, PidB, ValueB, AttrsB} | Add],
+	     [{Key, PidA} | Del]};
+       true ->
+	    exit_pid(PidB, conflict),
+	    {[{Key, PidA, ValueA, AttrsA} | Add],
+	     [{Key, PidB} | Del]}
+    end.
+
+deconflict_method(AttrsA, AttrsB) ->
+    case {lists:keyfind(gproc_deconflict, 1, attrs(AttrsA)),
+	  lists:keyfind(gproc_deconflict, 1, attrs(AttrsB))} of
+	{false, false} ->
+	    exit_all;
+	{M, M} when M == smallest_pid; M == largest_pid; M == unreg ->
+	    M;
+	{A, B} when A =/= B ->
+	    exit_all
+    end.
+
+attrs(Attrs) ->
+    proplists:get_value(attrs, Attrs, []).
+
+exit_pid(shared, _) ->
+    ignore;
+exit_pid(Pid, Reason) when is_pid(Pid) ->
+    exit(Pid, Reason).
+
+fetch({T,_,_} = K) when T==a; T==n ->
+    case ets:lookup(?TAB, Key = {K,T}) of
+	[{_, Pid, Val}] ->
+	    As = case ets:lookup(?TAB, {Pid,K}) of
+		     [] -> [];
+		     [{_, A}] -> A
+		 end,
+	    {Key, Pid, Val, As};
+	[] ->
+	    []
+    end;
+fetch({_,_,_} = K) ->
+    case ets:select(?TAB, [{ {{K,'$1'}, '_', '_'}, [{is_pid,'$1'}], ['$_'] }],
+		    1) of
+	{[{Key, Pid, Val}], _} ->
+	    As = case ets:lookup(?TAB, {Pid, K}) of
+		     [] -> [];
+		     [{_, A}] -> A
+		 end,
+	    {Key, Pid, Val, As};
+	_ ->
+	    []
+    end.
+
 
 batch_update_counters(Cs) ->
     batch_update_counters(Cs, [], []).

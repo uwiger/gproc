@@ -71,9 +71,9 @@
 -behaviour(gen_server).
 
 -export([start_link/0,
-         reg/1, reg/2, unreg/1, set_attributes/2,
+         reg/1, reg/2, reg/3, unreg/1, set_attributes/2,
 	 reg_or_locate/1, reg_or_locate/2, reg_or_locate/3,
-	 reg_shared/1, reg_shared/2, unreg_shared/1,
+	 reg_shared/1, reg_shared/2, reg_shared/3, unreg_shared/1,
 	 set_attributes_shared/2, set_value_shared/2,
          mreg/3,
          munreg/3,
@@ -155,6 +155,7 @@
 
 -include("gproc_int.hrl").
 -include("gproc.hrl").
+-import(gproc_lib, [default_attrs/1]).
 
 -define(SERVER, ?MODULE).
 %%-define(l, l(?LINE)). % when activated, calls a traceable empty function
@@ -191,15 +192,18 @@ start_link() ->
 %% @doc Registers a local (unique) name. @equiv reg({n,l,Name})
 %% @end
 %%
-add_local_name(Name)  -> ?CATCH_GPROC_ERROR(reg1({n,l,Name}, undefined), [Name]).
-
+add_local_name(Name)  ->
+    Key = {n, l, Name},
+    ?CATCH_GPROC_ERROR(reg1(Key, undefined, default_attrs(Key)), [Name]).
 
 %% spec(Name::any()) -> true
 %%
 %% @doc Registers a global (unique) name. @equiv reg({n,g,Name})
 %% @end
 %%
-add_global_name(Name) -> ?CATCH_GPROC_ERROR(reg1({n,g,Name}, undefined), [Name]).
+add_global_name(Name) ->
+    Key = {n, g, Name},
+    ?CATCH_GPROC_ERROR(reg1(Key, undefined, default_attrs(Key)), [Name]).
 
 
 %% spec(Name::any(), Value::any()) -> true
@@ -207,8 +211,9 @@ add_global_name(Name) -> ?CATCH_GPROC_ERROR(reg1({n,g,Name}, undefined), [Name])
 %% @doc Registers a local (non-unique) property. @equiv reg({p,l,Name},Value)
 %% @end
 %%
-add_local_property(Name , Value) ->
-    ?CATCH_GPROC_ERROR(reg1({p,l,Name}, Value), [Name, Value]).
+add_local_property(Name, Value) ->
+    Key = {p, l, Name},
+    ?CATCH_GPROC_ERROR(reg1(Key, Value, default_attrs(Key)), [Name, Value]).
 
 %% spec(Name::any(), Value::any()) -> true
 %%
@@ -216,7 +221,8 @@ add_local_property(Name , Value) ->
 %% @end
 %%
 add_global_property(Name, Value) ->
-    ?CATCH_GPROC_ERROR(reg1({p,g,Name}, Value), [Name, Value]).
+    Key = {p, g, Name},
+    ?CATCH_GPROC_ERROR(reg1(Key, Value, default_attrs(Key)), [Name, Value]).
 
 %% spec(Name::any(), Initial::integer()) -> true
 %%
@@ -224,7 +230,8 @@ add_global_property(Name, Value) ->
 %% @end
 %%
 add_local_counter(Name, Initial) when is_integer(Initial) ->
-    ?CATCH_GPROC_ERROR(reg1({c,l,Name}, Initial), [Name, Initial]).
+    Key = {c, l, Name},
+    ?CATCH_GPROC_ERROR(reg1(Key, Initial, default_attrs(Key)), [Name, Initial]).
 
 
 %% spec(Name::any(), Initial::integer()) -> true
@@ -234,7 +241,8 @@ add_local_counter(Name, Initial) when is_integer(Initial) ->
 %% @end
 %%
 add_shared_local_counter(Name, Initial) when is_integer(Initial) ->
-    reg_shared({c,l,Name}, Initial).
+    Key = {c, l, Name},
+    reg_shared(Key, Initial).
 
 
 %% spec(Name::any(), Initial::integer()) -> true
@@ -243,7 +251,9 @@ add_shared_local_counter(Name, Initial) when is_integer(Initial) ->
 %% @end
 %%
 add_global_counter(Name, Initial) when is_integer(Initial) ->
-    ?CATCH_GPROC_ERROR(reg1({c,g,Name}, Initial), [Name, Initial]).
+    Key = {c, g, Name},
+    ?CATCH_GPROC_ERROR(
+       reg1({c,g,Name}, Initial, default_attrs(Key)), [Name, Initial]).
 
 %% spec(Name::any()) -> true
 %%
@@ -532,9 +542,9 @@ lookup_env(Scope, App, Key, P) ->
     end.
 
 cache_env(Scope, App, Key, Value) ->
+    RegKey = {p, Scope, {gproc_env, App, Key}},
     ?CATCH_GPROC_ERROR(
-       reg1({p, Scope, {gproc_env, App, Key}}, Value),
-       [Scope,App,Key,Value]).
+       reg1(RegKey, Value, default_attrs(RegKey)), [Scope,App,Key,Value]).
 
 update_cached_env(Scope, App, Key, Value) ->
     case lookup_env(Scope, App, Key, self()) of
@@ -605,7 +615,8 @@ reg(Key) ->
     ?CATCH_GPROC_ERROR(reg1(Key), [Key]).
 
 reg1(Key) ->
-    reg1(Key, default(Key)).
+    reg1(Key, default(Key), default_attrs(Key)).
+
 
 %% @spec reg_or_locate(Key::key()) -> true
 %%
@@ -620,6 +631,8 @@ reg_or_locate1(Key) ->
 
 default({T,_,_}) when T==c -> 0;
 default(_) -> undefined.
+
+
 
 %% @spec await(Key::key()) -> {pid(),Value}
 %% @equiv await(Key,infinity)
@@ -919,22 +932,38 @@ demonitor1(_, _) ->
 %%
 %%
 reg(Key, Value) ->
-    ?CATCH_GPROC_ERROR(reg1(Key, Value), [Key, Value]).
+    ?CATCH_GPROC_ERROR(reg1(Key, Value, default_attrs(Key)), [Key, Value]).
 
-reg1({_,g,_} = Key, Value) ->
+reg(Key, Value, Attrs) ->
+    ?CATCH_GPROC_ERROR(reg1(Key, Value, Attrs), [Key, Value, Attrs]).
+
+reg1(Key, Value, Attrs) ->
+    true = valid_attrs(Attrs),
+    reg2(Key, Value, Attrs).
+
+reg2({_,g,_} = Key, Value, Attrs) ->
     %% anything global
     ?CHK_DIST,
-    gproc_dist:reg(Key, Value);
-reg1({p,l,_} = Key, Value) ->
-    local_reg(Key, Value);
-reg1({a,l,_} = Key, undefined) ->
-    call({reg, Key, undefined});
-reg1({c,l,_} = Key, Value) when is_integer(Value) ->
-    call({reg, Key, Value});
-reg1({n,l,_} = Key, Value) ->
-    call({reg, Key, Value});
-reg1(_, _) ->
+    gproc_dist:reg(Key, Value, Attrs);
+reg2({p,l,_} = Key, Value, Attrs) ->
+    local_reg(Key, Value, Attrs);
+reg2({a,l,_} = Key, undefined, Attrs) ->
+    call({reg, Key, undefined, Attrs});
+reg2({c,l,_} = Key, Value, Attrs) when is_integer(Value) ->
+    call({reg, Key, Value, Attrs});
+reg2({n,l,_} = Key, Value, Attrs) ->
+    call({reg, Key, Value, Attrs});
+reg2(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
+
+valid_attrs([{K,_}|T]) when is_atom(K) ->
+    valid_attrs(T);
+valid_attrs([]) ->
+    true;
+valid_attrs([H|_]) ->
+    error({bad_attribute, H}).
+
+
 
 %% @spec reg_or_locate(Key::key(), Value) -> {pid(), NewValue}
 %%
@@ -999,19 +1028,24 @@ reg_shared1({T,_,_} = Key) when T==a; T==p; T==c ->
 %% @end
 %%
 reg_shared(Key, Value) ->
-    ?CATCH_GPROC_ERROR(reg_shared1(Key, Value), [Key, Value]).
+    ?CATCH_GPROC_ERROR(
+       reg_shared1(Key, Value, default_attrs(Key)), [Key, Value]).
 
-reg_shared1({_,g,_} = Key, Value) ->
+reg_shared(Key, Value, Attrs) ->
+    ?CATCH_GPROC_ERROR(
+       reg_shared1(Key, Value, Attrs), [Key, Value, Attrs]).
+
+reg_shared1({_,g,_} = Key, Value, Attrs) ->
     %% anything global
     ?CHK_DIST,
-    gproc_dist:reg_shared(Key, Value);
-reg_shared1({a,l,_} = Key, undefined) ->
-    call({reg_shared, Key, undefined});
-reg_shared1({c,l,_} = Key, Value) when is_integer(Value) ->
-    call({reg_shared, Key, Value});
-reg_shared1({p,l,_} = Key, Value) ->
-    call({reg_shared, Key, Value});
-reg_shared1(_, _) ->
+    gproc_dist:reg_shared(Key, Value, Attrs);
+reg_shared1({a,l,_} = Key, undefined, Attrs) ->
+    call({reg_shared, Key, undefined, Attrs});
+reg_shared1({c,l,_} = Key, Value, Attrs) when is_integer(Value) ->
+    call({reg_shared, Key, Value, Attrs});
+reg_shared1({p,l,_} = Key, Value, Attrs) ->
+    call({reg_shared, Key, Value, Attrs});
+reg_shared1(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 %% @spec mreg(type(), scope(), [{Key::any(), Value::any()}]) -> true
@@ -1256,8 +1290,8 @@ select_count(Context, Pat) ->
 %%% Local properties can be registered in the local process, since
 %%% no other process can interfere.
 %%%
-local_reg(Key, Value) ->
-    case gproc_lib:insert_reg(Key, Value, self(), l) of
+local_reg(Key, Value, Attrs) ->
+    case gproc_lib:insert_reg(Key, Value, self(), l, Attrs) of
         false -> ?THROW_GPROC_ERROR(badarg);
         true  -> monitor_me()
     end.
@@ -1418,7 +1452,13 @@ get_attribute1(_, _, _) ->
 %% @equiv get_attributes(Key, self())
 %%
 get_attributes(Key) ->
-    ?CATCH_GPROC_ERROR(get_attributes1(Key, self()), [Key]).
+    Pid = case Key of
+	      {T,_,_} when T==n; T==a ->
+		  where(Key);
+	      {T,_,_} when T==p; T==c ->
+		  self()
+	  end,
+    ?CATCH_GPROC_ERROR(get_attributes1(Key, Pid), [Key]).
 
 %% @spec (Key::key(), Pid::pid() | shared) -> [{K, V}]
 %%
@@ -1993,8 +2033,8 @@ handle_cast({cancel_wait_or_monitor, Pid, {T,_,_} = Key}, S) ->
     {noreply, S}.
 
 %% @hidden
-handle_call({reg, {_T,l,_} = Key, Val}, {Pid,_}, S) ->
-    case try_insert_reg(Key, Val, Pid) of
+handle_call({reg, {_T,l,_} = Key, Val, Attrs}, {Pid,_}, S) ->
+    case try_insert_reg(Key, Val, Attrs, Pid) of
         true ->
             _ = gproc_lib:ensure_monitor(Pid,l),
             {reply, true, S};
@@ -2058,8 +2098,8 @@ handle_call({demonitor, {T,l,_} = Key, Ref, Pid}, _From, S)
 		end
 	end,
     {reply, ok, S};
-handle_call({reg_shared, {_T,l,_} = Key, Val}, _From, S) ->
-    case try_insert_reg(Key, Val, shared) of
+handle_call({reg_shared, {_T,l,_} = Key, Val, Attrs}, _From, S) ->
+    case try_insert_reg(Key, Val, Attrs, shared) of
     %% case try_insert_shared(Key, Val) of
 	true ->
 	    {reply, true, S};
@@ -2195,8 +2235,8 @@ cast(Msg, g) ->
 cast(N, Msg, l) ->
     gen_server:cast({?MODULE, N}, Msg).
 
-try_insert_reg({T,l,_} = Key, Val, Pid) ->
-    case gproc_lib:insert_reg(Key, Val, Pid, l) of
+try_insert_reg({T,l,_} = Key, Val, Attrs, Pid) ->
+    case gproc_lib:insert_reg(Key, Val, Pid, l, Attrs) of
         false ->
             case ets:lookup(?TAB, {Key,T}) of
                 %% In this particular case, the lookup cannot result in
@@ -2208,7 +2248,7 @@ try_insert_reg({T,l,_} = Key, Val, Pid) ->
                             false;
                         false ->
                             process_is_down(OtherPid),
-                            true = gproc_lib:insert_reg(Key, Val, Pid, l)
+                            true = gproc_lib:insert_reg(Key, Val, Pid, l, Attrs)
                     end;
                 [] ->
                     false

@@ -27,6 +27,7 @@
          ensure_monitor/2,
          insert_many/4,
          insert_reg/4,
+	 insert_reg/5,
 	 insert_attr/4,
          remove_many/4,
          remove_reg/3, remove_reg/4,
@@ -38,7 +39,8 @@
 	 remove_wait/4,
          update_aggr_counter/3,
          update_counter/3,
-	 valid_opts/2]).
+	 valid_opts/2,
+	 default_attrs/1]).
 
 -include("gproc_int.hrl").
 -include("gproc.hrl").
@@ -52,7 +54,10 @@
 %%
 -spec insert_reg(key(), any(), pid() | shared, scope()) -> boolean().
 
-insert_reg({T,_,Name} = K, Value, Pid, Scope) when T==a; T==n ->
+insert_reg(K, Value, Pid, Scope) ->
+    insert_reg(K, Value, Pid, Scope, default_attrs(K)).
+
+insert_reg({T,_,Name} = K, Value, Pid, Scope, Attrs) when T==a; T==n ->
     MaybeScan = fun() ->
                         if T==a ->
                                 Initial = scan_existing_counters(Scope, Name),
@@ -61,7 +66,7 @@ insert_reg({T,_,Name} = K, Value, Pid, Scope) when T==a; T==n ->
                                 true
                         end
                 end,
-    Info = [{{K, T}, Pid, Value}, {{Pid,K}, []}],
+    Info = [{{K, T}, Pid, Value}, {{Pid,K}, attrs(Attrs)}],
     case ets:insert_new(?TAB, Info) of
         true ->
             MaybeScan();
@@ -72,16 +77,18 @@ insert_reg({T,_,Name} = K, Value, Pid, Scope) when T==a; T==n ->
                     false
             end
     end;
-insert_reg({p,Scope,_} = K, Value, shared, Scope)
+insert_reg({p,Scope,_} = K, Value, shared, Scope, Attrs)
   when Scope == g; Scope == l ->
     %% shared properties are unique
-    Info = [{{K, shared}, shared, Value}, {{shared,K}, []}],
+    Info = [{{K, shared}, shared, Value}, {{shared,K}, attrs(Attrs)}],
     ets:insert_new(?TAB, Info);
-insert_reg({c,Scope,Ctr} = Key, Value, Pid, Scope) when Scope==l; Scope==g ->
+insert_reg({c,Scope,Ctr} = Key, Value, Pid, Scope, Attrs)
+  when Scope==l; Scope==g ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
     Kr = {Pid, Key},
-    Res = ets:insert_new(?TAB, [{K, Pid, Value}, {Kr, [{initial, Value}]}]),
+    Res = ets:insert_new(?TAB, [{K, Pid, Value}, {Kr, [{initial, Value}
+						       | attrs(Attrs)]}]),
     case Res of
         true ->
             update_aggr_counter(Scope, Ctr, Value);
@@ -89,12 +96,19 @@ insert_reg({c,Scope,Ctr} = Key, Value, Pid, Scope) when Scope==l; Scope==g ->
             ignore
     end,
     Res;
-insert_reg({_,_,_} = Key, Value, Pid, _Scope) when is_pid(Pid) ->
+insert_reg({_,_,_} = Key, Value, Pid, _Scope, Attrs) when is_pid(Pid) ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
     Kr = {Pid, Key},
-    ets:insert_new(?TAB, [{K, Pid, Value}, {Kr, []}]).
+    ets:insert_new(?TAB, [{K, Pid, Value}, {Kr, attrs(Attrs)}]).
 
+attrs([]) -> [];
+attrs([_|_] = As) -> [{attrs, As}].
+
+default_attrs({T,g,_}) when T == n; T == a ->
+    [{gproc_deconflict, exit_all}];
+default_attrs(_) ->
+    [].
 
 insert_attr({_,Scope,_} = Key, Attrs, Pid, Scope) when Scope==l;
 						       Scope==g ->
