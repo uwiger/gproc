@@ -886,7 +886,7 @@ lookup_global_aggr_counter(Name::any()) -&gt; integer()
 <br></br>
 
 
-Equivalent to [`where({a, g, Name})`](#where-1).
+Equivalent to [`lookup_value({a, g, Name})`](#lookup_value-1).
 
 Lookup a global (unique) aggregated counter and returns its value.
 Fails if there is no such object.

@@ -291,7 +291,7 @@ lookup_local_aggr_counter(Name)  -> lookup_value({a,l,Name}).
 %%
 %% @doc Lookup a global (unique) aggregated counter and returns its value.
 %% Fails if there is no such object.
-%% @equiv where({a,g,Name})
+%% @equiv lookup_value({a,g,Name})
 %% @end
 %%
 lookup_global_aggr_counter(Name) -> lookup_value({a,g,Name}).
