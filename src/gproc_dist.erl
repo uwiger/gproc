@@ -94,6 +94,14 @@ reg(Key) ->
 %%
 reg_or_locate({n,g,_} = Key, Value, Pid) when is_pid(Pid) ->
     leader_call({reg_or_locate, Key, Value, Pid});
+reg_or_locate({n,g,_} = Key, Value, F) when is_function(F, 0) ->
+    MyGroupLeader = group_leader(),
+    leader_call({reg_or_locate, Key, Value,
+		 fun() ->
+			 %% leader will spawn on caller's node
+			 group_leader(MyGroupLeader, self()),
+			 F()
+		 end});
 reg_or_locate(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
@@ -328,19 +336,31 @@ handle_leader_call({set_attributes, {_,g,_} = K, Attrs, Pid}, _From, S, _E) ->
 	NewAttrs when is_list(NewAttrs) ->
 	    {reply, true, [{insert, [{{Pid,K}, NewAttrs}]}], S}
     end;
-handle_leader_call({reg_or_locate, {n,g,_} = K, Value, Pid}, _From, S, _E) ->
-    case gproc_lib:insert_reg(K, Value, Pid, g) of
-	false ->
-	    case ets:lookup(?TAB, {K,n}) of
-		[{_, OtherPid, OtherVal}] ->
-		    {reply, {OtherPid, OtherVal}, S};
-		[] ->
-		    {reply, badarg, S}
-	    end;
-	true ->
-	    _ = gproc_lib:ensure_monitor(Pid,g),
-	    Vals = [{{K,n},Pid,Value}],
-	    {reply, {Pid, Value}, [{insert, Vals}], S}
+handle_leader_call({reg_or_locate, {n,g,_} = K, Value, P},
+		   {FromPid, _}, S, _E) ->
+    FromNode = node(FromPid),
+    Reg = fun() ->
+		  Pid = if is_function(P, 0) ->
+				spawn(FromNode, P);
+			   is_pid(P) ->
+				P
+			end,
+		  case gproc_lib:insert_reg(K, Value, Pid, g) of
+		      true ->
+			  _ = gproc_lib:ensure_monitor(Pid,g),
+			  Vals = [{{K,n},Pid,Value}],
+			  {reply, {Pid, Value}, [{insert, Vals}], S};
+		      false ->
+			  {reply, badarg, S}
+		  end
+	  end,
+    case ets:lookup(?TAB, {K, n}) of
+	[] ->
+	    Reg();
+	[{_, _Waiters}] ->
+	    Reg();
+	[{_, OtherPid, OtherVal}] ->
+	    {reply, {OtherPid, OtherVal}, S}
     end;
 handle_leader_call({monitor, {T,g,_} = Key, Pid}, _From, S, _E)
   when T==n; T==a ->

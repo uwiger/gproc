@@ -1279,9 +1279,9 @@ a new process (with `spawn(Fun)`) and gives it the name.
 The pid and value of the resulting registration is returned.
 
 
-This function is only available for local registration. While it could
-theoretically be done in the global case, the spawning of a new process
-on a remote node by the leader instance is more problematic.
+When a global name is registered in this fashion, the process is
+spawned on the caller's node, and the group_leader of the spawned
+process is set to the group_leader of the calling process.
 <a name="reg_shared-1"></a>
 
 ### reg_shared/1 ###

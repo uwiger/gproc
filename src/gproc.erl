@@ -955,11 +955,11 @@ reg_or_locate(Key, Value) ->
 %% a new process (with `spawn(Fun)') and gives it the name.
 %% The pid and value of the resulting registration is returned.
 %%
-%% This function is only available for local registration. While it could
-%% theoretically be done in the global case, the spawning of a new process
-%% on a remote node by the leader instance is more problematic.
+%% When a global name is registered in this fashion, the process is
+%% spawned on the caller's node, and the group_leader of the spawned
+%% process is set to the group_leader of the calling process.
 %% @end
-reg_or_locate({_,l,_} = Key, Value, F) when is_function(F, 0) ->
+reg_or_locate({n,_,_} = Key, Value, F) when is_function(F, 0) ->
     ?CATCH_GPROC_ERROR(reg_or_locate1(Key, Value, F), [Key, Value, F]).
 
 reg_or_locate1({_,g,_} = Key, Value, P) ->
@@ -2015,16 +2015,21 @@ handle_call({set_attributes_shared, {_,l,_} = Key, Attrs}, _, S) ->
 	    {reply, true, S}
     end;
 handle_call({reg_or_locate, {T,l,_} = Key, Val, P}, _, S) ->
+    Reg = fun() ->
+		  Pid = if is_function(P, 0) ->
+				spawn(P);
+			   is_pid(P) ->
+				P
+			end,
+		  true = gproc_lib:insert_reg(Key, Val, Pid, l),
+		  _ = gproc_lib:ensure_monitor(Pid, l),
+		  {reply, {Pid, Val}, S}
+	  end,
     case ets:lookup(?TAB, {Key, T}) of
 	[] ->
-	    Pid = if is_function(P, 0) ->
-			  spawn(P);
-		     is_pid(P) ->
-			  P
-		  end,
-	    true = gproc_lib:insert_reg(Key, Val, Pid, l),
-	    _ = gproc_lib:ensure_monitor(Pid, l),
-	    {reply, {Pid, Val}, S};
+	    Reg();
+	[{_, _Waiters}] ->
+	    Reg();
 	[{_, OtherPid, OtherValue}] ->
 	    {reply, {OtherPid, OtherValue}, S}
     end;
