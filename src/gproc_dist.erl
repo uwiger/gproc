@@ -734,7 +734,7 @@ surrendered_1(Globs) ->
 		  _ = gproc_lib:ensure_monitor(Pid, g),
 		  ets:insert_new(?TAB, {{Pid,Key}, []}),
                   Acc;
-	     ({{Pid,_}=K, Opts}, Acc) when node(Pid) =/= node() ->
+	     ({{Pid,_}=K, Opts}, Acc) -> % when node(Pid) =/= node() ->
 		     ets:insert(?TAB, {K, Opts}),
 		     Acc;
              ({_, Pid, _} = Obj, Acc) when node(Pid) == node() ->

@@ -33,8 +33,8 @@ dist_test_() ->
 			    rpc:multicall(Ns, application, start, [gproc])),
 	       Ns
        end,
-       fun(Ns) ->
-	       [rpc:call(N, init, stop, []) || N <- Ns]
+       fun(_Ns) ->
+	       ok
        end,
        fun(Ns) ->
 	       {inorder,
