@@ -31,6 +31,7 @@
          mreg/2,
          munreg/2,
          set_value/2,
+	 set_value_shared/2,
          give_away/2,
          update_counter/3,
 	 update_counters/1,
@@ -159,7 +160,7 @@ unreg_shared(_) ->
 
 set_value({T,g,_} = Key, Value) when T==a; T==c ->
     if is_integer(Value) ->
-            leader_call({set, Key, Value});
+            leader_call({set, Key, Value, self()});
        true ->
             ?THROW_GPROC_ERROR(badarg)
     end;
@@ -167,6 +168,12 @@ set_value({_,g,_} = Key, Value) ->
     leader_call({set, Key, Value, self()});
 set_value(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
+
+set_value_shared({T,g,_} = Key, Value) when T==a; T==c; T==p ->
+    leader_call({set, Key, Value, shared});
+set_value_shared(_, _) ->
+    ?THROW_GPROC_ERROR(badarg).
+
 
 give_away({_,g,_} = Key, To) ->
     leader_call({give_away, Key, To, self()}).
@@ -734,7 +741,7 @@ surrendered_1(Globs) ->
 		  _ = gproc_lib:ensure_monitor(Pid, g),
 		  ets:insert_new(?TAB, {{Pid,Key}, []}),
                   Acc;
-	     ({{Pid,_}=K, Opts}, Acc) -> % when node(Pid) =/= node() ->
+	     ({{_Pid,_}=K, Opts}, Acc) -> % when node(Pid) =/= node() ->
 		     ets:insert(?TAB, {K, Opts}),
 		     Acc;
              ({_, Pid, _} = Obj, Acc) when node(Pid) == node() ->

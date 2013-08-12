@@ -78,8 +78,8 @@
          mreg/3,
          munreg/3,
          set_value/2,
-         get_value/1, get_value/2,
-	 get_attribute/2, get_attribute/3,
+         get_value/1, get_value/2, get_value_shared/1,
+	 get_attribute/2, get_attribute/3, get_attribute_shared/2,
 	 get_attributes/1, get_attributes/2,
          where/1,
          await/1, await/2, await/3,
@@ -980,6 +980,7 @@ reg_or_locate1(_, _, _) ->
 reg_shared(Key) ->
     ?CATCH_GPROC_ERROR(reg_shared1(Key), [Key]).
 
+%% @private
 reg_shared1({T,_,_} = Key) when T==a; T==p; T==c ->
     reg_shared(Key, default(Key)).
 
@@ -1001,6 +1002,7 @@ reg_shared1({T,_,_} = Key) when T==a; T==p; T==c ->
 reg_shared(Key, Value) ->
     ?CATCH_GPROC_ERROR(reg_shared1(Key, Value), [Key, Value]).
 
+%% @private
 reg_shared1({_,g,_} = Key, Value) ->
     %% anything global
     ?CHK_DIST,
@@ -1129,6 +1131,7 @@ set_attributes1(Key, Props) ->
 unreg_shared(Key) ->
     ?CATCH_GPROC_ERROR(unreg_shared1(Key), [Key]).
 
+%% @private
 unreg_shared1(Key) ->
     case Key of
         {_, g, _} ->
@@ -1338,6 +1341,14 @@ set_value_shared1({_,l,_} = Key, Value) ->
 get_value(Key) ->
     ?CATCH_GPROC_ERROR(get_value1(Key, self()), [Key]).
 
+%% @spec (Key) -> Value
+%% @doc Reads the value stored with a shared key.
+%%
+%% If no such shared key is registered, this function exits.
+%% @end
+get_value_shared(Key) ->
+    ?CATCH_GPROC_ERROR(get_value1(Key, shared), [Key]).
+
 %% @spec (Key, Pid) -> Value
 %% @doc Reads the value stored with a key registered to the process Pid.
 %%
@@ -1397,6 +1408,16 @@ get_attribute(Key, A) ->
 get_attribute(Key, Pid, A) ->
     ?CATCH_GPROC_ERROR(get_attribute1(Key, Pid, A), [Key, Pid, A]).
 
+%% @spec (Key, Attr::atom()) -> Value
+%% @doc Get the attribute value of `Attr' associated with the shared `Key'.
+%%
+%% Equivalent to `get_attribute(Key, shared, Attr)'
+%% (see {@link get_attribute/3}).
+%% @end
+get_attribute_shared(Key, Attr) ->
+    ?CATCH_GPROC_ERROR(get_attribute1(Key, shared, Attr), [Key, Attr]).
+
+%% @private
 get_attribute1({_,_,_} = Key, Pid, A) when is_pid(Pid); Pid==shared ->
     case ets:lookup(?TAB, {Pid, Key}) of
 	[{_, Attrs}] ->
