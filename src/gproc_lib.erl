@@ -274,6 +274,9 @@ mk_reg_rev_objs(T, Scope, Pid, L) ->
 
 ensure_monitor(shared, _) ->
     ok;
+ensure_monitor(Pid, _) when Pid == self() ->
+    %% monitoring is ensured through a 'monitor_me' message
+    ok;
 ensure_monitor(Pid, Scope) when Scope==g; Scope==l ->
     case ets:insert_new(?TAB, {{Pid, Scope}}) of
         false -> ok;
