@@ -25,18 +25,25 @@ dist_test_() ->
     {timeout, 120,
      [{setup,
        fun() ->
-	       Ns = start_slaves([dist_test_n1, dist_test_n2]),
-	       ?assertMatch({[ok,ok],[]},
-			    rpc:multicall(Ns, application, set_env,
-					  [gproc, gproc_dist, Ns])),
-	       ?assertMatch({[ok,ok],[]},
-			    rpc:multicall(Ns, application, start, [gproc])),
-	       Ns
+	       case run_dist_tests() of
+		   true ->
+		       Ns = start_slaves([dist_test_n1, dist_test_n2]),
+		       ?assertMatch({[ok,ok],[]},
+				    rpc:multicall(Ns, application, set_env,
+						  [gproc, gproc_dist, Ns])),
+		       ?assertMatch({[ok,ok],[]},
+				    rpc:multicall(
+				      Ns, application, start, [gproc])),
+		       Ns;
+		   false ->
+		       skip
+	       end
        end,
        fun(_Ns) ->
 	       ok
        end,
-       fun(Ns) ->
+       fun(skip) -> [];
+	  (Ns) when is_list(Ns) ->
 	       {inorder,
 		[
 		 {inparallel, [
@@ -93,6 +100,19 @@ dist_test_() ->
 		]}
        end
       }]}.
+
+run_dist_tests() ->
+    case os:getenv("GPROC_DIST") of
+	"true" -> true;
+	"false" -> false;
+	false ->
+	    case code:ensure_loaded(gen_leader) of
+		{error, nofile} ->
+		    false;
+		_ ->
+		    true
+	    end
+    end.
 
 -define(T_NAME, {n, g, {?MODULE, ?LINE}}).
 -define(T_KVL, [{foo, "foo"}, {bar, "bar"}]).
