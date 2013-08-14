@@ -1220,10 +1220,10 @@ select(Pat) ->
 %% to write a simpler select pattern and still avoid searching the entire
 %% registry. Whenever variables are used in the head pattern, this will result
 %% in a wider scan, even if the values are restricted through a guard (e.g.
-%% <code>select([{'$1','$2','$3'}, [{'==', '$1', p}], ...])</code> will count as a wild
-%% pattern on the key and result in a full scan). In this case, specifying a
-%% Context will allow gproc to perform some variable substitution and ensure
-%% that the scan is limited.
+%% <code>select([{'$1','$2','$3'}, [{'==', {element,1,'$1'}, p}], ...])</code>
+%% will count as a wild pattern on the key and result in a full scan).
+%% In this case, specifying a Context will allow gproc to perform some
+%% variable substitution and ensure that the scan is limited.
 %% @end
 select(Context, Pat) ->
     ets:select(?TAB, pattern(Pat, Context)).
