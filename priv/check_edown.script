@@ -4,7 +4,11 @@
 %% To build docs, call `rebar get-deps doc`
 %% Assumes that the rebar config is bound to CONFIG
 
-[_|Args] = init:get_plain_arguments().  % rebar 'commands' and options
+Args = case init:get_plain_arguments() of
+    [_|A] -> A;  % rebar 'commands' and options
+    _ -> []
+end.
+
 case lists:member("doc", Args) of
     false ->
 	{ok,C1} = file:script(filename:join(filename:dirname(SCRIPT),
