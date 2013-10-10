@@ -93,6 +93,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_mreg()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_mreg_props()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_gproc_crash()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_cancel_wait_and_register()))}
@@ -321,6 +323,15 @@ t_simple_mreg() ->
     ?assertEqual(P, gproc:where({n,l,foo})),
     ?assertEqual(P, gproc:where({n,l,bar})),
     ?assertEqual(true, gproc:munreg(n, l, [foo, bar])).
+
+t_mreg_props() ->
+    P = self(),
+    ?assertEqual(true, gproc:mreg(p, l, [{p, v}])),
+    ?assertEqual(v, gproc:get_value({p,l,p})),
+    %% Force a context switch, since gproc:monitor_me() is asynchronous
+    _ = sys:get_status(gproc),
+    {monitors, Mons} = process_info(whereis(gproc), monitors),
+    ?assertEqual(true, lists:keymember(P, 2, Mons)).
 
 
 t_gproc_crash() ->

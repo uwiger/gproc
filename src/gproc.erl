@@ -79,8 +79,8 @@
 	 deconflict/1,
          munreg/3,
          set_value/2,
-         get_value/1, get_value/2,
-	 get_attribute/2, get_attribute/3,
+         get_value/1, get_value/2, get_value_shared/1,
+	 get_attribute/2, get_attribute/3, get_attribute_shared/2,
 	 get_attributes/1, get_attributes/2,
          where/1,
          await/1, await/2, await/3,
@@ -985,11 +985,11 @@ reg_or_locate(Key, Value) ->
 %% a new process (with `spawn(Fun)') and gives it the name.
 %% The pid and value of the resulting registration is returned.
 %%
-%% This function is only available for local registration. While it could
-%% theoretically be done in the global case, the spawning of a new process
-%% on a remote node by the leader instance is more problematic.
+%% When a global name is registered in this fashion, the process is
+%% spawned on the caller's node, and the group_leader of the spawned
+%% process is set to the group_leader of the calling process.
 %% @end
-reg_or_locate({_,l,_} = Key, Value, F) when is_function(F, 0) ->
+reg_or_locate({n,_,_} = Key, Value, F) when is_function(F, 0) ->
     ?CATCH_GPROC_ERROR(reg_or_locate1(Key, Value, F), [Key, Value, F]).
 
 reg_or_locate1({_,g,_} = Key, Value, P) ->
@@ -1010,6 +1010,7 @@ reg_or_locate1(_, _, _) ->
 reg_shared(Key) ->
     ?CATCH_GPROC_ERROR(reg_shared1(Key), [Key]).
 
+%% @private
 reg_shared1({T,_,_} = Key) when T==a; T==p; T==c ->
     reg_shared(Key, default(Key)).
 
@@ -1186,6 +1187,7 @@ set_attributes1(Key, Props) ->
 unreg_shared(Key) ->
     ?CATCH_GPROC_ERROR(unreg_shared1(Key), [Key]).
 
+%% @private
 unreg_shared1(Key) ->
     case Key of
         {_, g, _} ->
@@ -1274,10 +1276,10 @@ select(Pat) ->
 %% to write a simpler select pattern and still avoid searching the entire
 %% registry. Whenever variables are used in the head pattern, this will result
 %% in a wider scan, even if the values are restricted through a guard (e.g.
-%% <code>select([{'$1','$2','$3'}, [{'==', '$1', p}], ...])</code> will count as a wild
-%% pattern on the key and result in a full scan). In this case, specifying a
-%% Context will allow gproc to perform some variable substitution and ensure
-%% that the scan is limited.
+%% <code>select([{'$1','$2','$3'}, [{'==', {element,1,'$1'}, p}], ...])</code>
+%% will count as a wild pattern on the key and result in a full scan).
+%% In this case, specifying a Context will allow gproc to perform some
+%% variable substitution and ensure that the scan is limited.
 %% @end
 select(Context, Pat) ->
     ets:select(?TAB, pattern(Pat, Context)).
@@ -1395,6 +1397,14 @@ set_value_shared1({_,l,_} = Key, Value) ->
 get_value(Key) ->
     ?CATCH_GPROC_ERROR(get_value1(Key, self()), [Key]).
 
+%% @spec (Key) -> Value
+%% @doc Reads the value stored with a shared key.
+%%
+%% If no such shared key is registered, this function exits.
+%% @end
+get_value_shared(Key) ->
+    ?CATCH_GPROC_ERROR(get_value1(Key, shared), [Key]).
+
 %% @spec (Key, Pid) -> Value
 %% @doc Reads the value stored with a key registered to the process Pid.
 %%
@@ -1454,6 +1464,16 @@ get_attribute(Key, A) ->
 get_attribute(Key, Pid, A) ->
     ?CATCH_GPROC_ERROR(get_attribute1(Key, Pid, A), [Key, Pid, A]).
 
+%% @spec (Key, Attr::atom()) -> Value
+%% @doc Get the attribute value of `Attr' associated with the shared `Key'.
+%%
+%% Equivalent to `get_attribute(Key, shared, Attr)'
+%% (see {@link get_attribute/3}).
+%% @end
+get_attribute_shared(Key, Attr) ->
+    ?CATCH_GPROC_ERROR(get_attribute1(Key, shared, Attr), [Key, Attr]).
+
+%% @private
 get_attribute1({_,_,_} = Key, Pid, A) when is_pid(Pid); Pid==shared ->
     case ets:lookup(?TAB, {Pid, Key}) of
 	[{_, Attrs}] ->
@@ -2078,16 +2098,21 @@ handle_call({set_attributes_shared, {_,l,_} = Key, Attrs}, _, S) ->
 	    {reply, true, S}
     end;
 handle_call({reg_or_locate, {T,l,_} = Key, Val, P}, _, S) ->
+    Reg = fun() ->
+		  Pid = if is_function(P, 0) ->
+				spawn(P);
+			   is_pid(P) ->
+				P
+			end,
+		  true = gproc_lib:insert_reg(Key, Val, Pid, l),
+		  _ = gproc_lib:ensure_monitor(Pid, l),
+		  {reply, {Pid, Val}, S}
+	  end,
     case ets:lookup(?TAB, {Key, T}) of
 	[] ->
-	    Pid = if is_function(P, 0) ->
-			  spawn(P);
-		     is_pid(P) ->
-			  P
-		  end,
-	    true = gproc_lib:insert_reg(Key, Val, Pid, l),
-	    _ = gproc_lib:ensure_monitor(Pid, l),
-	    {reply, {Pid, Val}, S};
+	    Reg();
+	[{_, _Waiters}] ->
+	    Reg();
 	[{_, OtherPid, OtherValue}] ->
 	    {reply, {OtherPid, OtherValue}, S}
     end;
