@@ -6,8 +6,14 @@
 
 reg_and_send_test_() ->
     {setup,
-        fun() -> application:start(gproc) end,
-        fun(_) -> application:stop(gproc) end,
+        fun() ->
+		application:start(locks),
+		application:start(gproc)
+	end,
+        fun(_) ->
+		application:stop(gproc),
+		application:stop(locks)
+	end,
         [{"gproc", fun gproc/0}]
     }.
 

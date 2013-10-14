@@ -20,6 +20,6 @@ CFG2 = case os:getenv("GPROC_DIST") of
 	       CFG1;
 	   F when F=="false"; F==false ->
 	       Script(Priv, "remove_deps.script",
-		      [{'CONFIG', CFG1}, {'DEPS', [gen_leader]}])
+		      [{'CONFIG', CFG1}, {'DEPS', [locks]}])
        end.
 Script(Priv, "check_edown.script", [{'CONFIG', CFG2}]).

@@ -36,6 +36,7 @@ conf_test_() ->
 t_server_opts() ->
     H = 10000,
     application:set_env(gproc, server_options, [{min_heap_size, H}]),
+    ?assert(ok == application:start(locks)),
     ?assert(ok == application:start(gproc)),
     {min_heap_size, H1} = process_info(whereis(gproc), min_heap_size),
     ?assert(is_integer(H1) andalso H1 > H).
@@ -46,7 +47,8 @@ t_ets_opts() ->
     application:set_env(gproc, ets_options, [{write_concurrency, false}]),
     erlang:trace_pattern({ets,new, 2}, [{[gproc,'_'],[],[]}], [global]),
     erlang:trace(new, true, [call]),
-    ?assert(ok == application:start(gproc)),
+    application:start(locks),
+    application:start(gproc),
     erlang:trace(new, false, [call]),
     receive
 	{trace,_,call,{ets,new,[gproc,Opts]}} ->
@@ -61,11 +63,13 @@ t_ets_opts() ->
 reg_test_() ->
     {setup,
      fun() ->
+	     application:start(locks),
              application:start(gproc),
 	     application:start(mnesia)
      end,
      fun(_) ->
              application:stop(gproc),
+	     application:stop(locks),
 	     application:stop(mnesia)
      end,
      [

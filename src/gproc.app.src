@@ -9,7 +9,7 @@
   {id, "GPROC"},
   {registered, [ ] },
   %% NOTE: do not list applications which are load-only!
-  {applications, [ kernel, stdlib ] },
+  {applications, [ kernel, stdlib, locks ] },
   {mod, {gproc_app, []} }
  ]
 }.

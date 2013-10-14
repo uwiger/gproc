@@ -7,7 +7,7 @@
 
 
 Extended process registry.
-__Behaviours:__ [`gen_leader`](/Users/uwiger/FL/git/gen_leader/doc/gen_leader.md).
+__Behaviours:__ [`locks_leader`](/Users/uwiger/FL/git/gproc/deps/locks/doc/locks_leader.md).
 
 __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)).
 <a name="description"></a>
@@ -53,7 +53,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#reg_or_
 
 ### elected/3 ###
 
-`elected(S, E, Node) -> any()`
+`elected(S, E, Cand) -> any()`
 
 
 <a name="from_leader-3"></a>
@@ -87,7 +87,7 @@ Returns the node of the current gproc leader.
 
 ### handle_DOWN/3 ###
 
-`handle_DOWN(Node, S, E) -> any()`
+`handle_DOWN(Candidate, S, E) -> any()`
 
 
 <a name="handle_call-4"></a>
@@ -246,7 +246,7 @@ Scope = l | g (global or local)
 
 ### start_link/1 ###
 
-`start_link(Nodes) -> any()`
+`start_link(X1) -> any()`
 
 
 <a name="surrendered-3"></a>
@@ -277,9 +277,6 @@ leader to the current node. It does so by asking the leader to ping all
 live participating nodes. The call will return `true` when all these nodes
 have either responded or died. In the special case where the leader dies
 during an ongoing sync, the call will fail with a timeout exception.
-(Actually, it should be a `leader_died` exception; more study needed to find
-out why gen_leader times out in this situation, rather than reporting that
-the leader died.)
 <a name="terminate-2"></a>
 
 ### terminate/2 ###

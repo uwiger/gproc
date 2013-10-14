@@ -30,7 +30,13 @@ dist_test_() ->
 		       Ns = start_slaves([dist_test_n1, dist_test_n2]),
 		       ?assertMatch({[ok,ok],[]},
 				    rpc:multicall(Ns, application, set_env,
-						  [gproc, gproc_dist, Ns])),
+						  [gproc, gproc_dist, all])),
+		       ?assertMatch({[ok,ok],[]},
+				    rpc:multicall(
+				      Ns, application, start, [locks])),
+		       ?assertMatch({[ok,ok],[]},
+				    rpc:multicall(
+				      Ns, application, start, [sasl])),
 		       ?assertMatch({[ok,ok],[]},
 				    rpc:multicall(
 				      Ns, application, start, [gproc])),
@@ -344,7 +350,13 @@ t_sync_cand_dies([A,B|_]) ->
     exit(P, kill),
     %% The leader should detect that the other candidate died and respond
     %% immediately. Therefore, we should have our answer well within 1 sec.
-    ?assertMatch({value, true}, rpc:nb_yield(Key, 1000)).
+    Val = rpc:nb_yield(Key, 1000),
+    io:fwrite(user, "nb_yield() -> ~p~n", [Val]),
+    try ?assertMatch({value, true}, Val)
+    catch error:Err ->
+	    io:fwrite(user, "error:~p~n", [Err]),
+	    error(Err)
+    end.
 
 t_fail_node([A,B|_] = Ns) ->
     Na = ?T_NAME,

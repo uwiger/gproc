@@ -5,11 +5,15 @@
 
 <h2>Note</h2>
 
-Gproc has two dependencies: `gen_leader' and `edown'. Since most people don't
+This branch of Gproc uses the `locks_leader' version of leader election.
+The `locks' application is still in beta, so production use of this branch
+is not yet recommended. Please feel free to test it and report how it goes.
+
+Gproc has two dependencies: `locks_leader' and `edown'. Since most people don't
 actively use either, they are no longer fetched by default.
 
 <ul>
-<li>To enable fetching of `gen_leader', export the OS environment variable
+<li>To enable fetching of `locks_leader', export the OS environment variable
  `GPROC_DIST=true' (this can be done e.g. from a GNU Makefile)</li>
 <li>`edown' is fetched on-demand whenver `rebar get-deps doc' is called (which
   happens when you call `make doc')</li>

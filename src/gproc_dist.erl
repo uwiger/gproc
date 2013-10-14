@@ -20,7 +20,7 @@
 %% <p>For a detailed description, see gproc/doc/erlang07-wiger.pdf.</p>
 %% @end
 -module(gproc_dist).
--behaviour(gen_leader).
+-behaviour(locks_leader).
 
 -export([start_link/0, start_link/1,
          reg/1, reg/3, unreg/1,
@@ -64,7 +64,6 @@
 -define(SERVER, ?MODULE).
 
 -record(state, {
-          always_broadcast = false,
           is_leader,
           sync_requests = []}).
 
@@ -75,13 +74,13 @@ start_link() ->
     start_link({[node()|nodes()], []}).
 
 start_link(all) ->
-    start_link({[node()|nodes()], [{bcast_type, all}]});
-start_link(Nodes) when is_list(Nodes) ->
-    start_link({Nodes, []});
-start_link({Nodes, Opts}) ->
-    SpawnOpts = gproc_lib:valid_opts(server_options, []),
-    gen_leader:start_link(
-      ?SERVER, Nodes, Opts, ?MODULE, [], [{spawn_opt, SpawnOpts}]).
+    locks_leader:start_link(?SERVER, ?MODULE, [], [{role,candidate}]).
+%% start_link(Nodes) when is_list(Nodes) ->
+%%     start_link({Nodes, []});
+%% start_link({Nodes, Opts}) ->
+%%     SpawnOpts = gproc_lib:valid_opts(server_options, []),
+%%     locks_leader:start_link(
+%%       ?SERVER, Nodes, Opts, ?MODULE, [], [{spawn_opt, SpawnOpts}]).
 
 %% ==========================================================
 %% API
@@ -210,9 +209,6 @@ reset_counter(_) ->
 %% live participating nodes. The call will return `true' when all these nodes
 %% have either responded or died. In the special case where the leader dies
 %% during an ongoing sync, the call will fail with a timeout exception.
-%% (Actually, it should be a `leader_died' exception; more study needed to find
-%% out why gen_leader times out in this situation, rather than reporting that
-%% the leader died.)
 %% @end
 %%
 sync() ->
@@ -222,7 +218,7 @@ sync() ->
 %% @doc Returns the node of the current gproc leader.
 %% @end
 get_leader() ->
-    GenLeader = gen_leader,
+    GenLeader = locks_leader,
     GenLeader:call(?MODULE, get_leader).
 
 %% ==========================================================
@@ -232,7 +228,7 @@ handle_cast(_Msg, S, _) ->
     {stop, unknown_cast, S}.
 
 handle_call(get_leader, _, S, E) ->
-    {reply, gen_leader:leader_node(E), S};
+    {reply, node(locks_leader:leader(E)), S};
 handle_call(_, _, S, _) ->
     {reply, badarg, S}.
 
@@ -253,17 +249,11 @@ elected(S, _E) ->
 elected(S, _E, undefined) ->
     %% I have become leader; full synch
     {ok, {globals, globs()}, S#state{is_leader = true}};
-elected(S, _E, _Node) ->
+elected(S, _E, _Cand) ->
     Synch = {globals, globs()},
-    if not S#state.always_broadcast ->
-            %% Another node recognized us as the leader.
-            %% Don't broadcast all data to everyone else
-            {reply, Synch, S};
-       true ->
-            %% Main reason for doing this is if we are using a gen_leader
-            %% that doesn't support the 'reply' return value
-            {ok, Synch, S}
-    end.
+    %% Another node recognized us as the leader.
+    %% Don't broadcast all data to everyone else
+    {reply, Synch, S}.
 
 globs() ->
     Gs = ets:select(?TAB, [{ {{{'_',g,'_'},'_'},'$2','$3'}, [],
@@ -298,8 +288,9 @@ surrendered(#state{is_leader = WasLeader} = S, {globals, Globs}, _E) ->
     {ok, S#state{is_leader = false}}.
 
 
-handle_DOWN(Node, S, _E) ->
-    S1 = check_sync_requests(Node, S),
+handle_DOWN(Candidate, S, _E) ->
+    Node = node(Candidate),
+    S1 = check_sync_requests(Candidate, S),
     Head = {{{'_',g,'_'},'_'},'$1','_'},
     Gs = [{'==', {node,'$1'},Node}],
     Globs = ets:select(?TAB, [{Head, Gs, [{{{element,1,{element,1,'$_'}},
@@ -311,28 +302,23 @@ handle_DOWN(Node, S, _E) ->
             {ok, Broadcast, S1}
     end.
 
-check_sync_requests(Node, #state{sync_requests = SReqs} = S) ->
+check_sync_requests(Cand, #state{sync_requests = SReqs} = S) ->
     SReqs1 = lists:flatmap(
-               fun({From, Ns}) ->
-                       case Ns -- [Node] of
+               fun({From, Cands}) ->
+                       case Cands -- [Cand] of
                            [] ->
-                               gen_leader:reply(From, {leader, reply, true}),
+                               locks_leader:leader_reply(From, true),
                                [];
-                           Ns1 ->
-                               [{From, Ns1}]
+                           Cands1 ->
+                               [{From, Cands1}]
                        end
                end, SReqs),
     S#state{sync_requests = SReqs1}.
 
 handle_leader_call(sync, From, #state{sync_requests = SReqs} = S, E) ->
-    GenLeader = gen_leader,
-    case GenLeader:alive(E) -- [node()] of
-        [] ->
-            {reply, true, S};
-        Alive ->
-            GenLeader:broadcast({from_leader, {sync, From}}, Alive, E),
-            {noreply, S#state{sync_requests = [{From, Alive}|SReqs]}}
-    end;
+    Cands = locks_leader:candidates(E),
+    locks_leader:broadcast_to_candidates({sync, From}, E),
+    {noreply, S#state{sync_requests = [{From, Cands}|SReqs]}};
 handle_leader_call({reg, {_C,g,_Name} = K, Value, Attrs, Pid}, _From, S, _E) ->
     case gproc_lib:insert_reg(K, Value, Pid, g, Attrs) of
         false ->
@@ -548,7 +534,7 @@ handle_leader_call({set,{T,g,N} =K,V,Pid}, _From, S, _E) ->
             end
     end;
 handle_leader_call({await, Key, Pid}, {_,Ref} = From, S, _E) ->
-    %% The pid in _From is of the gen_leader instance that forwarded the
+    %% The pid in _From is of the locks_leader instance that forwarded the
     %% call - not of the client. This is why the Pid is explicitly passed.
     %% case gproc_lib:await(Key, {Pid,Ref}) of
     case gproc_lib:await(Key, Pid, From) of
@@ -572,7 +558,7 @@ handle_leader_cast({sync_reply, Node, Ref}, S, _E) ->
         {_, Ns} ->
             case lists:delete(Node, Ns) of
                 [] ->
-                    gen_leader:reply(Ref, {leader, reply, true}),
+                    locks_leader:leader_reply(Ref, true),
                     {ok, S#state{sync_requests = lists:keydelete(Ref,1,SReqs)}};
                 Ns1 ->
                     SReqs1 = lists:keyreplace(Ref, 1, SReqs, {Ref, Ns1}),
@@ -676,7 +662,7 @@ terminate(_Reason, _S) ->
     ok.
 
 from_leader({sync, Ref}, S, _E) ->
-    gen_leader:leader_cast(?MODULE, {sync_reply, node(), Ref}),
+    locks_leader:leader_cast(?MODULE, {sync_reply, node(), Ref}),
     {ok, S};
 from_leader({resolve, {Add, Delete}}, S, _E) ->
     lists:foreach(fun({Key, Pid}) ->
@@ -746,19 +732,16 @@ ets_key(K, Pid) ->
     {K, Pid}.
 
 leader_call(Req) ->
-    case gen_leader:leader_call(?MODULE, Req) of
+    case locks_leader:leader_call(?MODULE, Req) of
         badarg -> ?THROW_GPROC_ERROR(badarg);
         Reply  -> Reply
     end.
 
 leader_cast(Msg) ->
-    gen_leader:leader_cast(?MODULE, Msg).
+    locks_leader:leader_cast(?MODULE, Msg).
 
-init(Opts) ->
-    S0 = #state{},
-    AlwaysBcast = proplists:get_value(always_broadcast, Opts,
-                                      S0#state.always_broadcast),
-    {ok, #state{always_broadcast = AlwaysBcast}}.
+init(_Opts) ->
+    {ok, #state{}}.
 
 surrendered_1(Globs) ->
     Conflicts =

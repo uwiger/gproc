@@ -70,6 +70,7 @@
 -module(gproc).
 -behaviour(gen_server).
 
+-export([start/0]).  % start gproc and dependent apps
 -export([start_link/0,
          reg/1, reg/2, reg/3, unreg/1, set_attributes/2,
 	 reg_or_locate/1, reg_or_locate/2, reg_or_locate/3,
@@ -174,6 +175,10 @@
 	(node(Pid) == node() andalso is_process_alive(Pid) == false)).
 
 -record(state, {}).
+
+start() ->
+    application:start(locks),
+    application:start(gproc).
 
 %% @spec () -> {ok, pid()}
 %%
