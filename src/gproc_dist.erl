@@ -237,7 +237,7 @@ handle_call(_, _, S, _) ->
     {reply, badarg, S}.
 
 handle_info({'DOWN', _MRef, process, Pid, _}, S) ->
-    ets:delete(?TAB, {{Pid, g}}),
+    ets:delete(?TAB, {Pid, g}),
     leader_cast({pid_is_DOWN, Pid}),
     {ok, S};
 handle_info(_, S) ->
