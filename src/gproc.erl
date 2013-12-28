@@ -2162,7 +2162,7 @@ handle_call({reg_shared, {_T,l,_} = Key, Val, Attrs}, _From, S) ->
 handle_call({unreg, {_,l,_} = Key}, {Pid,_}, S) ->
     case ets:lookup(?TAB, {Pid,Key}) of
         [{_, r}] ->
-            _ = gproc_lib:remove_reg(Key, Pid, unreg),
+            _ = gproc_lib:remove_reg(Key, Pid, unreg, []),
             {reply, true, S};
         [{_, Opts}] when is_list(Opts) ->
             _ = gproc_lib:remove_reg(Key, Pid, unreg, Opts),
@@ -2173,7 +2173,7 @@ handle_call({unreg, {_,l,_} = Key}, {Pid,_}, S) ->
 handle_call({unreg_shared, {_,l,_} = Key}, _, S) ->
     _ = case ets:lookup(?TAB, {shared, Key}) of
 	    [{_, r}] ->
-		_ = gproc_lib:remove_reg(Key, shared, unreg);
+		_ = gproc_lib:remove_reg(Key, shared, unreg, []);
 	    [{_, Opts}] ->
 		_ = gproc_lib:remove_reg(Key, shared, unreg, Opts);
 	    [] ->

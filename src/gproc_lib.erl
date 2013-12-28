@@ -298,7 +298,9 @@ ensure_monitor(Pid, Scope) when Scope==g; Scope==l ->
     end.
 
 remove_reg(Key, Pid, Event) ->
-    remove_reg(Key, Pid, Event, []).
+    Reg = remove_reg_1(Key, Pid),
+    Rev = remove_reverse_mapping(Event, Pid, Key),
+    [Reg, Rev].
 
 remove_reg(Key, Pid, Event, Opts) ->
     Reg = remove_reg_1(Key, Pid),
