@@ -476,6 +476,7 @@ handle_leader_call({give_away, {T,g,_} = K, To, Pid}, _From, S, _E)
                     ets:insert(?TAB, [{Key, ToPid, Value},
                                       {{ToPid,K}, []}]),
                     _ = gproc_lib:ensure_monitor(ToPid, g),
+                    _Rev = gproc_lib:remove_reverse_mapping({migrated,ToPid}, Pid, K),
                     {reply, ToPid, [{delete, [Key, {Pid,K}], {migrated,ToPid}},
 				    {insert, [{Key, ToPid, Value}]}], S};
                 undefined ->
@@ -546,7 +547,7 @@ handle_leader_call({await, Key, Pid}, {_,Ref} = From, S, _E) ->
 handle_leader_call(_, _, S, _E) ->
     {reply, badarg, S}.
 
-handle_leader_cast({sync_reply, Node, Ref}, S, _E) ->
+handle_leader_cast({sync_reply, Cand, Ref} = _Msg, S, _E) ->
     #state{sync_requests = SReqs} = S,
     case lists:keyfind(Ref, 1, SReqs) of
         false ->
@@ -555,13 +556,13 @@ handle_leader_cast({sync_reply, Node, Ref}, S, _E) ->
             %% sync reply. In that case, we trust that the client has been
 	    %% notified anyway, and ignore the message.
             {ok, S};
-        {_, Ns} ->
-            case lists:delete(Node, Ns) of
+        {_, Cs} ->
+            case lists:delete(Cand, Cs) of
                 [] ->
                     locks_leader:leader_reply(Ref, true),
                     {ok, S#state{sync_requests = lists:keydelete(Ref,1,SReqs)}};
-                Ns1 ->
-                    SReqs1 = lists:keyreplace(Ref, 1, SReqs, {Ref, Ns1}),
+                Cs1 ->
+                    SReqs1 = lists:keyreplace(Ref, 1, SReqs, {Ref, Cs1}),
                     {ok, S#state{sync_requests = SReqs1}}
             end
     end;
@@ -662,7 +663,7 @@ terminate(_Reason, _S) ->
     ok.
 
 from_leader({sync, Ref}, S, _E) ->
-    locks_leader:leader_cast(?MODULE, {sync_reply, node(), Ref}),
+    locks_leader:leader_cast(?MODULE, {sync_reply, self(), Ref}),
     {ok, S};
 from_leader({resolve, {Add, Delete}}, S, _E) ->
     lists:foreach(fun({Key, Pid}) ->

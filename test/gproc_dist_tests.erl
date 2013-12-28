@@ -52,7 +52,7 @@ dist_test_() ->
 	  (Ns) when is_list(Ns) ->
 	       {inorder,
 		[
-		 {inparallel, [
+		 {inorder, [
 			       fun() ->
 			       	       ?debugVal(t_simple_reg(Ns))
 			       end,
@@ -135,11 +135,9 @@ t_simple_reg([H|_] = Ns) ->
 t_simple_reg_or_locate([A,B|_] = _Ns) ->
     Name = ?T_NAME,
     P1 = t_spawn(A),
-    _Ref = erlang:monitor(process, P1),
     ?assertMatch({P1, the_value},
 		 t_call(P1, {apply, gproc, reg_or_locate, [Name, the_value]})),
     P2 = t_spawn(B),
-    _Ref2 = erlang:monitor(process, P2),
     ?assertMatch({P1, the_value},
 		 t_call(P2, {apply, gproc, reg_or_locate, [Name, other_value]})),
     ?assertMatch(ok, t_call(P1, die)),
@@ -232,10 +230,11 @@ t_await_reg([A,B|_]) ->
 		      {P, Ref, Res} ->
 			  element(1, Res);
 		      {'DOWN', Ref, _, _, Reason} ->
-			  erlang:error(Reason);
-		      Other ->
-			  erlang:error({received,Other})
+			  erlang:error(Reason)
+                  after 5000 ->
+                          error(timeout)
 		  end),
+    erlang:demonitor(Ref, [flush]),
     ?assertMatch(ok, t_call(P, die)),
     ?assertMatch(ok, t_call(P1, die)).
 
@@ -250,7 +249,7 @@ t_await_self([A|_]) ->
 					       receive
 						   {gproc, Ref, R, Wh} ->
 						       {R, Wh}
-					       after 10000 ->
+					       after 5000 ->
 						       timeout
 					       end
 				       end})),
@@ -267,10 +266,11 @@ t_await_reg_exists([A,B|_]) ->
 		      {P, Ref, Res} ->
 			  element(1, Res);
 		      {'DOWN', Ref, _, _, Reason} ->
-			  erlang:error(Reason);
-		      Other ->
-			  erlang:error({received,Other})
+			  erlang:error(Reason)
+                  after 5000 ->
+                          error(timeout)
 		  end),
+    erlang:demonitor(Ref, [flush]),
     ?assertMatch(ok, t_call(P, die)),
     ?assertMatch(ok, t_call(P1, die)).
 
@@ -290,8 +290,9 @@ t_give_away([A,B|_] = Ns) ->
 
 t_sync(Ns) ->
     %% Don't really know how to test this...
-    [?assertMatch(true, rpc:call(N, gproc_dist, sync, []))
-     || N <- Ns].
+    [?assertMatch(true, ?debugVal(rpc:call(N, gproc_dist, sync, [])))
+     || N <- Ns],
+    ok.
 
 t_monitor([A,B|_]) ->
     Na = ?T_NAME,
@@ -310,13 +311,16 @@ t_subscribe([A,B|_] = Ns) ->
     Na = ?T_NAME,
     Pb = t_spawn(B, _Selective = true),
     ?assertEqual(ok, t_call(Pb, {apply, gproc_monitor, subscribe, [Na]})),
-    ?assertMatch({gproc_monitor, Na, undefined}, got_msg(Pb, gproc_monitor)),
+    Mb = got_msg(Pb, gproc_monitor),
+    ?assertMatch({gproc_monitor, Na, undefined}, Mb),
     Pa = t_spawn_reg(A, Na),
-    ?assertMatch({gproc_monitor, Na, Pa}, got_msg(Pb, gproc_monitor)),
+    MPb = got_msg(Pb, gproc_monitor),
+    ?assertMatch({gproc_monitor, Na, Pa}, MPb),
     Pc = t_spawn(A),
     t_call(Pa, {apply, gproc, give_away, [Na, Pc]}),
     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pc)),
-    ?assertEqual({gproc_monitor,Na,{migrated,Pc}}, got_msg(Pb, gproc_monitor)),
+    MMig = got_msg(Pb, gproc_monitor),
+    ?assertEqual({gproc_monitor,Na,{migrated,Pc}}, MMig),
     ?assertEqual(ok, t_call(Pc, die)),
     ?assertEqual({gproc_monitor,Na,undefined}, got_msg(Pb, gproc_monitor)).
 
@@ -351,7 +355,6 @@ t_sync_cand_dies([A,B|_]) ->
     %% The leader should detect that the other candidate died and respond
     %% immediately. Therefore, we should have our answer well within 1 sec.
     Val = rpc:nb_yield(Key, 1000),
-    io:fwrite(user, "nb_yield() -> ~p~n", [Val]),
     try ?assertMatch({value, true}, Val)
     catch error:Err ->
 	    io:fwrite(user, "error:~p~n", [Err]),
@@ -473,11 +476,13 @@ t_call(P, Req) ->
     Ref = erlang:monitor(process, P),
     P ! {self(), Ref, Req},
     receive
-	{P, Ref, Res} ->
-	    erlang:demonitor(Ref),
-	    Res;
+        {P, Ref, Res} ->
+            erlang:demonitor(Ref),
+            Res;
 	{'DOWN', Ref, _, _, Error} ->
 	    erlang:error({'DOWN', P, Error})
+    after 5000 ->
+            error(timeout)
     end.
 
 t_loop() ->
