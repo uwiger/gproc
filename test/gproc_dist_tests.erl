@@ -1,3 +1,4 @@
+%% -*- erlang-indent-level: 4; indent-tabs-mode: nil -*-
 %% ``The contents of this file are subject to the Erlang Public License,
 %% Version 1.1, (the "License"); you may not use this file except in
 %% compliance with the License. You should have received a copy of the
@@ -25,85 +26,85 @@ dist_test_() ->
     {timeout, 120,
      [{setup,
        fun() ->
-	       case run_dist_tests() of
-		   true ->
-		       Ns = start_slaves([dist_test_n1, dist_test_n2]),
-		       ?assertMatch({[ok,ok],[]},
-				    rpc:multicall(Ns, application, set_env,
-						  [gproc, gproc_dist, Ns])),
-		       ?assertMatch({[ok,ok],[]},
-				    rpc:multicall(
-				      Ns, application, start, [gproc])),
-		       Ns;
-		   false ->
-		       skip
-	       end
+               case run_dist_tests() of
+                   true ->
+                       Ns = start_slaves([dist_test_n1, dist_test_n2]),
+                       ?assertMatch({[ok,ok],[]},
+                                    rpc:multicall(Ns, application, set_env,
+                                                  [gproc, gproc_dist, Ns])),
+                       ?assertMatch({[ok,ok],[]},
+                                    rpc:multicall(
+                                      Ns, application, start, [gproc])),
+                       Ns;
+                   false ->
+                       skip
+               end
        end,
        fun(_Ns) ->
-	       ok
+               ok
        end,
        fun(skip) -> [];
-	  (Ns) when is_list(Ns) ->
-	       {inorder,
-		[
-		 {inparallel, [
-			       fun() ->
-			       	       ?debugVal(t_simple_reg(Ns))
-			       end,
-			       fun() ->
-			       	       ?debugVal(t_simple_reg_or_locate(Ns))
-			       end,
-			       fun() ->
-			       	       ?debugVal(t_simple_counter(Ns))
-			       end,
-			       fun() ->
-			       	       ?debugVal(t_aggr_counter(Ns))
-			       end,
-			       fun() ->
-			       	       ?debugVal(t_update_counters(Ns))
-			       end,
-			       fun() ->
-			       	       ?debugVal(t_shared_counter(Ns))
-			       end,
-			       fun() ->
-			       	       ?debugVal(t_mreg(Ns))
-			       end,
-			       fun() ->
-			       	       ?debugVal(t_await_reg(Ns))
-			       end,
-			       fun() ->
-			       	       ?debugVal(t_await_self(Ns))
-			       end,
-			       fun() ->
-			       	       ?debugVal(t_await_reg_exists(Ns))
-			       end,
-			       fun() ->
-				       ?debugVal(t_give_away(Ns))
-			       end,
-			       fun() ->
-				       ?debugVal(t_sync(Ns))
-			       end,
-			       fun() ->
-				       ?debugVal(t_monitor(Ns))
-			       end,
-			       fun() ->
-				       ?debugVal(t_subscribe(Ns))
-			       end
-			      ]
-		 },
-		 fun() ->
-			 ?debugVal(t_sync_cand_dies(Ns))
-		 end,
-		 {timeout, 90, [fun() ->
-		 			?debugVal(t_fail_node(Ns))
-		 		end]}
-		]}
+          (Ns) when is_list(Ns) ->
+               {inorder,
+                [
+                 {inorder, [
+                               fun() ->
+                                       ?debugVal(t_simple_reg(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_simple_reg_or_locate(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_simple_counter(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_aggr_counter(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_update_counters(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_shared_counter(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_mreg(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_await_reg(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_await_self(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_await_reg_exists(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_give_away(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_sync(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_monitor(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_subscribe(Ns))
+                               end
+                           ]
+                 },
+                 fun() ->
+                         ?debugVal(t_sync_cand_dies(Ns))
+                 end,
+                 {timeout, 90, [fun() ->
+                                        ?debugVal(t_fail_node(Ns))
+                                end]}
+                ]}
        end
       }]}.
 
 run_dist_tests() ->
     case os:getenv("GPROC_DIST") of
-	"true" -> true;
+        "true" -> true;
 	"false" -> false;
 	false ->
 	    case code:ensure_loaded(gen_leader) of
@@ -114,7 +115,7 @@ run_dist_tests() ->
 	    end
     end.
 
--define(T_NAME, {n, g, {?MODULE, ?LINE}}).
+-define(T_NAME, {n, g, {?MODULE, ?LINE, erlang:now()}}).
 -define(T_KVL, [{foo, "foo"}, {bar, "bar"}]).
 -define(T_COUNTER, {c, g, {?MODULE, ?LINE}}).
 
@@ -129,15 +130,25 @@ t_simple_reg([H|_] = Ns) ->
 t_simple_reg_or_locate([A,B|_] = _Ns) ->
     Name = ?T_NAME,
     P1 = t_spawn(A),
-    _Ref = erlang:monitor(process, P1),
+    Ref = erlang:monitor(process, P1),
     ?assertMatch({P1, the_value},
 		 t_call(P1, {apply, gproc, reg_or_locate, [Name, the_value]})),
     P2 = t_spawn(B),
-    _Ref2 = erlang:monitor(process, P2),
+    Ref2 = erlang:monitor(process, P2),
     ?assertMatch({P1, the_value},
 		 t_call(P2, {apply, gproc, reg_or_locate, [Name, other_value]})),
     ?assertMatch(ok, t_call(P1, die)),
-    ?assertMatch(ok, t_call(P2, die)).
+    ?assertMatch(ok, t_call(P2, die)),
+    flush_down(Ref),
+    flush_down(Ref2).
+
+flush_down(Ref) ->
+    receive
+        {'DOWN', Ref, _, _, _} ->
+            ok
+    after 1000 ->
+            erlang:error({timeout, [flush_down, Ref]})
+    end.
 
 
 t_simple_counter([H|_] = Ns) ->
@@ -231,6 +242,7 @@ t_await_reg([A,B|_]) ->
 			  erlang:error({received,Other})
 		  end),
     ?assertMatch(ok, t_call(P, die)),
+    flush_down(Ref),
     ?assertMatch(ok, t_call(P1, die)).
 
 t_await_self([A|_]) ->
@@ -312,7 +324,8 @@ t_subscribe([A,B|_] = Ns) ->
     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pc)),
     ?assertEqual({gproc_monitor,Na,{migrated,Pc}}, got_msg(Pb, gproc_monitor)),
     ?assertEqual(ok, t_call(Pc, die)),
-    ?assertEqual({gproc_monitor,Na,undefined}, got_msg(Pb, gproc_monitor)).
+    ?assertEqual({gproc_monitor,Na,undefined}, got_msg(Pb, gproc_monitor)),
+    ok.
 
 got_msg(Pb, Tag) ->
     t_call(Pb,
@@ -321,8 +334,8 @@ got_msg(Pb, Tag) ->
 		    receive
 			M when element(1, M) == Tag ->
 			    M
-		    after 5000 ->
-			    timeout
+		    after 1000 ->
+			    erlang:error({timeout, got_msg, [Pb, Tag]})
 		    end
 	    end}).
 
@@ -416,6 +429,8 @@ t_spawn(Node, Selective) when is_boolean(Selective) ->
 		    end),
     receive
 	{P, ok} -> P
+    after 1000 ->
+            erlang:error({timeout, t_spawn, [Node, Selective]})
     end.
 
 t_spawn_reg(Node, Name) ->
@@ -423,24 +438,28 @@ t_spawn_reg(Node, Name) ->
 
 t_spawn_reg(Node, Name, Value) ->
     Me = self(),
-    spawn(Node, fun() ->
-			?assertMatch(true, gproc:reg(Name, Value)),
-			Me ! {self(), ok},
-			t_loop()
-		end),
+    P = spawn(Node, fun() ->
+                            ?assertMatch(true, gproc:reg(Name, Value)),
+                            Me ! {self(), ok},
+                            t_loop()
+                    end),
     receive
 	{P, ok} -> P
+    after 1000 ->
+            erlang:error({timeout, t_spawn_reg, [Node, Name, Value]})
     end.
 
 t_spawn_reg_shared(Node, Name, Value) ->
     Me = self(),
-    spawn(Node, fun() ->
-			?assertMatch(true, gproc:reg_shared(Name, Value)),
-			Me ! {self(), ok},
-			t_loop()
-		end),
+    P = spawn(Node, fun() ->
+                            ?assertMatch(true, gproc:reg_shared(Name, Value)),
+                            Me ! {self(), ok},
+                            t_loop()
+                    end),
     receive
 	{P, ok} -> P
+    after 1000 ->
+              erlang:error({timeout, t_spawn_reg_shared, [Node,Name,Value]})
     end.
 
 default_value({c,_,_}) -> 0;
@@ -448,11 +467,11 @@ default_value(_) -> undefined.
 
 t_spawn_mreg(Node, KVL) ->
     Me = self(),
-    spawn(Node, fun() ->
-			?assertMatch(true, gproc:mreg(n, g, KVL)),
-			Me ! {self(), ok},
-			t_loop()
-		end),
+    P = spawn(Node, fun() ->
+                            ?assertMatch(true, gproc:mreg(n, g, KVL)),
+                            Me ! {self(), ok},
+                            t_loop()
+                    end),
     receive
 	{P, ok} -> P
     end.
@@ -462,10 +481,12 @@ t_call(P, Req) ->
     P ! {self(), Ref, Req},
     receive
 	{P, Ref, Res} ->
-	    erlang:demonitor(Ref),
+	    erlang:demonitor(Ref, [flush]),
 	    Res;
 	{'DOWN', Ref, _, _, Error} ->
 	    erlang:error({'DOWN', P, Error})
+    after 1000 ->
+            erlang:error({timeout,t_call,[P,Req]})
     end.
 
 t_loop() ->
@@ -507,7 +528,6 @@ start_slave(Name) ->
         lists:flatten([[" -pa " ++ Path || Path <- Pa],
 		       [" -pz " ++ Path || Path <- Pz]]),
     {ok, Node} = slave:start(host(), Name, Paths),
-    %% io:fwrite(user, "Slave node: ~p~n", [Node]),
     Node.
 
 paths() ->
