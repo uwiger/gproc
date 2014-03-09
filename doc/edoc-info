@@ -1,3 +1,4 @@
+%% encoding: UTF-8
 {application,gproc}.
 {packages,[]}.
 {modules,[gproc,gproc_app,gproc_bcast,gproc_dist,gproc_info,gproc_init,

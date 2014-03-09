@@ -30,10 +30,13 @@
 	 insert_attr/4,
          remove_many/4,
          remove_reg/3, remove_reg/4,
-	 add_monitor/3,
+         monitors/1,
+         standbys/1,
+         remove_monitor_pid/2,
+	 add_monitor/4,
 	 remove_monitor/3,
 	 remove_monitors/3,
-	 remove_reverse_mapping/3,
+	 remove_reverse_mapping/3, remove_reverse_mapping/4,
 	 notify/2, notify/3,
 	 remove_wait/4,
          update_aggr_counter/3,
@@ -303,7 +306,8 @@ remove_reverse_mapping(Event, Pid, Key) ->
     remove_reverse_mapping(Event, Pid, Key, Opts).
 
 remove_reverse_mapping(Event, Pid, Key, Opts) when Event==unreg;
-						   element(1,Event)==migrated ->
+						   element(1,Event)==migrated;
+                                                   element(1,Event)==failover ->
     Rev = {Pid, Key},
     _ = notify(Event, Key, Opts),
     ets:delete(?TAB, Rev),
@@ -312,30 +316,70 @@ remove_reverse_mapping(Event, Pid, Key, Opts) when Event==unreg;
 notify(Key, Opts) ->
     notify(unreg, Key, Opts).
 
-notify([], _, _) ->
-    [];
-notify(Event, Key, Opts) ->
+monitors(Opts) ->
     case lists:keyfind(monitor, 1, Opts) of
 	false ->
 	    [];
 	{_, Mons} ->
-	    [begin P ! {gproc, Event, Ref, Key}, P end || {P, Ref} <- Mons,
-							  node(P) == node()]
+            Mons
     end.
 
-add_monitor([{monitor, Mons}|T], Pid, Ref) ->
-    [{monitor, [{Pid,Ref}|Mons]}|T];
-add_monitor([H|T], Pid, Ref) ->
-    [H|add_monitor(T, Pid, Ref)];
-add_monitor([], Pid, Ref) ->
-    [{monitor, [{Pid, Ref}]}].
+standbys(Opts) ->
+    standbys(monitors(Opts), []).
+
+standbys([{_,_,standby}=H|T], Acc) ->
+    standbys(T, [H|Acc]);
+standbys([_|T], Acc) ->
+    standbys(T, Acc);
+standbys([], Acc) ->
+    Acc.
+
+remove_monitor_pid([{monitor, Mons}|T], Pid) ->
+    [{monitors, [M || M <- Mons,
+                      element(1, M) =/= Pid]}|T];
+remove_monitor_pid([H|T], Pid) ->
+    [H | remove_monitor_pid(T, Pid)];
+remove_monitor_pid([], _) ->
+    [].
+
+
+notify([], _, _) ->
+    ok;
+notify(Event, Key, Opts) ->
+    notify_(monitors(Opts), Event, Key).
+
+%% Also handle old-style monitors
+notify_([{Pid,Ref}|T], Event, Key) ->
+    Pid ! {gproc, Event, Ref, Key},
+    notify_(T, Event, Key);
+notify_([{Pid,Ref,_}|T], Event, Key) ->
+    Pid ! {gproc, Event, Ref, Key},
+    notify_(T, Event, Key);
+notify_([_|T], Event, Key) ->
+    notify_(T, Event, Key);
+notify_([], _, _) ->
+    ok.
+
+
+
+add_monitor([{monitor, Mons}|T], Pid, Ref, Type) ->
+    [{monitor, [{Pid,Ref,Type}|Mons]}|T];
+add_monitor([H|T], Pid, Ref, Type) ->
+    [H|add_monitor(T, Pid, Ref, Type)];
+add_monitor([], Pid, Ref, Type) ->
+    [{monitor, [{Pid, Ref, Type}]}].
 
 remove_monitor([{monitor, Mons}|T], Pid, Ref) ->
-    [{monitor, Mons -- [{Pid, Ref}]}|T];
+    [{monitor, [Mon || Mon <- Mons, not is_mon(Mon,Pid,Ref)]} | T];
 remove_monitor([H|T], Pid, Ref) ->
     [H|remove_monitor(T, Pid, Ref)];
 remove_monitor([], _Pid, _Ref) ->
     [].
+
+is_mon({Pid,Ref,_}, Pid, Ref) -> true;
+is_mon({Pid,Ref},   Pid, Ref) -> true;
+is_mon(_, _, _) ->
+    false.
 
 remove_many(T, Scope, L, Pid) ->
     lists:flatmap(fun(K) ->

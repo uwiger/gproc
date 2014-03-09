@@ -185,6 +185,11 @@ handle_info({gproc, {migrated,ToPid}, _Ref, Name}, State) ->
     notify(Name, {migrated, ToPid}),
     do_monitor(Name, ToPid),
     {noreply, State};
+handle_info({gproc, {failover,ToPid}, _Ref, Name}, State) ->
+    ets:delete(?TAB, {m, Name}),
+    notify(Name, {failover, ToPid}),
+    do_monitor(Name, ToPid),
+    {noreply, State};
 handle_info({gproc, _, registered, {{T,_,_} = Name, Pid, _}}, State)
   when T==n; T==a ->
     ets:delete(?TAB, {w, Name}),
