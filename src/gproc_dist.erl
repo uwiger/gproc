@@ -471,13 +471,13 @@ handle_leader_call({unreg, {T,g,Name} = K, Pid}, _From, S, _E) ->
                     case ets:lookup(?TAB, {{a,g,Name},a}) of
                         [Aggr] ->
                             %% updated by remove_reg/3
-                            {reply, true, [{delete,[Key, {Pid,K}], unreg},
+                            {reply, true, [{delete,[Key, {Pid,K}]},
                                            {insert, [Aggr]}], S};
                         [] ->
-                            {reply, true, [{delete, [Key, {Pid,K}], unreg}], S}
+                            {reply, true, [{delete, [Key, {Pid,K}]}], S}
                     end;
                true ->
-                    {reply, true, [{delete, [Key, {Pid,K}], unreg}], S}
+                    {reply, true, [{delete, [Key, {Pid,K}]}], S}
             end;
         false ->
             {reply, badarg, S}
@@ -487,19 +487,25 @@ handle_leader_call({give_away, {T,g,_} = K, To, Pid}, _From, S, _E)
     Key = {K, T},
     case ets:lookup(?TAB, Key) of
         [{_, Pid, Value}] ->
+            Opts = get_opts(Pid, K),
             case pid_to_give_away_to(To) of
                 Pid ->
                     {reply, Pid, S};
                 ToPid when is_pid(ToPid) ->
                     ets:insert(?TAB, [{Key, ToPid, Value},
-                                      {{ToPid,K}, []}]),
+                                      {{ToPid,K}, Opts}]),
                     _ = gproc_lib:ensure_monitor(ToPid, g),
-                    {reply, ToPid, [{delete, [Key, {Pid,K}], {migrated,ToPid}},
+                    Rev = {Pid, K},
+                    ets:delete(?TAB, Rev),
+                    gproc_lib:notify({migrated, ToPid}, K, Opts),
+                    {reply, ToPid, [{delete, [Key, Rev]},
 				    {insert, [{Key, ToPid, Value}]}], S};
                 undefined ->
                     ets:delete(?TAB, Key),
-		    Rev = gproc_lib:remove_reverse_mapping(unreg, Pid, K),
-                    {reply, undefined, [{delete, [Key, Rev], unreg}], S}
+                    Rev = {Pid, K},
+                    ets:delete(?TAB, Rev),
+                    gproc_lib:notify(unreg, K, Opts),
+                    {reply, undefined, [{delete, [Key, Rev]}], S}
             end;
         _ ->
             {reply, badarg, S}
@@ -519,7 +525,7 @@ handle_leader_call({munreg, T, g, L, Pid}, _From, S, _E) ->
         [] ->
             {reply, true, S};
         Objs ->
-            {reply, true, [{delete, Objs, unreg}], S}
+            {reply, true, [{delete, Objs}], S}
     catch
         error:_ -> {reply, badarg, S}
     end;
@@ -738,7 +744,7 @@ insert_globals(Globals) ->
 	      ets:insert_new(?TAB, {{Pid,Key}, []}),
 	      gproc_lib:ensure_monitor(Pid,g),
 	      A;
-	 ({{{_,_,_} = Key, n}, Pid, _} = Obj, A) ->
+	 ({{{_,_,_} = Key, _}, Pid, _} = Obj, A) ->
               ets:insert(?TAB, Obj),
               ets:insert_new(?TAB, {{Pid,Key}, []}),
 	      gproc_lib:ensure_monitor(Pid,g),
