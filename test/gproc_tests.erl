@@ -130,6 +130,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_monitor_give_away()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_monitor_standby()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_subscribe()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_gproc_info()))}
@@ -727,6 +729,25 @@ t_monitor_give_away() ->
 	    ?assertEqual({gproc,{migrated,Me},Ref,{n,l,a}}, M)
     end,
     ?assertEqual(ok, t_call(P, die)).
+
+t_monitor_standby() ->
+    Me = self(),
+    P = spawn(fun() ->
+                      gproc:reg({n,l,a}),
+                      Me ! continue,
+                      t_loop()
+              end),
+    receive continue ->
+	    ok
+    end,
+    Ref = gproc:monitor({n,l,a}, standby),
+    exit(P, kill),
+    receive
+	M ->
+	    ?assertEqual({gproc,{failover,Me},Ref,{n,l,a}}, M)
+    end,
+    gproc:unreg({n,l,a}),
+    ok.
 
 t_subscribe() ->
     Key = {n,l,a},

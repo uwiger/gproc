@@ -2362,8 +2362,8 @@ opt_notify(Opts, {T,_,_} = Key, Pid, Value) ->
                     gproc_lib:notify(unreg, Key, Opts),
                     ok;
                 {ToPid, Ref} ->
-                    ets:insert(?TAB, [{Key, ToPid, Value},
-                                      {{ToPid, {Key,T}},
+                    ets:insert(?TAB, [{{Key,T}, ToPid, Value},
+                                      {{ToPid, Key},
                                        gproc_lib:remove_monitor(
                                          Opts, ToPid, Ref)}]),
                     _ = gproc_lib:remove_reverse_mapping(
