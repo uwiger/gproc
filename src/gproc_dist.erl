@@ -477,7 +477,8 @@ handle_leader_call({unreg, {T,g,Name} = K, Pid}, _From, S, _E) ->
                             {reply, true, [{delete, [Key, {Pid,K}]}], S}
                     end;
                true ->
-                    {reply, true, [{delete, [Key, {Pid,K}]}], S}
+                    {reply, true, [{notify, [{K, Pid, unreg}]},
+                                   {delete, [Key, {Pid,K}]}], S}
             end;
         false ->
             {reply, badarg, S}
@@ -498,14 +499,16 @@ handle_leader_call({give_away, {T,g,_} = K, To, Pid}, _From, S, _E)
                     Rev = {Pid, K},
                     ets:delete(?TAB, Rev),
                     gproc_lib:notify({migrated, ToPid}, K, Opts),
-                    {reply, ToPid, [{delete, [Key, Rev]},
-				    {insert, [{Key, ToPid, Value}]}], S};
+                    {reply, ToPid, [{insert, [{Key, ToPid, Value}]},
+                                    {notify, [{K, Pid, {migrated, ToPid}}]},
+				    {delete, [Rev]}], S};
                 undefined ->
                     ets:delete(?TAB, Key),
                     Rev = {Pid, K},
                     ets:delete(?TAB, Rev),
                     gproc_lib:notify(unreg, K, Opts),
-                    {reply, undefined, [{delete, [Key, Rev]}], S}
+                    {reply, undefined, [{notify, [{K, Pid, unreg}]},
+                                        {delete, [Key, Rev]}], S}
             end;
         _ ->
             {reply, badarg, S}
@@ -643,7 +646,7 @@ mk_broadcast_insert_vals(Objs) ->
 
 
 process_globals(Globals) ->
-    Modified =
+    {Modified, Notifications} =
         lists:foldl(
           fun({{T,_,_} = Key, Pid}, A) when T==n; T==a ->
                   case ets:lookup(?TAB, {Pid,Key}) of
@@ -652,38 +655,39 @@ process_globals(Globals) ->
                       _ ->
                           A
                   end;
-             ({{T,_,_} = Key, Pid}, A) ->
-                  A1 = case T of
-                           c ->
-                               Incr = ets:lookup_element(?TAB, {Key,Pid}, 3),
-                               update_aggr_counter(Key, -Incr) ++ A;
-                           _ ->
-                               A
-                       end,
-                  remove_entry(Key, Pid, unreg),
-                  A1
-          end, [], Globals),
+             ({{T,_,_} = Key, Pid}, {MA,NA}) ->
+                  MA1 = case T of
+                            c ->
+                                Incr = ets:lookup_element(?TAB, {Key,Pid}, 3),
+                                update_aggr_counter(Key, -Incr) ++ MA;
+                            _ ->
+                               MA
+                        end,
+                  N = remove_entry(Key, Pid, unreg),
+                  {MA1, N ++ NA}
+          end, {[],[]}, Globals),
     [{insert, Modified} || Modified =/= []] ++
+        [{notify, Notifications} || Notifications =/= []] ++
 	[{delete, Globals} || Globals =/= []].
 
-maybe_failover({T,_,_} = Key, Pid, Opts, Acc) ->
+maybe_failover({T,_,_} = Key, Pid, Opts, {MAcc, NAcc}) ->
     Opts = get_opts(Pid, Key),
     case filter_standbys(gproc_lib:standbys(Opts)) of
         [] ->
-            remove_entry(Key, Pid, unreg),
-            Acc;
+            Notify = remove_entry(Key, Pid, unreg),
+            {MAcc, Notify ++ NAcc};
         [{ToPid,Ref,_}|_] ->
             Value = case ets:lookup(?TAB, {Key,T}) of
                         [{_, _, V}] -> V;
                         _ -> undefined
                     end,
-            remove_rev_entry(Opts, Pid, Key, {failover, ToPid}),
+            Notify = remove_rev_entry(Opts, Pid, Key, {failover, ToPid}),
             Opts1 = gproc_lib:remove_monitor(Opts, ToPid, Ref),
             _ = gproc_lib:ensure_monitor(ToPid, g),
             NewReg = {{Key,T}, ToPid, Value},
             NewRev = {{ToPid, Key}, Opts1},
             ets:insert(?TAB, [NewReg, NewRev]),
-            [NewReg, NewRev | Acc]
+            {[NewReg, NewRev | MAcc], Notify ++ NAcc}
     end.
 
 filter_standbys(SBs) ->
@@ -708,9 +712,11 @@ remove_entry(Key, Pid, Event) ->
 remove_rev_entry(Opts, Pid, {T,g,_} = K, Event) when T==n; T==a ->
     Key = {Pid, K},
     gproc_lib:notify(Event, K, Opts),
-    ets:delete(?TAB, Key);
+    ets:delete(?TAB, Key),
+    [{K, Pid, Event}];
 remove_rev_entry(_, Pid, K, _Event) ->
-    ets:delete(?TAB, {Pid, K}).
+    ets:delete(?TAB, {Pid, K}),
+    [].
 
 get_opts(Pid, K) ->
     case ets:lookup(?TAB, {Pid, K}) of
@@ -733,20 +739,17 @@ from_leader(Ops, S, _E) ->
       fun({delete, Globals}) ->
               delete_globals(Globals);
          ({insert, Globals}) ->
-	      _ = insert_globals(Globals)
+	      _ = insert_globals(Globals);
+         ({notify, Events}) ->
+              do_notify(Events)
       end, Ops),
     {ok, S}.
 
 insert_globals(Globals) ->
     lists:foldl(
-      fun({{{_,_,_} = Key,Pid}, Pid, _} = Obj, A) ->
+      fun({{{_,_,_} = Key,_}, Pid, _} = Obj, A) ->
               ets:insert(?TAB, Obj),
 	      ets:insert_new(?TAB, {{Pid,Key}, []}),
-	      gproc_lib:ensure_monitor(Pid,g),
-	      A;
-	 ({{{_,_,_} = Key, _}, Pid, _} = Obj, A) ->
-              ets:insert(?TAB, Obj),
-              ets:insert_new(?TAB, {{Pid,Key}, []}),
 	      gproc_lib:ensure_monitor(Pid,g),
 	      A;
 	 ({{P,_K}, Opts} = Obj, A) when is_pid(P), is_list(Opts),Opts =/= [] ->
@@ -767,6 +770,17 @@ delete_globals(Globals) ->
          ({Pid, Key}) when is_pid(Pid); Pid==shared ->
 	      ets:delete(?TAB, {Pid, Key})
       end, Globals).
+
+do_notify([{K, P, E}|T]) ->
+    case ets:lookup(?TAB, {P,K}) of
+        [{_, Opts}] when is_list(Opts) ->
+            gproc_lib:notify(E, K, Opts);
+        _ ->
+            do_notify(T)
+    end;
+do_notify([]) ->
+    ok.
+
 
 ets_key({T,_,_} = K, _) when T==n; T==a ->
     {K, T};

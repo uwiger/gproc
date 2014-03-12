@@ -64,13 +64,13 @@ insert_reg({T,_,Name} = K, Value, Pid, Scope) when T==a; T==n ->
                                 true
                         end
                 end,
-    Info = [{{K, T}, Pid, Value}, {{Pid,K}, []}],
-    case ets:insert_new(?TAB, Info) of
+    case ets:insert_new(?TAB, {{K,T}, Pid, Value}) of
         true ->
+            _ = ets:insert_new(?TAB, {{Pid,K}, []}),
             MaybeScan();
         false ->
             if T==n ->
-                    maybe_waiters(K, Pid, Value, T, Info);
+                    maybe_waiters(K, Pid, Value, T);
                true ->
                     false
             end
@@ -187,13 +187,13 @@ await({T,C,_} = Key, WPid, {_Pid, Ref} = From) ->
 
 
 
-maybe_waiters(K, Pid, Value, T, Info) ->
+maybe_waiters(K, Pid, Value, T) ->
     case ets:lookup(?TAB, {K,T}) of
         [{_, Waiters}] when is_list(Waiters) ->
-            ets:insert(?TAB, Info),
+            ets:insert(?TAB, [{{K,T}, Pid, Value}, {{Pid,K}, []}]),
             notify_waiters(Waiters, K, Pid, Value),
             true;
-        [_] ->
+        _ ->
             false
     end.
 
@@ -352,7 +352,10 @@ notify(Event, Key, Opts) ->
 notify_([{Pid,Ref}|T], Event, Key) ->
     Pid ! {gproc, Event, Ref, Key},
     notify_(T, Event, Key);
-notify_([{Pid,Ref,_}|T], Event, Key) ->
+notify_([{Pid,Ref,_}|T], Event, {_,l,_} = Key) ->
+    Pid ! {gproc, Event, Ref, Key},
+    notify_(T, Event, Key);
+notify_([{Pid,Ref,_}|T], Event, {_,g,_} = Key) when node(Pid) == node() ->
     Pid ! {gproc, Event, Ref, Key},
     notify_(T, Event, Key);
 notify_([_|T], Event, Key) ->

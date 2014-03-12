@@ -88,6 +88,9 @@ dist_test_() ->
                                        ?debugVal(t_monitor(Ns))
                                end,
                                fun() ->
+                                       ?debugVal(t_standby_monitor(Ns))
+                               end,
+                               fun() ->
                                        ?debugVal(t_subscribe(Ns))
                                end
                            ]
@@ -311,6 +314,21 @@ t_monitor([A,B|_]) ->
     Ref1 = t_call(Pb, {apply, gproc, monitor, [Na]}),
     ?assertMatch(true, t_call(Pc, {apply, gproc, unreg, [Na]})),
     ?assertMatch({gproc,unreg,Ref1,Na}, got_msg(Pb, gproc)).
+
+t_standby_monitor([A,B|_] = Ns) ->
+    Na = ?T_NAME,
+    Pa = t_spawn_reg(A, Na),
+    Pb = t_spawn(B, _Selective = true),
+    Ref = t_call(Pb, {apply, gproc, monitor, [Na, standby]}),
+    ?assert(is_reference(Ref)),
+    ?assertMatch(ok, t_call(Pa, die)),
+    ?assertMatch({gproc,{failover,Pb},Ref,Na}, got_msg(Pb, gproc)),
+    ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pb)),
+    Pc = t_spawn(A, true),
+    Ref1 = t_call(Pc, {apply, gproc, monitor, [Na, standby]}),
+    ?assertMatch(true, t_call(Pb, {apply, gproc, unreg, [Na]})),
+    ?assertMatch({gproc,unreg,Ref1,Na}, got_msg(Pc, gproc)),
+    ?assertMatch(ok, t_lookup_everywhere(Na, Ns, undefined)).
 
 t_subscribe([A,B|_] = Ns) ->
     Na = ?T_NAME,

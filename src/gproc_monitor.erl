@@ -244,7 +244,9 @@ do_monitor(Name, undefined) ->
     case ets:member(?TAB, {w, Name}) of
 	false ->
 	    Ref = gproc:nb_wait(Name),
-	    ets:insert(?TAB, {{w, Name}, Ref})
+	    ets:insert(?TAB, {{w, Name}, Ref});
+        true ->
+            ok
     end;
 do_monitor(Name, Pid) when is_pid(Pid) ->
     case ets:member(?TAB, {m, Name}) of

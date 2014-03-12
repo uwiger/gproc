@@ -2075,6 +2075,10 @@ handle_call({monitor, {T,l,_} = Key, Pid, Type}, _From, S)
     _ = case {where(Key), Type} of
 	    {undefined, info} ->
 		Pid ! {gproc, unreg, Ref, Key};
+            {undefined, standby} ->
+                true = gproc_lib:insert_reg(Key, undefined, Pid, l),
+                Pid ! {gproc, {failover, Pid}, Ref, Key},
+                _ = gproc_lib:ensure_monitor(Pid, l);
 	    {RegPid, _} ->
                 _ = gproc_lib:ensure_monitor(Pid, l),
 		case ets:lookup(?TAB, {RegPid, Key}) of
