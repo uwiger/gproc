@@ -2101,7 +2101,6 @@ handle_call({monitor, {T,l,_} = Key, Pid, Type}, _From, S)
                 Evt = {failover, Pid},
                 true = gproc_lib:insert_reg(Key, undefined, Pid, l, Evt),
                 Pid ! {gproc, Evt, Ref, Key},
-                notify_waiters(Lookup, Evt, Key),
                 _ = gproc_lib:ensure_monitor(Pid, l);
 	    {true, _} ->
                 [{_, RegPid, _}] = Lookup,
@@ -2861,9 +2860,3 @@ is_regged([{_, _, _}]) ->
     true;
 is_regged(_) ->
     false.
-
-notify_waiters([{_, Ws}], Evt, K) ->
-    [P ! {gproc, Evt, R, K} || {P,R,follow} <- Ws],
-    ok;
-notify_waiters(_, _, _) ->
-    ok.
