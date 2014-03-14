@@ -129,6 +129,7 @@ reg_shared(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 monitor({_,g,_} = Key, Type) when Type==info;
+                                  Type==follow;
                                   Type==standby ->
     leader_call({monitor, Key, self(), Type});
 monitor(_, _) ->
@@ -351,7 +352,7 @@ handle_leader_call({reg, {_C,g,_Name} = K, Value, Pid}, _From, S, _E) ->
             {reply, true, [{insert, Vals}], S}
     end;
 handle_leader_call({monitor, {T,g,_} = K, MPid, Type}, _From, S, _E) when T==n;
-                                                                         T==a ->
+                                                                          T==a ->
     case ets:lookup(?TAB, {K, T}) of
         [{_, Pid, _}] ->
             Opts = get_opts(Pid, K),
@@ -362,15 +363,34 @@ handle_leader_call({monitor, {T,g,_} = K, MPid, Type}, _From, S, _E) when T==n;
             Rev = {{MPid,K}, []},
             ets:insert(?TAB, [Obj, Rev]),
             {reply, Ref, [{insert, [Obj, Rev]}], S};
-        [] ->
+        LookupRes ->
             Ref = make_ref(),
             case Type of
                 standby ->
+                    Event = {failover, MPid},
+                    Msgs = insert_reg(LookupRes, K, undefined, MPid, Event),
                     Obj = {{K,T}, MPid, undefined},
                     Rev = {{MPid,K}, []},
                     ets:insert(?TAB, [Obj, Rev]),
                     MPid ! {gproc, {failover,MPid}, Ref, K},
-                    {reply, Ref, [{insert, [Obj, Rev]}], S};
+                    {reply, Ref, [{insert, [Obj, Rev]},
+                                  {notify, Msgs}], S};
+                follow ->
+                    case LookupRes of
+                        [{_, Waiters}] ->
+                            add_follow_to_waiters(Waiters, K, MPid, Ref, S);
+                        [] ->
+                            add_follow_to_waiters([], K, MPid, Ref, S);
+                        [{_, Pid, _}] ->
+                            case ets:lookup(?TAB, {Pid,K}) of
+                                [{_, Opts}] when is_list(Opts) ->
+                                    Opts1 = gproc_lib:add_monitor(
+                                              Opts, MPid, Ref, follow),
+                                    ets:insert(?TAB, {{Pid,K}, Opts1}),
+                                    {reply, Ref,
+                                     [{insert, [{{Pid,K}, Opts1}]}], S}
+                            end
+                    end;
                 _ ->
                     MPid ! {gproc, unreg, Ref, K},
                     {reply, Ref, S}
@@ -386,6 +406,10 @@ handle_leader_call({demonitor, {T,g,_} = K, MPid, Ref}, _From, S, _E) ->
             ets:delete(?TAB, {MPid, K}),
             {reply, ok, [{delete, [{MPid,K}]},
                          {insert, [Obj]}], S};
+        [{Key, Waiters}] ->
+            NewWaiters = [W || W <- Waiters,
+                               W =/= {MPid, Ref, follow}],
+            {reply, ok, [{insert, [{Key, NewWaiters}]}], S};
         _ ->
             {reply, ok, S}
     end;
@@ -771,6 +795,9 @@ delete_globals(Globals) ->
 	      ets:delete(?TAB, {Pid, Key})
       end, Globals).
 
+do_notify([{P, Msg}|T]) when is_pid(P) ->
+    P ! Msg,
+    do_notify(T);
 do_notify([{K, P, E}|T]) ->
     case ets:lookup(?TAB, {P,K}) of
         [{_, Opts}] when is_list(Opts) ->
@@ -928,4 +955,38 @@ pid_to_give_away_to({T,g,_} = Key) when T==n; T==a ->
             Pid;
         _ ->
             undefined
+    end.
+
+insert_reg([{_, Waiters}], K, Val, Pid, Event) ->
+    gproc_lib:insert_reg(K, Val, Pid, g, []),
+    tell_waiters(Waiters, K, Pid, Val, Event).
+
+tell_waiters([{P,R}|T], K, Pid, V, Event) ->
+    Msg = {gproc, R, registered, {K, Pid, V}},
+    if node(P) == node() ->
+            P ! Msg;
+       true ->
+            [{P, Msg} | tell_waiters(T, K, Pid, V, Event)]
+    end;
+tell_waiters([{P,R,follow}|T], K, Pid, V, Event) ->
+    Msg = {gproc, Event, R, K},
+    if node(P) == node() ->
+            P ! Msg;
+       true ->
+            [{P, Msg} | tell_waiters(T, K, Pid, V, Event)]
+    end;
+tell_waiters([], _, _, _, _) ->
+    [].
+
+add_follow_to_waiters(Waiters, {T,_,_} = K, Pid, Ref, S) ->
+    Obj = {{K,T}, [{Pid, Ref, follow}|Waiters]},
+    Rev = {{Pid,K}, []},
+    ets:insert(?TAB, [Obj, Rev]),
+    Msg = {gproc, unreg, Ref, K},
+    if node(Pid) == node() ->
+            Pid ! Msg,
+            {reply, Ref, [{insert, [Obj, Rev]}], S};
+       true ->
+            {reply, Ref, [{insert, [Obj, Rev]},
+                          {notify, [{Pid, Msg}]}]}
     end.

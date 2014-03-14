@@ -46,6 +46,8 @@
 %% @type reg_id() = {type(), scope(), any()}.
 %% @type unique_id() = {n | a, scope(), any()}.
 %%
+%% @type monitor_type() = info | standby | follow.
+%%
 %% @type sel_scope() = scope | all | global | local.
 %% @type sel_type() = type() | names | props | counters | aggr_counters.
 %% @type context() = {scope(), type()} | type(). {'all','all'} is the default
@@ -879,7 +881,7 @@ cancel_wait_or_monitor1({_,l,_} = Key) ->
 monitor(Key) ->
     ?CATCH_GPROC_ERROR(monitor1(Key, info), [Key]).
 
-%% @spec monitor(key(), info | standby) -> reference()
+%% @spec monitor(key(), monitor_type()) -> reference()
 %%
 %% @doc monitor a registered name
 %% `monitor(Key, info)' works much like erlang:monitor(process, Pid), but monitors
@@ -898,8 +900,14 @@ monitor(Key) ->
 %% If the name is not yet registered, the unreg event is sent immediately.
 %% If the calling process in this case tried to start a `standby' monitoring,
 %% it receives the registered name and the failover event immediately.
+%%
+%% `monitor(Key, follow)' keeps monitoring the registered name even if it is
+%% temporarily unregistered. The messages received are the same as for the other
+%% monitor types, but `{gproc, registered, Ref, Key}' is also sent when a new
+%% process registers the name.
 %% @end
 monitor(Key, Type) when Type==info;
+                        Type==follow;
                         Type==standby ->
     ?CATCH_GPROC_ERROR(monitor1(Key, Type), [Key, Type]).
 
@@ -2072,23 +2080,40 @@ handle_call({reg_or_locate, {T,l,_} = Key, Val, P}, _, S) ->
 handle_call({monitor, {T,l,_} = Key, Pid, Type}, _From, S)
   when T==n; T==a ->
     Ref = make_ref(),
-    _ = case {where(Key), Type} of
-	    {undefined, info} ->
+    Lookup = ets:lookup(?TAB, {Key, T}),
+    IsRegged = is_regged(Lookup),
+    _ = case {IsRegged, Type} of
+	    {false, info} ->
 		Pid ! {gproc, unreg, Ref, Key};
-            {undefined, standby} ->
-                true = gproc_lib:insert_reg(Key, undefined, Pid, l),
-                Pid ! {gproc, {failover, Pid}, Ref, Key},
+            {false, follow} ->
+		Pid ! {gproc, unreg, Ref, Key},
+                _ = gproc_lib:ensure_monitor(Pid, l),
+                case Lookup of
+                    [{K, Waiters}] ->
+                        NewWaiters = [{Pid,Ref,follow}|Waiters],
+                        ets:insert(?TAB, {K, NewWaiters}),
+                        ets:insert_new(?TAB, {{Pid,Key}, []});
+                    [] ->
+                        ets:insert(?TAB, {{Key,T}, [{Pid,Ref,follow}]}),
+                        ets:insert_new(?TAB, {{Pid,Key}, []})
+                end;
+            {false, standby} ->
+                Evt = {failover, Pid},
+                true = gproc_lib:insert_reg(Key, undefined, Pid, l, Evt),
+                Pid ! {gproc, Evt, Ref, Key},
+                notify_waiters(Lookup, Evt, Key),
                 _ = gproc_lib:ensure_monitor(Pid, l);
-	    {RegPid, _} ->
+	    {true, _} ->
+                [{_, RegPid, _}] = Lookup,
                 _ = gproc_lib:ensure_monitor(Pid, l),
 		case ets:lookup(?TAB, {RegPid, Key}) of
 		    [{K,r}] ->
-			ets:insert(?TAB, [{K, [{monitor, [{Pid,Ref,Type}]}]},
-                                          {{Pid,Key}, []}]);
+			ets:insert(?TAB, {K, [{monitor, [{Pid,Ref,Type}]}]}),
+                        ets:insert_new({{Pid,Key}, []});
 		    [{K, Opts}] ->
-			ets:insert(?TAB, [{K, gproc_lib:add_monitor(
-                                                Opts, Pid, Ref, Type)},
-                                          {{Pid,Key}, []}])
+			ets:insert(?TAB, {K, gproc_lib:add_monitor(
+                                               Opts, Pid, Ref, Type)}),
+                        ets:insert_new(?TAB, {{Pid,Key}, []})
 		end
 	end,
     {reply, Ref, S};
@@ -2301,8 +2326,8 @@ process_is_down(Pid) when is_pid(Pid) ->
                               ets:delete(?TAB, Key),
 			      opt_notify(R, K, Pid, V);
                           [{_, Waiters}] ->
-                              case [W || {P,_} = W <- Waiters,
-                                         P =/= Pid] of
+                              case [W || W <- Waiters,
+                                         element(1,W) =/= Pid] of
                                   [] ->
                                       ets:delete(?TAB, Key);
                                   Waiters1 ->
@@ -2355,10 +2380,12 @@ opt_notify(r, _, _, _) ->
 opt_notify(Opts, {T,_,_} = Key, Pid, Value) ->
     case gproc_lib:standbys(Opts) of
         [] ->
+            keep_followers(Opts, Key),
             gproc_lib:notify(unreg, Key, Opts);
         SBs ->
             case pick_standby(SBs) of
                 false ->
+                    keep_followers(Opts, Key),
                     gproc_lib:notify(unreg, Key, Opts),
                     ok;
                 {ToPid, Ref} ->
@@ -2371,6 +2398,14 @@ opt_notify(Opts, {T,_,_} = Key, Pid, Value) ->
                     _ = gproc_lib:ensure_monitor(ToPid, l),
                     ok
             end
+    end.
+
+keep_followers(Opts, {T,_,_} = Key) ->
+    case gproc_lib:followers(Opts) of
+        [] ->
+            ok;
+        [_|_] = F ->
+            ets:insert(?TAB, {{Key,T}, F})
     end.
 
 pick_standby([{Pid, Ref, standby}|T]) when node(Pid) =:= node() ->
@@ -2821,3 +2856,14 @@ qlc_select(false, {Objects, Cont}) ->
 is_unique(n) -> true;
 is_unique(a) -> true;
 is_unique(_) -> false.
+
+is_regged([{_, _, _}]) ->
+    true;
+is_regged(_) ->
+    false.
+
+notify_waiters([{_, Ws}], Evt, K) ->
+    [P ! {gproc, Evt, R, K} || {P,R,follow} <- Ws],
+    ok;
+notify_waiters(_, _, _) ->
+    ok.

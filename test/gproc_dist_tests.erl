@@ -91,6 +91,9 @@ dist_test_() ->
                                        ?debugVal(t_standby_monitor(Ns))
                                end,
                                fun() ->
+                                       ?debugVal(t_follow_monitor(Ns))
+                               end,
+                               fun() ->
                                        ?debugVal(t_subscribe(Ns))
                                end
                            ]
@@ -330,6 +333,16 @@ t_standby_monitor([A,B|_] = Ns) ->
     ?assertMatch({gproc,unreg,Ref1,Na}, got_msg(Pc, gproc)),
     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, undefined)).
 
+t_follow_monitor([A,B|_] = Ns) ->
+    Na = ?T_NAME,
+    Pa = t_spawn(A, _Selective = true),
+    Ref = t_call(Pa, {apply, gproc, monitor, [Na, follow]}),
+    {gproc,unreg,Ref,Na} = got_msg(Pa),
+    Pb = t_spawn_reg(A, Na),
+    {gproc,registered,Ref,Na} = got_msg(Pa),
+    ok = t_call(Pb, die),
+    ok = t_call(Pa, die).
+
 t_subscribe([A,B|_] = Ns) ->
     Na = ?T_NAME,
     Pb = t_spawn(B, _Selective = true),
@@ -345,17 +358,17 @@ t_subscribe([A,B|_] = Ns) ->
     ?assertEqual({gproc_monitor,Na,undefined}, got_msg(Pb, gproc_monitor)),
     ok.
 
-got_msg(Pb, Tag) ->
-    t_call(Pb,
-	   {apply_fun,
-	    fun() ->
-		    receive
-			M when element(1, M) == Tag ->
-			    M
-		    after 1000 ->
-			    erlang:error({timeout, got_msg, [Pb, Tag]})
-		    end
-	    end}).
+%% got_msg(Pb, Tag) ->
+%%     t_call(Pb,
+%% 	   {apply_fun,
+%% 	    fun() ->
+%% 		    receive
+%% 			M when element(1, M) == Tag ->
+%% 			    M
+%% 		    after 1000 ->
+%% 			    erlang:error({timeout, got_msg, [Pb, Tag]})
+%% 		    end
+%% 	    end}).
 
 %% Verify that the gproc_dist:sync() call returns true even if a candidate dies
 %% while the sync is underway. This test makes use of sys:suspend() to ensure that
@@ -436,97 +449,17 @@ t_read_everywhere(Key, Pid, Nodes, Exp, I) ->
 read_result({badrpc, {'EXIT', {badarg, _}}}) -> badarg;
 read_result(R) -> R.
 
-t_spawn(Node) ->
-    t_spawn(Node, false).
-
-t_spawn(Node, Selective) when is_boolean(Selective) ->
-    Me = self(),
-    P = spawn(Node, fun() ->
-			    Me ! {self(), ok},
-			    t_loop(Selective)
-		    end),
-    receive
-	{P, ok} -> P
-    after 1000 ->
-            erlang:error({timeout, t_spawn, [Node, Selective]})
-    end.
-
-t_spawn_reg(Node, Name) ->
-    t_spawn_reg(Node, Name, default_value(Name)).
-
-t_spawn_reg(Node, Name, Value) ->
-    Me = self(),
-    P = spawn(Node, fun() ->
-                            ?assertMatch(true, gproc:reg(Name, Value)),
-                            Me ! {self(), ok},
-                            t_loop()
-                    end),
-    receive
-	{P, ok} -> P
-    after 1000 ->
-            erlang:error({timeout, t_spawn_reg, [Node, Name, Value]})
-    end.
-
-t_spawn_reg_shared(Node, Name, Value) ->
-    Me = self(),
-    P = spawn(Node, fun() ->
-                            ?assertMatch(true, gproc:reg_shared(Name, Value)),
-                            Me ! {self(), ok},
-                            t_loop()
-                    end),
-    receive
-	{P, ok} -> P
-    after 1000 ->
-              erlang:error({timeout, t_spawn_reg_shared, [Node,Name,Value]})
-    end.
-
-default_value({c,_,_}) -> 0;
-default_value(_) -> undefined.
-
-t_spawn_mreg(Node, KVL) ->
-    Me = self(),
-    P = spawn(Node, fun() ->
-                            ?assertMatch(true, gproc:mreg(n, g, KVL)),
-                            Me ! {self(), ok},
-                            t_loop()
-                    end),
-    receive
-	{P, ok} -> P
-    end.
+t_spawn(Node) -> gproc_test_lib:t_spawn(Node).
+t_spawn(Node, Selective) -> gproc_test_lib:t_spawn(Node, Selective).
+t_spawn_mreg(Node, KVL) -> gproc_test_lib:t_spawn_mreg(Node, KVL).
+t_spawn_reg(Node, N) -> gproc_test_lib:t_spawn_reg(Node, N).
+t_spawn_reg(Node, N, V) -> gproc_test_lib:t_spawn_reg(Node, N, V).
+t_spawn_reg_shared(Node, N, V) -> gproc_test_lib:t_spawn_reg_shared(Node, N, V).
+got_msg(P) -> gproc_test_lib:got_msg(P).
+got_msg(P, Tag) -> gproc_test_lib:got_msg(P, Tag).
 
 t_call(P, Req) ->
-    Ref = erlang:monitor(process, P),
-    P ! {self(), Ref, Req},
-    receive
-	{P, Ref, Res} ->
-	    erlang:demonitor(Ref, [flush]),
-	    Res;
-	{'DOWN', Ref, _, _, Error} ->
-	    erlang:error({'DOWN', P, Error})
-    after 1000 ->
-            erlang:error({timeout,t_call,[P,Req]})
-    end.
-
-t_loop() ->
-    t_loop(false).
-
-t_loop(Selective) when is_boolean(Selective) ->
-    receive
-	{From, Ref, die} ->
-	    From ! {self(), Ref, ok};
-	{From, Ref, {selective, Bool}} when is_boolean(Bool) ->
-	    From ! {self(), Ref, ok},
-	    t_loop(Bool);
-	{From, Ref, {apply, M, F, A}} ->
-	    From ! {self(), Ref, apply(M, F, A)},
-	    t_loop(Selective);
-	{From, Ref, {apply_fun, F}} ->
-	    From ! {self(), Ref, F()},
-	    t_loop(Selective);
-	Other when not Selective ->
-	    ?debugFmt("got unknown msg: ~p~n", [Other]),
-	    exit({unknown_msg, Other})
-    end.
+    gproc_test_lib:t_call(P, Req).
 
 start_slaves(Ns) ->
     [H|T] = Nodes = [start_slave(N) || N <- Ns],

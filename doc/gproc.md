@@ -163,6 +163,18 @@ keypat() = {<a href="#type-sel_type">sel_type()</a> | <a href="#type-sel_var">se
 
 
 
+### <a name="type-monitor_type">monitor_type()</a> ###
+
+
+
+<pre><code>
+monitor_type() = info | standby | follow
+</code></pre>
+
+
+
+
+
 ### <a name="type-pidpat">pidpat()</a> ###
 
 
@@ -1119,7 +1131,7 @@ Equivalent to [`monitor(Key, info)`](#monitor-2).
 
 
 <pre><code>
-monitor(Key::<a href="#type-key">key()</a>, Type::info | standby) -&gt; reference()
+monitor(Key::<a href="#type-key">key()</a>, Type::<a href="#type-monitor_type">monitor_type()</a>) -&gt; reference()
 </code></pre>
 
 <br></br>
@@ -1143,9 +1155,16 @@ inherits the name, and a message `{gproc, {failover, ToPid}, Ref, Key}` is
 sent to all monitors, including the one that inherited the name.
 
 
+
 If the name is not yet registered, the unreg event is sent immediately.
 If the calling process in this case tried to start a `standby` monitoring,
 it receives the registered name and the failover event immediately.
+
+
+`monitor(Key, follow)` keeps monitoring the registered name even if it is
+temporarily unregistered. The messages received are the same as for the other
+monitor types, but `{gproc, registered, Ref, Key}` is also sent when a new
+process registers the name.
 <a name="mreg-3"></a>
 
 ### mreg/3 ###

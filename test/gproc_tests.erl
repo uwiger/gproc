@@ -22,6 +22,8 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("stdlib/include/qlc.hrl").
 
+-define(T_NAME, {n, l, {?MODULE, ?LINE, erlang:now()}}).
+
 conf_test_() ->
     {foreach,
      fun() ->
@@ -131,6 +133,8 @@ reg_test_() ->
       , {spawn, ?_test(?debugVal(t_monitor_give_away()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_monitor_standby()))}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_monitor_follow()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_subscribe()))}
       , ?_test(t_is_clean())
@@ -383,7 +387,7 @@ t_give_away_to_pid() ->
     ?assertEqual(Me, gproc:where(From)),
     ?assertEqual(P, gproc:give_away(From, P)),
     ?assertEqual(P, gproc:where(From)),
-    ?assertEqual(ok, t_call(P, die)).
+    ?assertEqual(ok, t_lcall(P, die)).
 
 t_give_away_to_self() ->
     From = {n, l, foo},
@@ -418,9 +422,9 @@ t_give_away_and_back() ->
     ?assertEqual(Me, gproc:where(From)),
     ?assertEqual(P, gproc:give_away(From, P)),
     ?assertEqual(P, gproc:where(From)),
-    ?assertEqual(ok, t_call(P, {give_away, From})),
+    ?assertEqual(ok, t_lcall(P, {give_away, From})),
     ?assertEqual(Me, gproc:where(From)),
-    ?assertEqual(ok, t_call(P, die)).
+    ?assertEqual(ok, t_lcall(P, die)).
 
 t_select() ->
     ?assertEqual(true, gproc:reg({n, l, {n,1}}, x)),
@@ -659,7 +663,7 @@ t_get_env_inherit() ->
     ?assertEqual(bar, gproc:get_env(l, gproc, foo, [{inherit, P}])),
     ?assertEqual(bar, gproc:get_env(l, gproc, foo,
 				    [{inherit, {n,l,get_env_p}}])),
-    ?assertEqual(ok, t_call(P, die)).
+    ?assertEqual(ok, t_lcall(P, die)).
 
 %% What we test here is that we return the same current_function as the
 %% process_info() BIF. As we parse the backtrace dump, we check with some
@@ -706,7 +710,7 @@ t_monitor() ->
 	    ok
     end,
     Ref = gproc:monitor({n,l,a}),
-    ?assertEqual(ok, t_call(P, die)),
+    ?assertEqual(ok, t_lcall(P, die)),
     receive
 	M ->
 	    ?assertEqual({gproc,unreg,Ref,{n,l,a}}, M)
@@ -723,12 +727,12 @@ t_monitor_give_away() ->
 	    ok
     end,
     Ref = gproc:monitor({n,l,a}),
-    ?assertEqual(ok, t_call(P, {give_away, {n,l,a}})),
+    ?assertEqual(ok, t_lcall(P, {give_away, {n,l,a}})),
     receive
 	M ->
 	    ?assertEqual({gproc,{migrated,Me},Ref,{n,l,a}}, M)
     end,
-    ?assertEqual(ok, t_call(P, die)).
+    ?assertEqual(ok, t_lcall(P, die)).
 
 t_monitor_standby() ->
     Me = self(),
@@ -749,6 +753,23 @@ t_monitor_standby() ->
     gproc:unreg({n,l,a}),
     ok.
 
+t_monitor_follow() ->
+    Name = ?T_NAME,
+    P1 = t_spawn(_Selective = true),
+    Ref = t_call(P1, {apply, gproc, monitor, [Name, follow]}),
+    {gproc,unreg,Ref,Name} = got_msg(P1),
+    %% gproc_lib:dbg([gproc,gproc_lib]),
+    P2 = t_spawn_reg(Name),
+    {gproc,registered,Ref,Name} = got_msg(P1),
+    exit(P2, kill),
+    {gproc,unreg,Ref,Name} = got_msg(P1),
+    P3 = t_spawn(true),
+    Ref3 = t_call(P3, {apply, gproc, monitor, [Name, standby]}),
+    {gproc,{failover,P3},Ref,Name} = got_msg(P1),
+    {gproc,{failover,P3},Ref3,Name} = got_msg(P3),
+    [exit(P,kill) || P <- [P1,P3]],
+    ok.
+
 t_subscribe() ->
     Key = {n,l,a},
     ?assertEqual(ok, gproc_monitor:subscribe(Key)),
@@ -758,11 +779,11 @@ t_subscribe() ->
 			   t_loop()
 		   end),
     ?assertEqual({gproc_monitor, Key, P}, get_msg()),
-    ?assertEqual(ok, t_call(P, {give_away, Key})),
+    ?assertEqual(ok, t_lcall(P, {give_away, Key})),
     ?assertEqual({gproc_monitor, Key, {migrated,self()}}, get_msg()),
     gproc:give_away(Key, P),
     ?assertEqual({gproc_monitor, Key, {migrated,P}}, get_msg()),
-    ?assertEqual(ok, t_call(P, die)),
+    ?assertEqual(ok, t_lcall(P, die)),
     ?assertEqual({gproc_monitor, Key, undefined}, get_msg()),
     ?assertEqual(ok, gproc_monitor:unsubscribe(Key)).
 
@@ -772,6 +793,14 @@ get_msg() ->
     after 1000 ->
 	    timeout
     end.
+
+%% t_spawn()      -> gproc_test_lib:t_spawn(node()).
+t_spawn(Sel)   -> gproc_test_lib:t_spawn(node(), Sel).
+t_spawn_reg(N) -> gproc_test_lib:t_spawn_reg(node(), N).
+t_call(P, Req) -> gproc_test_lib:t_call(P, Req).
+%% got_msg(P, M)  -> gproc_test_lib:got_msg(P, M).
+got_msg(P)     -> gproc_test_lib:got_msg(P).
+
 
 t_loop() ->
     receive
@@ -783,7 +812,7 @@ t_loop() ->
 	    From ! {self(), ok}
     end.
 
-t_call(P, Msg) ->
+t_lcall(P, Msg) ->
     P ! {self(), Msg},
     receive
 	{P, Reply} ->
