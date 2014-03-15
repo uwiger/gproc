@@ -177,19 +177,24 @@ handle_cast({unsubscribe, Pid, Key}, State) ->
 %%--------------------------------------------------------------------
 handle_info({gproc, unreg, _Ref, Name}, State) ->
     ets:delete(?TAB, {m, Name}),
-    notify(Name, undefined),
     do_monitor(Name, undefined),
+    notify(Name, undefined),
     {noreply, State};
 handle_info({gproc, {migrated,ToPid}, _Ref, Name}, State) ->
     ets:delete(?TAB, {m, Name}),
-    notify(Name, {migrated, ToPid}),
     do_monitor(Name, ToPid),
+    notify(Name, {migrated, ToPid}),
+    {noreply, State};
+handle_info({gproc, {failover,ToPid}, _Ref, Name}, State) ->
+    ets:delete(?TAB, {m, Name}),
+    do_monitor(Name, ToPid),
+    notify(Name, {failover, ToPid}),
     {noreply, State};
 handle_info({gproc, _, registered, {{T,_,_} = Name, Pid, _}}, State)
   when T==n; T==a ->
     ets:delete(?TAB, {w, Name}),
-    notify(Name, Pid),
     do_monitor(Name, Pid),
+    notify(Name, Pid),
     {noreply, State};
 handle_info({'DOWN', _, process, Pid, _}, State) ->
     pid_is_down(Pid),
@@ -239,7 +244,9 @@ do_monitor(Name, undefined) ->
     case ets:member(?TAB, {w, Name}) of
 	false ->
 	    Ref = gproc:nb_wait(Name),
-	    ets:insert(?TAB, {{w, Name}, Ref})
+	    ets:insert(?TAB, {{w, Name}, Ref});
+        true ->
+            ok
     end;
 do_monitor(Name, Pid) when is_pid(Pid) ->
     case ets:member(?TAB, {m, Name}) of
