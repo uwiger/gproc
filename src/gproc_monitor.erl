@@ -177,24 +177,24 @@ handle_cast({unsubscribe, Pid, Key}, State) ->
 %%--------------------------------------------------------------------
 handle_info({gproc, unreg, _Ref, Name}, State) ->
     ets:delete(?TAB, {m, Name}),
-    notify(Name, undefined),
     do_monitor(Name, undefined),
+    notify(Name, undefined),
     {noreply, State};
 handle_info({gproc, {migrated,ToPid}, _Ref, Name}, State) ->
     ets:delete(?TAB, {m, Name}),
-    notify(Name, {migrated, ToPid}),
     do_monitor(Name, ToPid),
+    notify(Name, {migrated, ToPid}),
     {noreply, State};
 handle_info({gproc, {failover,ToPid}, _Ref, Name}, State) ->
     ets:delete(?TAB, {m, Name}),
-    notify(Name, {failover, ToPid}),
     do_monitor(Name, ToPid),
+    notify(Name, {failover, ToPid}),
     {noreply, State};
 handle_info({gproc, _, registered, {{T,_,_} = Name, Pid, _}}, State)
   when T==n; T==a ->
     ets:delete(?TAB, {w, Name}),
-    notify(Name, Pid),
     do_monitor(Name, Pid),
+    notify(Name, Pid),
     {noreply, State};
 handle_info({'DOWN', _, process, Pid, _}, State) ->
     pid_is_down(Pid),
