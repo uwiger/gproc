@@ -26,22 +26,34 @@
          do_set_value/3,
          ensure_monitor/2,
          insert_many/4,
-         insert_reg/4,
+         insert_reg/4, insert_reg/5,
 	 insert_attr/4,
          remove_many/4,
          remove_reg/3, remove_reg/4,
-	 add_monitor/3,
+         monitors/1,
+         standbys/1,
+         followers/1,
+         remove_monitor_pid/2,
+	 add_monitor/4,
 	 remove_monitor/3,
 	 remove_monitors/3,
-	 remove_reverse_mapping/3,
+	 remove_reverse_mapping/3, remove_reverse_mapping/4,
 	 notify/2, notify/3,
 	 remove_wait/4,
          update_aggr_counter/3,
          update_counter/3,
 	 valid_opts/2]).
 
+-export([dbg/1]).
+
 -include("gproc_int.hrl").
 -include("gproc.hrl").
+
+dbg(Mods) ->
+    dbg:tracer(),
+    [dbg:tpl(M,x) || M <- Mods],
+    dbg:tp(ets,'_',[{[gproc,'_'], [], [{message,{exception_trace}}]}]),
+    dbg:p(all,[c]).
 
 %% We want to store names and aggregated counters with the same
 %% structure as properties, but at the same time, we must ensure
@@ -51,8 +63,10 @@
 %% symmetric.
 %%
 -spec insert_reg(key(), any(), pid() | shared, scope()) -> boolean().
+insert_reg(K, Value, Pid, Scope) ->
+    insert_reg(K, Value, Pid, Scope, registered).
 
-insert_reg({T,_,Name} = K, Value, Pid, Scope) when T==a; T==n ->
+insert_reg({T,_,Name} = K, Value, Pid, Scope, Event) when T==a; T==n ->
     MaybeScan = fun() ->
                         if T==a ->
                                 Initial = scan_existing_counters(Scope, Name),
@@ -61,23 +75,23 @@ insert_reg({T,_,Name} = K, Value, Pid, Scope) when T==a; T==n ->
                                 true
                         end
                 end,
-    Info = [{{K, T}, Pid, Value}, {{Pid,K}, []}],
-    case ets:insert_new(?TAB, Info) of
+    case ets:insert_new(?TAB, {{K,T}, Pid, Value}) of
         true ->
+            _ = ets:insert_new(?TAB, {{Pid,K}, []}),
             MaybeScan();
         false ->
-            if T==n ->
-                    maybe_waiters(K, Pid, Value, T, Info);
+            if T==n; T==a ->
+                    maybe_waiters(K, Pid, Value, T, Event);
                true ->
                     false
             end
     end;
-insert_reg({p,Scope,_} = K, Value, shared, Scope)
+insert_reg({p,Scope,_} = K, Value, shared, Scope, _E)
   when Scope == g; Scope == l ->
     %% shared properties are unique
     Info = [{{K, shared}, shared, Value}, {{shared,K}, []}],
     ets:insert_new(?TAB, Info);
-insert_reg({c,Scope,Ctr} = Key, Value, Pid, Scope) when Scope==l; Scope==g ->
+insert_reg({c,Scope,Ctr} = Key, Value, Pid, Scope, _E) when Scope==l; Scope==g ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
     Kr = {Pid, Key},
@@ -89,7 +103,7 @@ insert_reg({c,Scope,Ctr} = Key, Value, Pid, Scope) when Scope==l; Scope==g ->
             ignore
     end,
     Res;
-insert_reg({_,_,_} = Key, Value, Pid, _Scope) when is_pid(Pid) ->
+insert_reg({_,_,_} = Key, Value, Pid, _Scope, _E) when is_pid(Pid) ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
     Kr = {Pid, Key},
@@ -150,7 +164,7 @@ insert_objects(Objs) ->
               case Existing of
                   [] -> ok;
                   [{_, Waiters}] ->
-                      notify_waiters(Waiters, Id, Pid, V)
+                      notify_waiters(Waiters, Id, Pid, V, registered)
               end
       end, Objs).
 
@@ -182,30 +196,30 @@ await({T,C,_} = Key, WPid, {_Pid, Ref} = From) ->
             {reply, Ref, [W,Rev]}
     end.
 
-
-
-maybe_waiters(K, Pid, Value, T, Info) ->
+maybe_waiters(_, _, _, _, []) ->
+    false;
+maybe_waiters(K, Pid, Value, T, Event) ->
     case ets:lookup(?TAB, {K,T}) of
         [{_, Waiters}] when is_list(Waiters) ->
-            ets:insert(?TAB, Info),
-            notify_waiters(Waiters, K, Pid, Value),
+            Followers = [F || {_,_,follow} = F <- Waiters],
+            ets:insert(?TAB, [{{K,T}, Pid, Value},
+                              {{Pid,K}, [{monitor, Followers}
+                                         || Followers =/= []]}]),
+            notify_waiters(Waiters, K, Pid, Value, Event),
             true;
-        [_] ->
+        _ ->
             false
     end.
 
-
--spec notify_waiters([{pid(), reference()}], key(), pid(), any()) -> ok.
-
-notify_waiters(Waiters, K, Pid, V) ->
-    _ = [begin
-             P ! {gproc, Ref, registered, {K, Pid, V}},
-             case P of
-		 Pid -> ignore;
-		 _ ->
-		     ets:delete(?TAB, {P, K})
-	     end
-         end || {P, Ref} <- Waiters],
+-spec notify_waiters([{pid(), reference()}], key(), pid(), any(), any()) -> ok.
+notify_waiters([{P, Ref}|T], K, Pid, V, E) ->
+    P ! {gproc, Ref, registered, {K, Pid, V}},
+    notify_waiters(T, K, Pid, V, E);
+notify_waiters([{P, Ref, follow}|T], K, Pid, V, E) ->
+    %% This is really a monitor, lurking in the Waiters list
+    P ! {gproc, E, Ref, K},
+    notify_waiters(T, K, Pid, V, E);
+notify_waiters([], _, _, _, _) ->
     ok.
 
 remove_wait({T,_,_} = Key, Pid, Ref, Waiters) ->
@@ -230,10 +244,15 @@ remove_wait({T,_,_} = Key, Pid, Ref, Waiters) ->
     end.
 
 remove_from_waiters(Waiters, Pid, all) ->
-    [{P,R} || {P,R} <- Waiters,
-	      P =/= Pid];
+    [W || W <- Waiters,
+	      element(1,W) =/= Pid];
 remove_from_waiters(Waiters, Pid, Ref) ->
-    Waiters -- [{Pid, Ref}].
+    [W || W <- Waiters, not is_waiter(W, Pid, Ref)].
+
+is_waiter({Pid, Ref}   , Pid, Ref) -> true;
+is_waiter({Pid, Ref, _}, Pid, Ref) -> true;
+is_waiter(_, _, _) ->
+    false.
 
 remove_monitors(Key, Pid, MPid) ->
     case ets:lookup(?TAB, {Pid, Key}) of
@@ -303,7 +322,8 @@ remove_reverse_mapping(Event, Pid, Key) ->
     remove_reverse_mapping(Event, Pid, Key, Opts).
 
 remove_reverse_mapping(Event, Pid, Key, Opts) when Event==unreg;
-						   element(1,Event)==migrated ->
+						   element(1,Event)==migrated;
+                                                   element(1,Event)==failover ->
     Rev = {Pid, Key},
     _ = notify(Event, Key, Opts),
     ets:delete(?TAB, Rev),
@@ -312,30 +332,76 @@ remove_reverse_mapping(Event, Pid, Key, Opts) when Event==unreg;
 notify(Key, Opts) ->
     notify(unreg, Key, Opts).
 
-notify([], _, _) ->
-    [];
-notify(Event, Key, Opts) ->
+monitors(Opts) ->
     case lists:keyfind(monitor, 1, Opts) of
 	false ->
 	    [];
 	{_, Mons} ->
-	    [begin P ! {gproc, Event, Ref, Key}, P end || {P, Ref} <- Mons,
-							  node(P) == node()]
+            Mons
     end.
 
-add_monitor([{monitor, Mons}|T], Pid, Ref) ->
-    [{monitor, [{Pid,Ref}|Mons]}|T];
-add_monitor([H|T], Pid, Ref) ->
-    [H|add_monitor(T, Pid, Ref)];
-add_monitor([], Pid, Ref) ->
-    [{monitor, [{Pid, Ref}]}].
+standbys(Opts) ->
+    select_monitors(monitors(Opts), standby, []).
+
+followers(Opts) ->
+    select_monitors(monitors(Opts), follow, []).
+
+select_monitors([{_,_,Type}=H|T], Type, Acc) ->
+    select_monitors(T, Type, [H|Acc]);
+select_monitors([_|T], Type, Acc) ->
+    select_monitors(T, Type, Acc);
+select_monitors([], _, Acc) ->
+    Acc.
+
+remove_monitor_pid([{monitor, Mons}|T], Pid) ->
+    [{monitors, [M || M <- Mons,
+                      element(1, M) =/= Pid]}|T];
+remove_monitor_pid([H|T], Pid) ->
+    [H | remove_monitor_pid(T, Pid)];
+remove_monitor_pid([], _) ->
+    [].
+
+
+notify([], _, _) ->
+    ok;
+notify(Event, Key, Opts) ->
+    notify_(monitors(Opts), Event, Key).
+
+%% Also handle old-style monitors
+notify_([{Pid,Ref}|T], Event, Key) ->
+    Pid ! {gproc, Event, Ref, Key},
+    notify_(T, Event, Key);
+notify_([{Pid,Ref,_}|T], Event, {_,l,_} = Key) ->
+    Pid ! {gproc, Event, Ref, Key},
+    notify_(T, Event, Key);
+notify_([{Pid,Ref,_}|T], Event, {_,g,_} = Key) when node(Pid) == node() ->
+    Pid ! {gproc, Event, Ref, Key},
+    notify_(T, Event, Key);
+notify_([_|T], Event, Key) ->
+    notify_(T, Event, Key);
+notify_([], _, _) ->
+    ok.
+
+
+
+add_monitor([{monitor, Mons}|T], Pid, Ref, Type) ->
+    [{monitor, [{Pid,Ref,Type}|Mons]}|T];
+add_monitor([H|T], Pid, Ref, Type) ->
+    [H|add_monitor(T, Pid, Ref, Type)];
+add_monitor([], Pid, Ref, Type) ->
+    [{monitor, [{Pid, Ref, Type}]}].
 
 remove_monitor([{monitor, Mons}|T], Pid, Ref) ->
-    [{monitor, Mons -- [{Pid, Ref}]}|T];
+    [{monitor, [Mon || Mon <- Mons, not is_mon(Mon,Pid,Ref)]} | T];
 remove_monitor([H|T], Pid, Ref) ->
     [H|remove_monitor(T, Pid, Ref)];
 remove_monitor([], _Pid, _Ref) ->
     [].
+
+is_mon({Pid,Ref,_}, Pid, Ref) -> true;
+is_mon({Pid,Ref},   Pid, Ref) -> true;
+is_mon(_, _, _) ->
+    false.
 
 remove_many(T, Scope, L, Pid) ->
     lists:flatmap(fun(K) ->

@@ -46,6 +46,8 @@
 %% @type reg_id() = {type(), scope(), any()}.
 %% @type unique_id() = {n | a, scope(), any()}.
 %%
+%% @type monitor_type() = info | standby | follow.
+%%
 %% @type sel_scope() = scope | all | global | local.
 %% @type sel_type() = type() | names | props | counters | aggr_counters.
 %% @type context() = {scope(), type()} | type(). {'all','all'} is the default
@@ -87,7 +89,7 @@
          nb_wait/1, nb_wait/2,
          cancel_wait/2, cancel_wait/3,
 	 cancel_wait_or_monitor/1,
-	 monitor/1,
+	 monitor/1, monitor/2,
 	 demonitor/2,
          lookup_pid/1,
          lookup_pids/1,
@@ -875,25 +877,46 @@ cancel_wait_or_monitor1({_,l,_} = Key) ->
     ok.
 
 
-%% @spec monitor(key()) -> reference()
+%% @equiv monitor(Key, info)
+monitor(Key) ->
+    ?CATCH_GPROC_ERROR(monitor1(Key, info), [Key]).
+
+%% @spec monitor(key(), monitor_type()) -> reference()
 %%
 %% @doc monitor a registered name
-%% This function works much like erlang:monitor(process, Pid), but monitors
+%% `monitor(Key, info)' works much like erlang:monitor(process, Pid), but monitors
 %% a unique name registered via gproc. A message, `{gproc, unreg, Ref, Key}'
 %% will be sent to the requesting process, if the name is unregistered or
-%% the registered process dies.
+%% the registered process dies. If there is a standby monitor (see below), a
+%% message `{gproc, {failover, ToPid}, Ref, Key}' is sent to all monitors.
+%% If the name is passed to another process using {@link give_away/2}, the event
+%% `{gproc, {migrated, ToPid}, Ref, Key}' is sent to all monitors.
 %%
-%% If the name is not yet registered, the same message is sent immediately.
+%% `monitor(Key, standby)' sets up the monitoring process as a standby for the
+%% registered name. If the registered process dies, the first standby process
+%% inherits the name, and a message `{gproc, {failover, ToPid}, Ref, Key}' is
+%% sent to all monitors, including the one that inherited the name.
+%%
+%% If the name is not yet registered, the unreg event is sent immediately.
+%% If the calling process in this case tried to start a `standby' monitoring,
+%% it receives the registered name and the failover event immediately.
+%%
+%% `monitor(Key, follow)' keeps monitoring the registered name even if it is
+%% temporarily unregistered. The messages received are the same as for the other
+%% monitor types, but `{gproc, registered, Ref, Key}' is also sent when a new
+%% process registers the name.
 %% @end
-monitor(Key) ->
-    ?CATCH_GPROC_ERROR(monitor1(Key), [Key]).
+monitor(Key, Type) when Type==info;
+                        Type==follow;
+                        Type==standby ->
+    ?CATCH_GPROC_ERROR(monitor1(Key, Type), [Key, Type]).
 
-monitor1({T,g,_} = Key) when T==n; T==a ->
+monitor1({T,g,_} = Key, Type) when T==n; T==a ->
     ?CHK_DIST,
-    call({monitor, Key, self()}, g);
-monitor1({T,l,_} = Key) when T==n; T==a ->
-    call({monitor, Key, self()}, l);
-monitor1(_) ->
+    gproc_dist:monitor(Key, Type);
+monitor1({T,l,_} = Key, Type) when T==n; T==a ->
+    call({monitor, Key, self(), Type}, l);
+monitor1(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 %% @spec demonitor(key(), reference()) -> ok
@@ -907,7 +930,7 @@ demonitor(Key, Ref) ->
 
 demonitor1({T,g,_} = Key, Ref) when T==n; T==a ->
     ?CHK_DIST,
-    call({demonitor, Key, Ref, self()}, g);
+    gproc_dist:demonitor(Key, Ref);
 demonitor1({T,l,_} = Key, Ref) when T==n; T==a ->
     call({demonitor, Key, Ref, self()}, l);
 demonitor1(_, _) ->
@@ -2054,18 +2077,42 @@ handle_call({reg_or_locate, {T,l,_} = Key, Val, P}, _, S) ->
 	[{_, OtherPid, OtherValue}] ->
 	    {reply, {OtherPid, OtherValue}, S}
     end;
-handle_call({monitor, {T,l,_} = Key, Pid}, _From, S)
+handle_call({monitor, {T,l,_} = Key, Pid, Type}, _From, S)
   when T==n; T==a ->
     Ref = make_ref(),
-    _ = case where(Key) of
-	    undefined ->
+    Lookup = ets:lookup(?TAB, {Key, T}),
+    IsRegged = is_regged(Lookup),
+    _ = case {IsRegged, Type} of
+	    {false, info} ->
 		Pid ! {gproc, unreg, Ref, Key};
-	    RegPid ->
+            {false, follow} ->
+		Pid ! {gproc, unreg, Ref, Key},
+                _ = gproc_lib:ensure_monitor(Pid, l),
+                case Lookup of
+                    [{K, Waiters}] ->
+                        NewWaiters = [{Pid,Ref,follow}|Waiters],
+                        ets:insert(?TAB, {K, NewWaiters}),
+                        ets:insert_new(?TAB, {{Pid,Key}, []});
+                    [] ->
+                        ets:insert(?TAB, {{Key,T}, [{Pid,Ref,follow}]}),
+                        ets:insert_new(?TAB, {{Pid,Key}, []})
+                end;
+            {false, standby} ->
+                Evt = {failover, Pid},
+                true = gproc_lib:insert_reg(Key, undefined, Pid, l, Evt),
+                Pid ! {gproc, Evt, Ref, Key},
+                _ = gproc_lib:ensure_monitor(Pid, l);
+	    {true, _} ->
+                [{_, RegPid, _}] = Lookup,
+                _ = gproc_lib:ensure_monitor(Pid, l),
 		case ets:lookup(?TAB, {RegPid, Key}) of
 		    [{K,r}] ->
-			ets:insert(?TAB, {K, [{monitor, [{Pid,Ref}]}]});
+			ets:insert(?TAB, {K, [{monitor, [{Pid,Ref,Type}]}]}),
+                        ets:insert_new({{Pid,Key}, []});
 		    [{K, Opts}] ->
-			ets:insert(?TAB, {K, gproc_lib:add_monitor(Opts, Pid, Ref)})
+			ets:insert(?TAB, {K, gproc_lib:add_monitor(
+                                               Opts, Pid, Ref, Type)}),
+                        ets:insert_new(?TAB, {{Pid,Key}, []})
 		end
 	end,
     {reply, Ref, S};
@@ -2233,8 +2280,8 @@ try_insert_reg({T,l,_} = Key, Val, Pid) ->
                         true ->
                             false;
                         false ->
-                            process_is_down(OtherPid),
-                            true = gproc_lib:insert_reg(Key, Val, Pid, l)
+                            process_is_down(OtherPid), % may result in failover
+                            try_insert_reg(Key, Val, Pid)
                     end;
                 [] ->
                     false
@@ -2274,16 +2321,25 @@ process_is_down(Pid) when is_pid(Pid) ->
               fun({{n,l,_}=K, R}) ->
                       Key = {K,n},
                       case ets:lookup(?TAB, Key) of
-                          [{_, Pid, _}] ->
+                          [{_, Pid, V}] ->
                               ets:delete(?TAB, Key),
-			      opt_notify(R, K);
+			      opt_notify(R, K, Pid, V);
                           [{_, Waiters}] ->
-                              case [W || {P,_} = W <- Waiters,
-                                         P =/= Pid] of
+                              case [W || W <- Waiters,
+                                         element(1,W) =/= Pid] of
                                   [] ->
                                       ets:delete(?TAB, Key);
                                   Waiters1 ->
                                       ets:insert(?TAB, {Key, Waiters1})
+                              end;
+                          [{_, OtherPid, _}] when Pid =/= OtherPid ->
+                              case ets:lookup(?TAB, {OtherPid, K}) of
+                                  [{RK, Opts}] when is_list(Opts) ->
+                                      Opts1 = gproc_lib:remove_monitor_pid(
+                                                Opts, Pid),
+                                      ets:insert(?TAB, {RK, Opts1});
+                                  _ ->
+                                      true
                               end;
                           [] ->
                               true
@@ -2294,8 +2350,22 @@ process_is_down(Pid) when is_pid(Pid) ->
                       ets:delete(?TAB, Key),
                       gproc_lib:update_aggr_counter(l, C, -Value);
                  ({{a,l,_} = K, R}) ->
-                      ets:delete(?TAB, {K,a}),
-		      opt_notify(R, K);
+                      case ets:lookup(?TAB, {K,a}) of
+                          [{_, Pid, V}] ->
+                              ets:delete(?TAB, {K,a}),
+                              opt_notify(R, K, Pid, V);
+                          [{_, OtherPid, _}] when Pid =/= OtherPid ->
+                              case ets:lookup(?TAB, {OtherPid, K}) of
+                                  [{RK, Opts}] when is_list(Opts) ->
+                                      Opts1 = gproc_lib:remove_monitor_pid(
+                                                Opts, Pid),
+                                      ets:insert(?TAB, {RK, Opts1});
+                                  _ ->
+                                      true
+                              end;
+                          [] ->
+                              opt_notify(R, K, Pid, undefined)
+                      end;
                  ({{p,_,_} = K, _}) ->
                       ets:delete(?TAB, {K, Pid})
               end, Revs),
@@ -2304,10 +2374,52 @@ process_is_down(Pid) when is_pid(Pid) ->
             ok
     end.
 
-opt_notify(r, _) ->
+opt_notify(r, _, _, _) ->
     ok;
-opt_notify(Opts, Key) ->
-    gproc_lib:notify(Key, Opts).
+opt_notify(Opts, {T,_,_} = Key, Pid, Value) ->
+    case gproc_lib:standbys(Opts) of
+        [] ->
+            keep_followers(Opts, Key),
+            gproc_lib:notify(unreg, Key, Opts);
+        SBs ->
+            case pick_standby(SBs) of
+                false ->
+                    keep_followers(Opts, Key),
+                    gproc_lib:notify(unreg, Key, Opts),
+                    ok;
+                {ToPid, Ref} ->
+                    ets:insert(?TAB, [{{Key,T}, ToPid, Value},
+                                      {{ToPid, Key},
+                                       gproc_lib:remove_monitor(
+                                         Opts, ToPid, Ref)}]),
+                    _ = gproc_lib:remove_reverse_mapping(
+                          {failover,ToPid}, Pid, Key),
+                    _ = gproc_lib:ensure_monitor(ToPid, l),
+                    ok
+            end
+    end.
+
+keep_followers(Opts, {T,_,_} = Key) ->
+    case gproc_lib:followers(Opts) of
+        [] ->
+            ok;
+        [_|_] = F ->
+            ets:insert(?TAB, {{Key,T}, F})
+    end.
+
+pick_standby([{Pid, Ref, standby}|T]) when node(Pid) =:= node() ->
+    case is_process_alive(Pid) of
+        true ->
+            {Pid, Ref};
+        false ->
+            pick_standby(T)
+    end;
+pick_standby([_|T]) ->
+    pick_standby(T);
+pick_standby([]) ->
+    false.
+
+
 
 
 do_give_away({T,l,_} = K, To, Pid) when T==n; T==a ->
@@ -2743,3 +2855,8 @@ qlc_select(false, {Objects, Cont}) ->
 is_unique(n) -> true;
 is_unique(a) -> true;
 is_unique(_) -> false.
+
+is_regged([{_, _, _}]) ->
+    true;
+is_regged(_) ->
+    false.
