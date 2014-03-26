@@ -597,10 +597,6 @@ force_delete_(Pool) ->
     Workers = gproc:select(
 		{l,c}, [{ {?POOL_WRK(Pool,'_'), '_', '_'}, [], ['$_']}]),
     Names = find_names(Pool, '_'),
-    io:fwrite("Props = ~p~n"
-	      "Cur = ~p~n"
-	      "Workers = ~p~n"
-	      "Names = ~p~n", [Props, Cur, Workers, Names]),
     lists:foreach(
       fun({Key, Pid, _}) when Pid == self() -> gproc:unreg(Key);
 	 ({_, Pid, _}) when is_pid(Pid) -> exit(Pid, kill)
