@@ -268,7 +268,7 @@ active_workers(Pool) ->
 %% @end
 defined_workers(Pool) ->
     K = ?POOL(Pool),
-    [{N, Pos, gproc:get_value(?POOL_WRK(Pool, N))}
+    [{N, Pos, gproc:get_value(?POOL_WRK(Pool, N), shared)}
      || {N, Pos} <- get_workers_(K)].
 
 %% @spec worker_pool(Pool::any()) -> [integer() | {Name, Pos}]
