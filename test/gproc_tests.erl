@@ -140,6 +140,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_gproc_info()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_simple_pool()))}
+      , ?_test(t_is_clean())
      ]}.
 
 t_simple_reg() ->
@@ -787,6 +789,65 @@ t_subscribe() ->
     ?assertEqual({gproc_monitor, Key, undefined}, get_msg()),
     ?assertEqual(ok, gproc_monitor:unsubscribe(Key)).
 
+t_simple_pool()->
+    Key = p1w1,
+    From = {n,l,Key},
+    P = spawn_link(fun() ->
+                      t_loop()
+              end),
+    P ! {self(), {reg, From}},
+    receive
+        {_,Registered} ->
+            ?assertEqual(Registered, true)
+    after 5000 ->
+            ?debugFmt("registration timeout ", []),
+            ok
+    end,
+
+    %% create a new pool
+    ?assertEqual(gproc_pool:new(p1), ok),
+
+    %% add a worker to it
+    ?assertEqual(gproc_pool:add_worker(p1,Key) , 1 ),
+    ?assertEqual( length(gproc_pool:worker_pool(p1) ), 1),
+    %% but it should not be active as yet
+    ?assertEqual( length( gproc_pool:active_workers(p1)), 0),
+
+    ?assert( gproc_pool:pick(p1) =:= false ),
+
+    %% connect to make the worker active
+    ?assertEqual(gproc_pool:connect_worker(p1,Key) , true ),
+
+    %% it should be active now
+    ?assertEqual( length( gproc_pool:active_workers(p1)), 1),
+    ?assertEqual( gproc_pool:pick(p1) , {n,l,[gproc_pool,p1,1,Key]}),
+
+    gproc:send(From, {self(), die}),
+    receive
+        {_,Returned}=X ->
+            ?assertEqual(Returned, ok)
+    after 5000 ->
+            %% the next 3 tests should fail if the worker is still alive
+            ok
+    end,
+
+    %% disconnect the worker from the pool.
+    ?assertEqual(gproc_pool:disconnect_worker(p1,Key), true),
+    %%  there should be no active workers now
+    ?assertEqual( length( gproc_pool:active_workers(p1)), 0),
+
+    %% remove the worker from the pool
+    ?assertEqual(gproc_pool:remove_worker(p1,Key), true),
+    %% there should be no workers now
+    %% NOTE: value of worker_pool seems to vary after removing workers
+    %%       sometimes [1,2] , sometimes [1], and then []
+    %%       so relying on defined_workers
+    ?assertEqual( length(gproc_pool:defined_workers(p1)), 0 ),
+    ?assertEqual( length(gproc_pool:worker_pool(p1)), 0 ),
+
+    %% should be able to delete the pool now
+    ?assertEqual( gproc_pool:delete(p1), ok).
+
 get_msg() ->
     receive M ->
 	    M
@@ -809,7 +870,13 @@ t_loop() ->
 	    From ! {self(), ok},
 	    t_loop();
 	{From, die} ->
-	    From ! {self(), ok}
+	    From ! {self(), ok};
+	{From, {reg, Name}} ->
+	    From ! {self(), gproc:reg(Name,undefined)},
+   	    t_loop();
+ 	{From, {unreg, Name}} ->
+   	    From ! {self(), gproc:unreg(Name)},
+   	    t_loop()
     end.
 
 t_lcall(P, Msg) ->
