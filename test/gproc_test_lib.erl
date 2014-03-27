@@ -6,6 +6,7 @@
          t_spawn_mreg/2,
          t_call/2,
          t_loop/0, t_loop/1,
+	 t_pool_contains_atleast/2,
          got_msg/1, got_msg/2]).
 
 -include_lib("eunit/include/eunit.hrl").
@@ -124,3 +125,11 @@ got_msg(Pb, Tag) ->
 			    erlang:error({timeout, got_msg, [Pb, Tag]})
 		    end
 	    end}).
+
+t_pool_contains_atleast(Pool,N)->
+    Existing = lists:foldl(fun({X,Y},Acc)->
+                                   Acc+1;
+                              (_,Acc) ->
+                                   Acc
+                           end, 0, gproc_pool:worker_pool(Pool) ),
+    Existing >= N.

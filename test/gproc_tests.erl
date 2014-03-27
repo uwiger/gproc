@@ -792,17 +792,7 @@ t_subscribe() ->
 t_simple_pool()->
     Key = p1w1,
     From = {n,l,Key},
-    P = spawn_link(fun() ->
-                      t_loop()
-              end),
-    P ! {self(), {reg, From}},
-    receive
-        {_,Registered} ->
-            ?assertEqual(Registered, true)
-    after 5000 ->
-            ?debugFmt("registration timeout ", []),
-            ok
-    end,
+    P = t_spawn_reg(From),
 
     %% create a new pool
     ?assertEqual(gproc_pool:new(p1), ok),
@@ -822,11 +812,12 @@ t_simple_pool()->
     ?assertEqual( length( gproc_pool:active_workers(p1)), 1),
     ?assertEqual( gproc_pool:pick(p1) , {n,l,[gproc_pool,p1,1,Key]}),
 
-    gproc:send(From, {self(), die}),
+    Ref = erlang:make_ref(),
+    gproc:send(From, {self(), Ref, die}),
     receive
-        {_,Returned}=X ->
+        {_, Ref, Returned}=X ->
             ?assertEqual(Returned, ok)
-    after 5000 ->
+    after 1000 ->
             %% the next 3 tests should fail if the worker is still alive
             ok
     end,
@@ -844,6 +835,7 @@ t_simple_pool()->
     %%       so relying on defined_workers
     ?assertEqual( length(gproc_pool:defined_workers(p1)), 0 ),
     ?assertEqual( length(gproc_pool:worker_pool(p1)), 0 ),
+    ?assertEqual( false, gproc_test_lib:t_pool_contains_atleast(p1,1) ),
 
     %% should be able to delete the pool now
     ?assertEqual( gproc_pool:delete(p1), ok).
