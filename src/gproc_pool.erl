@@ -55,35 +55,35 @@
 
 %% gproc round-robin name lookup
 -export([new/1,                % (Pool) -> (Pool, round_robin, [])
-	 new/3,                % (Pool, Type, Opts)
-	 delete/1,             % (Pool)
-	 force_delete/1,       % (Pool)
-	 add_worker/2,         % (Pool, Name)      -> Pos
-	 add_worker/3,         % (Pool, Name, Pos) -> Pos
-	 remove_worker/2,      % (Pool, Name)
-	 connect_worker/2,     % (Pool, Name)
-	 disconnect_worker/2,  % (Pool, Name)
-	 whereis_worker/2,     % (Pool, Name)
-	 worker_id/2,          % (Pool, Name)
-	 active_workers/1,     % (Pool)
-	 defined_workers/1,    % (Pool)
-	 worker_pool/1,        % (Pool)
-	 pick/1,               % (Pool)
-	 pick/2,               % (Pool, Value)
-	 claim/2,              % (Pool, Fun)
-	 log/1,                % (WorkerId)
-	 randomize/1]).        % (Pool)
+         new/3,                % (Pool, Type, Opts)
+         delete/1,             % (Pool)
+         force_delete/1,       % (Pool)
+         add_worker/2,         % (Pool, Name)      -> Pos
+         add_worker/3,         % (Pool, Name, Pos) -> Pos
+         remove_worker/2,      % (Pool, Name)
+         connect_worker/2,     % (Pool, Name)
+         disconnect_worker/2,  % (Pool, Name)
+         whereis_worker/2,     % (Pool, Name)
+         worker_id/2,          % (Pool, Name)
+         active_workers/1,     % (Pool)
+         defined_workers/1,    % (Pool)
+         worker_pool/1,        % (Pool)
+         pick/1,               % (Pool)
+         pick/2,               % (Pool, Value)
+         claim/2,              % (Pool, Fun)
+         log/1,                % (WorkerId)
+         randomize/1]).        % (Pool)
 
 -export([start_link/0]).
 -export([init/1,
-	 handle_call/3,
-	 handle_cast/2,
-	 handle_info/2,
-	 terminate/2,
-	 code_change/3]).
+         handle_call/3,
+         handle_cast/2,
+         handle_info/2,
+         terminate/2,
+         code_change/3]).
 
 -export([test/1, test/3, ptest/4, test_run/2, test_run1/2, test_run2/2,
-	 test_run0/2, setup_test_pool/3, remove_test_pool/1]).
+         test_run0/2, setup_test_pool/3, remove_test_pool/1]).
 
 -define(POOL(Pool), {p,l,{?MODULE,Pool}}).
 -define(POOL_CUR(Pool), {c,l,{?MODULE,Pool,cur}}).
@@ -113,10 +113,10 @@ new(Pool) ->
 %% If the given pool already exists, this function will raise an exception.
 %% @end
 new(Pool, Type, Opts) when Type == round_robin;
-			   Type == random;
-			   Type == hash;
-			   Type == direct;
-			   Type == claim ->
+                           Type == random;
+                           Type == hash;
+                           Type == direct;
+                           Type == claim ->
     call({new, Pool, Type, Opts}).
 
 %% @spec delete(Pool::any()) -> true
@@ -252,7 +252,7 @@ active_workers(Pool) ->
     gproc:select(
       {l,n},
       [{ {{n,l,[?MODULE,Pool,'$1','$2']},'$3','_'}, [{is_integer, '$1'}],
-	 [{{'$2', '$3'}}] }]).
+         [{{'$2', '$3'}}] }]).
 
 %% @spec defined_workers(Pool::any()) -> [{Name, Pos, Count}]
 %% @doc Return a list of added workers in the pool.
@@ -292,11 +292,11 @@ worker_pool(Pool) ->
 %% @end
 pick(Pool) ->
     case gproc:get_value(?POOL(Pool), shared) of
-	{0, _} -> false;
-	{Sz, Type} when Type == round_robin; Type == random ->
-	    pick(Pool, Sz, Type);
-	_ ->
-	    error(badarg)
+        {0, _} -> false;
+        {Sz, Type} when Type == round_robin; Type == random ->
+            pick(Pool, Sz, Type);
+        _ ->
+            error(badarg)
     end.
 
 %% @spec pick(Pool::any(), Value::any()) -> GprocName | false
@@ -313,36 +313,36 @@ pick(Pool) ->
 %% @end
 pick(Pool, N) ->
     case gproc:get_value(?POOL(Pool), shared) of
-	{0, _} -> false;
-	{Sz, Type} when Type == hash; Type == direct ->
-	    pick(Pool, Sz, Type, N);
-	_ ->
-	    error(badarg)
+        {0, _} -> false;
+        {Sz, Type} when Type == hash; Type == direct ->
+            pick(Pool, Sz, Type, N);
+        _ ->
+            error(badarg)
     end.
 
 
 pick(Pool, Sz, round_robin) ->
     Next = incr(Pool, 1, Sz),
     case gproc:next({l,n}, {n,l,[?MODULE,Pool,Next]}) of
-	{n,l,[?MODULE,Pool,Actual,_Name]} = Pick ->
-	    case Actual - Next of
-		Diff when Diff > 1 ->
-		    gproc:update_counter(
-		      ?POOL_CUR(Pool), shared, {Diff, Sz, 1}),
-		    Pick;
-		_ ->
-		    Pick
-	    end;
-	_ ->
-	    case gproc:next({l,n}, {n,l,[?MODULE,Pool,0]}) of
-		{n,l,[?MODULE,Pool,Actual1,_Name1]} = Pick ->
-		    incr(Pool, Sz-Next+Actual1, Sz),
-		    %% gproc:update_counter(
-		    %%   ?POOL_CUR(Pool), shared, {Sz-Next+Actual1, Sz, 1}),
-		    Pick;
-		_ ->
-		    false
-	    end
+        {n,l,[?MODULE,Pool,Actual,_Name]} = Pick ->
+            case Actual - Next of
+                Diff when Diff > 1 ->
+                    gproc:update_counter(
+                      ?POOL_CUR(Pool), shared, {Diff, Sz, 1}),
+                    Pick;
+                _ ->
+                    Pick
+            end;
+        _ ->
+            case gproc:next({l,n}, {n,l,[?MODULE,Pool,0]}) of
+                {n,l,[?MODULE,Pool,Actual1,_Name1]} = Pick ->
+                    incr(Pool, Sz-Next+Actual1, Sz),
+                    %% gproc:update_counter(
+                    %%   ?POOL_CUR(Pool), shared, {Sz-Next+Actual1, Sz, 1}),
+                    Pick;
+                _ ->
+                    false
+            end
     end;
 pick(Pool, Sz, random) ->
     pick_near(Pool, crypto:rand_uniform(1, Sz + 1)).
@@ -354,16 +354,16 @@ pick(Pool, Sz, direct, N) when is_integer(N), N > 0 ->
 
 pick_near(Pool, N) ->
     case gproc:next({l,n}, {n,l,[?MODULE,Pool,N]}) of
-	{n,l,[?MODULE,Pool,_,_]} = Pick ->
-	    Pick;
-	_ ->
-	    %% wrap
-	    case gproc:next({l,n}, {n,l,[?MODULE,Pool,1]}) of
-		{n,l,[?MODULE,Pool,_,_]} = Pick ->
-		    Pick;
-		_ ->
-		    false
-	    end
+        {n,l,[?MODULE,Pool,_,_]} = Pick ->
+            Pick;
+        _ ->
+            %% wrap
+            case gproc:next({l,n}, {n,l,[?MODULE,Pool,1]}) of
+                {n,l,[?MODULE,Pool,_,_]} = Pick ->
+                    Pick;
+                _ ->
+                    false
+            end
     end.
 
 %% @spec claim(Pool::any(), Fun::function()) -> {true, Res} | false
@@ -379,52 +379,52 @@ pick_near(Pool, N) ->
 %% @end
 claim(Pool, F) when is_function(F, 2) ->
     case gproc:get_value(?POOL(Pool), shared) of
-	{0, _} -> false;
-	{_, claim} ->
-	    claim_(Pool, F);
-	_ ->
-	    error(badarg)
+        {0, _} -> false;
+        {_, claim} ->
+            claim_(Pool, F);
+        _ ->
+            error(badarg)
     end.
 
 claim_(Pool, F) ->
     case gproc:select({l,n}, [{ {{n,l,[?MODULE,Pool,'$1','_']}, '_', 0}, [],
-				[{{ {element,1,'$_'}, '$1' }}]}], 1) of
-	{[{K, Pid}], Cont} ->
-	    case try_claim(K, Pid, F) of
-		{true, _} = True ->
-		    True;
-		false ->
-		    claim_cont(Cont, F)
-	    end;
-	_ ->
-	    false
+                                [{{ {element,1,'$_'}, '$1' }}]}], 1) of
+        {[{K, Pid}], Cont} ->
+            case try_claim(K, Pid, F) of
+                {true, _} = True ->
+                    True;
+                false ->
+                    claim_cont(Cont, F)
+            end;
+        _ ->
+            false
     end.
 
 claim_cont(Cont, F) ->
     case gproc:select(Cont) of
-	{[{K, Pid}], Cont1} ->
-	    case try_claim(K, Pid, F) of
-		{true, _} = True ->
-		    True;
-		false ->
-		    claim_cont(Cont1, F)
-	    end;
-	_ ->
-	    false
+        {[{K, Pid}], Cont1} ->
+            case try_claim(K, Pid, F) of
+                {true, _} = True ->
+                    True;
+                false ->
+                    claim_cont(Cont1, F)
+            end;
+        _ ->
+            false
     end.
 
 try_claim(K, Pid, F) ->
     case gproc:update_counter(K, [0, {1, 1, 1}]) of
-	[0, 1] ->
-	    %% have lock
-	    try  Res = F(K, Pid),
-		 {true, Res}
-	    after
-		gproc:set_value(K, 0)
-	    end;
-	[1, 1] ->
-	    %% no
-	    false
+        [0, 1] ->
+            %% have lock
+            try  Res = F(K, Pid),
+                 {true, Res}
+            after
+                gproc:set_value(K, 0)
+            end;
+        [1, 1] ->
+            %% no
+            false
     end.
 
 
@@ -448,10 +448,10 @@ log({n,l,[?MODULE,Pool,_,Name]}) ->
 %% @end
 randomize(Pool) ->
     case pool_size(Pool) of
-	0 -> 0;
-	1 -> 1;
-	Sz ->
-	    incr(Pool, crypto:rand_uniform(0, Sz), Sz)
+        0 -> 0;
+        1 -> 1;
+        Sz ->
+            incr(Pool, crypto:rand_uniform(0, Sz), Sz)
     end.
 
 %% @spec pool_size(Pool::any()) -> integer()
@@ -477,12 +477,12 @@ init([]) ->
 %% @private
 call(Req) ->
     case gen_server:call(?MODULE, Req) of
-	badarg ->
-	    error(badarg);
-	{badarg, Reason} ->
-	    error(Reason);
-	Reply ->
-	    Reply
+        badarg ->
+            error(badarg);
+        {badarg, Reason} ->
+            error(Reason);
+        Reply ->
+            Reply
     end.
 
 %% ===================================================================
@@ -492,9 +492,9 @@ call(Req) ->
 handle_call(Req, From, S) ->
     try handle_call_(Req, From, S)
     catch
-	error:Reason ->
-	    io:fwrite("server backtrace: ~p~n", [erlang:get_stacktrace()]),
-	    {reply, {badarg, Reason}, S}
+        error:Reason ->
+            io:fwrite("server backtrace: ~p~n", [erlang:get_stacktrace()]),
+            {reply, {badarg, Reason}, S}
     end.
 
 handle_call_({new, Pool, Type, Opts}, _, S) ->
@@ -515,11 +515,11 @@ handle_call_({add_worker, Pool, Name, Pos}, _, S) ->
 handle_call_({set_pool_size, Pool, Sz}, _, S) ->
     Workers = get_workers_(Pool),
     case get_last_worker_n(Workers) of
-	N when N > Sz ->
-	    {reply, badarg, S};
-	_ ->
-	    set_pool_size_(?POOL(Pool), Sz, Workers),
-	    {reply, true, S}
+        N when N > Sz ->
+            {reply, badarg, S};
+        _ ->
+            set_pool_size_(?POOL(Pool), Sz, Workers),
+            {reply, true, S}
     end;
 handle_call_({remove_worker, Pool, Name}, _, S) ->
     ok = remove_worker_(Pool, Name),
@@ -551,12 +551,12 @@ new_(Pool, Type, Opts) ->
     Workers = lists:seq(1, Size),
     gproc:reg_shared(K = ?POOL(Pool), {Size, Type}),
     Opts1 =
-	case lists:keyfind(auto_size, 1, Opts) of
-	    false ->
-		Opts ++ [{auto_size, not lists:keymember(size, 1, Opts)}];
-	    {_, Bool} when is_boolean(Bool) ->
-		Opts
-	end,
+        case lists:keyfind(auto_size, 1, Opts) of
+            false ->
+                Opts ++ [{auto_size, not lists:keymember(size, 1, Opts)}];
+            {_, Bool} when is_boolean(Bool) ->
+                Opts
+        end,
     gproc:set_attributes_shared(K, Opts1),
     set_workers(K, Workers),
     gproc:reg_shared(?POOL_CUR(Pool), Size).
@@ -569,14 +569,14 @@ valid_type(_) ->
 set_pool_size_(K, Sz, Workers) ->
     {_, Type} = gproc:get_value(K, shared),
     case length(Workers) of
-	Sz ->
-	    set_workers(K, Workers);
-	Len when Len > Sz ->
-	    Workers1 = lists:sublist(Workers, 1, Sz),
-	    set_workers(K, Workers1);
-	Len when Len < Sz ->
-	    Workers1 = Workers ++ lists:seq(Len+1, Sz),
-	    set_workers(K, Workers1)
+        Sz ->
+            set_workers(K, Workers);
+        Len when Len > Sz ->
+            Workers1 = lists:sublist(Workers, 1, Sz),
+            set_workers(K, Workers1);
+        Len when Len < Sz ->
+            Workers1 = Workers ++ lists:seq(Len+1, Sz),
+            set_workers(K, Workers1)
     end,
     gproc:set_value_shared(K, {Sz, Type}).
 
@@ -584,22 +584,22 @@ delete_(Pool) ->
     K = ?POOL(Pool),
     Ws = get_workers_(K),
     case [1 || {_,_} <- Ws] of
-	[] ->
-	    gproc:unreg_shared(K),
-	    gproc:unreg_shared(?POOL_CUR(Pool));
-	[_|_] ->
-	    error(not_empty)
+        [] ->
+            gproc:unreg_shared(K),
+            gproc:unreg_shared(?POOL_CUR(Pool));
+        [_|_] ->
+            error(not_empty)
     end.
 
 force_delete_(Pool) ->
     Props = gproc:select({l,p}, [{ {?POOL(Pool), '_', '_'}, [], ['$_']}]),
     Cur = gproc:select({l,c}, [{ {?POOL_CUR(Pool), '_', '_'}, [], ['$_']}]),
     Workers = gproc:select(
-		{l,c}, [{ {?POOL_WRK(Pool,'_'), '_', '_'}, [], ['$_']}]),
+                {l,c}, [{ {?POOL_WRK(Pool,'_'), '_', '_'}, [], ['$_']}]),
     Names = find_names(Pool, '_'),
     lists:foreach(
       fun({Key, Pid, _}) when Pid == self() -> gproc:unreg(Key);
-	 ({_, Pid, _}) when is_pid(Pid) -> exit(Pid, kill)
+         ({_, Pid, _}) when is_pid(Pid) -> exit(Pid, kill)
       end, Names),
     [gproc:unreg_shared(W) || {W,shared,_} <- Cur ++ Props ++ Workers],
     true.
@@ -614,22 +614,22 @@ add_worker_(Pool, Name) ->
     AutoSz = gproc:get_attribute(K, shared, auto_size),
     Ws0 = get_workers_(K),
     {N,Ws1} =
-	case lists:keymember(Name, 1, Ws0) of
-	    false ->
-		case find_slot(Name, K, Ws0, Sz, Type, AutoSz) of
-		    {_, _} = Res ->
-			Res;
-		    false ->
-			error(pool_full)
-		end;
-	    true ->
-		error(exists)
-	end,
+        case lists:keymember(Name, 1, Ws0) of
+            false ->
+                case find_slot(Name, K, Ws0, Sz, Type, AutoSz) of
+                    {_, _} = Res ->
+                        Res;
+                    false ->
+                        error(pool_full)
+                end;
+            true ->
+                error(exists)
+        end,
     if N > Sz ->
-	    set_pool_size_(K, N, Ws1); % also calls set_workers/2
+            set_pool_size_(K, N, Ws1); % also calls set_workers/2
        true ->
-	    %% size not changed
-	    set_workers(K, Ws1)
+            %% size not changed
+            set_workers(K, Ws1)
     end,
     reg_worker(Pool, Name, N),
     N.
@@ -639,20 +639,20 @@ add_worker_(Pool, Name, Pos) ->
     {Sz, _} = gproc:get_value(K, shared),
     Ws0 = get_workers_(K),
     if Pos > Sz ->
-	    case gproc:get_attribute(K, shared, auto_size) of
-		true ->
-		    Ws1 = Ws0 ++ lists:seq(Sz+1,Pos-1) ++ [{Name, Pos}],
-		    set_pool_size_(K, Pos, Ws1);
-		false ->
-		    error(out_of_range)
-	    end;
+            case gproc:get_attribute(K, shared, auto_size) of
+                true ->
+                    Ws1 = Ws0 ++ lists:seq(Sz+1,Pos-1) ++ [{Name, Pos}],
+                    set_pool_size_(K, Pos, Ws1);
+                false ->
+                    error(out_of_range)
+            end;
        true ->
-	    case lists:nth(Pos, Ws0) of
-		{_,_} -> error(exists);
-		P when is_integer(P) ->
-		    Ws1 = set_pos(Pos, Ws0, {Name, Pos}),
-		    set_workers(K, Ws1)
-	    end
+            case lists:nth(Pos, Ws0) of
+                {_,_} -> error(exists);
+                P when is_integer(P) ->
+                    Ws1 = set_pos(Pos, Ws0, {Name, Pos}),
+                    set_workers(K, Ws1)
+            end
     end,
     reg_worker(Pool, Name, Pos),
     Pos.
@@ -663,10 +663,10 @@ reg_worker(Pool, Name, Pos) ->
 
 remove_worker_(Pool, Name) ->
     case whereis_worker(Pool, Name) of
-	Pid when is_pid(Pid) ->
-	    error({worker_connected, Pid});
-	undefined ->
-	    do_remove_worker_(Pool, Name)
+        Pid when is_pid(Pid) ->
+            error({worker_connected, Pid});
+        undefined ->
+            do_remove_worker_(Pool, Name)
     end.
 
 do_remove_worker_(Pool, Name) ->
@@ -675,9 +675,10 @@ do_remove_worker_(Pool, Name) ->
     Ws1 = del_slot(Name, Ws0),
     gproc:unreg_shared(?POOL_WRK(Pool, Name)),
     case (NewLen = length(Ws1)) - length(Ws0) of
-	0 -> ok;
-	Diff when Diff < 0 ->
-	    gproc:set_value_shared(K, NewLen)
+        0 -> ok;
+        Diff when Diff < 0 ->
+            {_, Type} = gproc:get_value(K, shared),
+            gproc:set_value_shared(K, {NewLen, Type})
     end,
     gproc:set_attributes_shared(K, [{workers, Ws1}]),
     ok.
@@ -691,16 +692,16 @@ del_slot(Name, [H|T]) ->
 
 find_slot(Name, _, [], Sz, _, Auto) ->
     case {Sz, Auto} of
-	{0, false} -> false;
-	{_, _} ->
-	    {1, [{Name, 1}]}
+        {0, false} -> false;
+        {_, _} ->
+            {1, [{Name, 1}]}
     end;
 find_slot(Name, Key, Workers, Sz, Type, AutoSz) ->
     case get_strategy(Key, Type) of
-	packed ->
-	    find_slot_packed(Name, Workers, AutoSz);
-	sparse ->
-	    find_slot_sparse(Name, Workers, Sz, AutoSz)
+        packed ->
+            find_slot_packed(Name, Workers, AutoSz);
+        sparse ->
+            find_slot_sparse(Name, Workers, Sz, AutoSz)
     end.
 %%     find_slot(Name, Key, Workers, Sz, Type, AutoSz, Strategy).
 %% find_slot(Name, []) ->
@@ -735,51 +736,51 @@ find_slot_sparse(Name, Ws, Sz, Auto) ->
     %% Collect the position of the first and last filled slots, as well as
     %% the largest gap between filled slots
     case lists:foldl(
-	   fun(N, {Prev, StartP, First, Last, Max, MaxP}) when is_integer(N) ->
-		      case Prev+1 of
-			  Gap when Gap > Max ->
-			      {Gap, StartP, First, Last, Gap, StartP};
-			  Gap ->
-			      {Gap, StartP, First, Last, Max, MaxP}
-		      end;
-	      (N, []) when is_integer(N) ->
-		   %% skip
-		   [];
-	      ({_, Pos}, []) ->
-		   {0, Pos, _First = Pos, _Last = Pos, 0, 0};
-	      ({_, Pos}, {Prev, StartP, First, _PrevLast, Max, MaxP}) ->
-		      if Prev > Max ->
-			      {0, Pos, First, Pos, Prev, StartP};
-			 true ->
-			      {0, Pos, First, Pos, Max, MaxP}
-		      end
-	   end, [], Ws) of
-	[] ->
-	    %% all empty slots
-	    case {Sz, Auto} of
-		{0, false} ->
-		    false;
-		{0, true} ->
-		    {1, [{Name, 1}]};
-		{_, _} when is_integer(Sz), Sz > 0 ->
-		    {1, [{Name, 1}|tl(Ws)]}
-	    end;
-	{_, _, 1, Last, 0, _} ->
-	    %% Pool full
-	    if Auto ->
-		    NewPos = Last + 1,
-		    {NewPos, Ws ++ [{Name, NewPos}]};
-	       true ->
-		    false
-	    end;
-	{_, _, First, Last, MaxGap, StartPos} ->
-	    WrapGap = (Sz - Last) + First - 1,
-	    NewPos = if WrapGap >= MaxGap ->
-			     (Last + (WrapGap div 2) + 1) rem (Sz+1);
-			true ->
-			     (StartPos + (MaxGap div 2) + 1) rem (Sz+1)
-		     end,
-	    {NewPos, set_pos(NewPos, Ws, {Name, NewPos})}
+           fun(N, {Prev, StartP, First, Last, Max, MaxP}) when is_integer(N) ->
+                   case Prev+1 of
+                       Gap when Gap > Max ->
+                           {Gap, StartP, First, Last, Gap, StartP};
+                       Gap ->
+                           {Gap, StartP, First, Last, Max, MaxP}
+                   end;
+              (N, []) when is_integer(N) ->
+                   %% skip
+                   [];
+              ({_, Pos}, []) ->
+                   {0, Pos, _First = Pos, _Last = Pos, 0, 0};
+              ({_, Pos}, {Prev, StartP, First, _PrevLast, Max, MaxP}) ->
+                   if Prev > Max ->
+                           {0, Pos, First, Pos, Prev, StartP};
+                      true ->
+                           {0, Pos, First, Pos, Max, MaxP}
+                   end
+           end, [], Ws) of
+        [] ->
+            %% all empty slots
+            case {Sz, Auto} of
+                {0, false} ->
+                    false;
+                {0, true} ->
+                    {1, [{Name, 1}]};
+                {_, _} when is_integer(Sz), Sz > 0 ->
+                    {1, [{Name, 1}|tl(Ws)]}
+            end;
+        {_, _, 1, Last, 0, _} ->
+            %% Pool full
+            if Auto ->
+                    NewPos = Last + 1,
+                    {NewPos, Ws ++ [{Name, NewPos}]};
+               true ->
+                    false
+            end;
+        {_, _, First, Last, MaxGap, StartPos} ->
+            WrapGap = (Sz - Last) + First - 1,
+            NewPos = if WrapGap >= MaxGap ->
+                             (Last + (WrapGap div 2) + 1) rem (Sz+1);
+                        true ->
+                             (StartPos + (MaxGap div 2) + 1) rem (Sz+1)
+                     end,
+            {NewPos, set_pos(NewPos, Ws, {Name, NewPos})}
     end.
 
 set_pos(P, L, X) when P > 0, is_list(L) ->
@@ -792,10 +793,10 @@ set_pos(P, C, [H|T], X) when C < P ->
 
 get_workers_(K) ->
     case gproc:get_attribute(K, shared, workers) of
-	undefined ->
-	    [];
-	L when is_list(L) ->
-	    L
+        undefined ->
+            [];
+        L when is_list(L) ->
+            L
     end.
 
 set_workers(K, L) when is_list(L) ->
@@ -803,18 +804,18 @@ set_workers(K, L) when is_list(L) ->
 
 get_strategy(Key, Type) ->
     Default = case Type of
-		  round_robin -> packed;
-		  random      -> sparse;
-		  hash        -> sparse;
-		  direct      -> packed;
-		  claim       -> packed
-	      end,
+                  round_robin -> packed;
+                  random      -> sparse;
+                  hash        -> sparse;
+                  direct      -> packed;
+                  claim       -> packed
+              end,
     attribute(Key, fill_strategy, Default).
 
 attribute(Key, A, Default) ->
     case gproc:get_attribute(Key, shared, A) of
-	undefined -> Default;
-	Value     -> Value
+        undefined -> Default;
+        Value     -> Value
     end.
 
 incr(Pool, Incr, Sz) ->
@@ -822,11 +823,11 @@ incr(Pool, Incr, Sz) ->
 
 %% find_worker(Pool, Name) ->
 %%     case gproc:select(n, [{ {{n, l, {?MODULE, Pool, '_'}}, '_', Name},
-%% 			  [], ['$_'] }]) of
-%% 	[] ->
-%% 	    undefined;
-%% 	[{{n,l,{?MODULE,_,N}}, Pid, _}] ->
-%% 	    {N, Pid}
+%%                        [], ['$_'] }]) of
+%%      [] ->
+%%          undefined;
+%%      [{{n,l,{?MODULE,_,N}}, Pid, _}] ->
+%%          {N, Pid}
 %%     end.
 
 %% ============================= Test code ===========================
@@ -837,10 +838,10 @@ test(N) when N > 0 ->
 
 %% @private
 test(N, Type, Opts) when Type==round_robin;
-			 Type==random;
-			 Type==hash;
-			 Type==direct;
-			 Type==claim ->
+                         Type==random;
+                         Type==hash;
+                         Type==direct;
+                         Type==claim ->
     P = ?LINE,
     setup_test_pool(P, Type, Opts),
     try timer:tc(?MODULE, f(Type), [N, P])
@@ -853,23 +854,23 @@ ptest(N, I, Type, Opts) ->
     setup_test_pool(P, Type, Opts),
     F = f(Type),
     Pids =
-	[spawn_monitor(fun() -> exit({ok, timer:tc(?MODULE, F, [I, P])}) end)
-	 || _ <- lists:seq(1, N)],
+        [spawn_monitor(fun() -> exit({ok, timer:tc(?MODULE, F, [I, P])}) end)
+         || _ <- lists:seq(1, N)],
     try collect(Pids)
     after
-	remove_test_pool(P)
+        remove_test_pool(P)
     end.
 
 collect(Pids) ->
     Results = [receive
-		   {'DOWN', Ref, _, _, Reason} ->
-		       Reason
-	       end || {_, Ref} <- Pids],
+                   {'DOWN', Ref, _, _, Reason} ->
+                       Reason
+               end || {_, Ref} <- Pids],
     {Times, Avgs} = lists:foldr(fun({ok, {T, Avg}}, {A,B}) ->
-					{[T|A], [Avg|B]} end,
-				{[],[]}, Results),
+                                        {[T|A], [Avg|B]} end,
+                                {[],[]}, Results),
     {Times, lists:sum(Times)/length(Times),
-    lists:sum(Avgs)/length(Avgs)}.
+     lists:sum(Avgs)/length(Avgs)}.
 
 f(Type) when Type==hash; Type==direct ->
     test_run1;
@@ -887,8 +888,8 @@ setup_test_pool(P, Type0, Opts) ->
     Type = case Type0 of {_, T} -> T; T when is_atom(T) -> T end,
     new(P, Type, Opts),
     [begin R = add_worker(P, W),
-	   io:fwrite("add_worker(~p, ~p) -> ~p; Ws = ~p~n",
-		     [P, W, R, get_workers_(?POOL(P))]),
+           io:fwrite("add_worker(~p, ~p) -> ~p; Ws = ~p~n",
+                     [P, W, R, get_workers_(?POOL(P))]),
            connect_worker(P, W)
      end || W <- test_workers()].
 
