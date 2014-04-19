@@ -78,7 +78,11 @@ choice(F) ->
     case get_line('(c)ontinue (q)uit -->', "c\n") of
         "c\n" ->
             F();
+        <<"c\n">> ->
+            F();
         "q\n" ->
+            quit;
+        <<"q\n">> ->
             quit;
         _ ->
             choice(F)
