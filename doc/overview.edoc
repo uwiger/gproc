@@ -3,6 +3,9 @@
 
 @doc Extended process dictionary
 
+[![Build Status](https://travis-ci.org/uwiger/gproc.png?branch=master)](https://travis-ci.org/uwiger/gproc)
+
+
 <h2>Note</h2>
 
 Gproc has two dependencies: `gen_leader' and `edown'. Since most people don't

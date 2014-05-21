@@ -1,5 +1,3 @@
-
-
 # Module gproc_dist #
 * [Description](#description)
 * [Function Index](#index)
@@ -334,5 +332,3 @@ the leader died.)
 ### update_shared_counter/2 ###
 
 `update_shared_counter(Key, Incr) -> any()`
-
-

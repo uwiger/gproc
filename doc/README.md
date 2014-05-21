@@ -6,6 +6,8 @@ __Authors:__ Ulf Wiger ([`ulf.wiger@erlang-solutions.com`](mailto:ulf.wiger@erla
 
 Extended process dictionary
 
+[![Build Status](https://travis-ci.org/uwiger/gproc.png?branch=master)](https://travis-ci.org/uwiger/gproc)
+
 
 ## Note ##
 
