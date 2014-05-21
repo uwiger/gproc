@@ -1,5 +1,5 @@
 language: erlang
-script: "rebar eunit > eunit.log"
+script: "rebar get-deps compile eunit"
 otp_release:
     - R16B02
     - R16B01
@@ -7,4 +7,3 @@ otp_release:
     - R15B03
     - R15B02
     - R15B01
-after_failure: "echo 'eunit.log\n'; cat eunit.log"
