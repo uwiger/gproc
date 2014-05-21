@@ -1,5 +1,5 @@
 language: erlang
-script: "rebar get-deps compile eunit"
+script: "GPROC_DIST=true rebar get-deps compile eunit"
 otp_release:
     - R16B02
     - R16B01
