@@ -534,7 +534,6 @@ handle_call(Req, From, S) ->
     try handle_call_(Req, From, S)
     catch
         error:Reason ->
-            io:fwrite("server backtrace: ~p~n", [erlang:get_stacktrace()]),
             {reply, {badarg, Reason}, S}
     end.
 
@@ -590,7 +589,11 @@ new_(Pool, Type, Opts) ->
     valid_type(Type),
     Size = proplists:get_value(size, Opts, 0),
     Workers = lists:seq(1, Size),
-    gproc:reg_shared(K = ?POOL(Pool), {Size, Type}),
+    K = ?POOL(Pool),
+    try gproc:reg_shared(K, {Size, Type})
+    catch
+        error:_ -> error(exists)
+    end,
     Opts1 =
         case lists:keyfind(auto_size, 1, Opts) of
             false ->
