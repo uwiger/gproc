@@ -16,7 +16,7 @@ actively use either, they are no longer fetched by default.
 
 * To enable fetching of `gen_leader`, export the OS environment variable`GPROC_DIST=true` (this can be done e.g. from a GNU Makefile)
 
-* `edown` is fetched on-demand whenver `rebar get-deps doc` is called (which
+* `edown` is fetched on-demand whenever `rebar get-deps doc` is called (which
   happens when you call `make doc`)
 
 
