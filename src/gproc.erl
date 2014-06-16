@@ -2108,7 +2108,7 @@ handle_call({monitor, {T,l,_} = Key, Pid, Type}, _From, S)
 		case ets:lookup(?TAB, {RegPid, Key}) of
 		    [{K,r}] ->
 			ets:insert(?TAB, {K, [{monitor, [{Pid,Ref,Type}]}]}),
-                        ets:insert_new({{Pid,Key}, []});
+                        ets:insert_new(?TAB, {{Pid,Key}, []});
 		    [{K, Opts}] ->
 			ets:insert(?TAB, {K, gproc_lib:add_monitor(
                                                Opts, Pid, Ref, Type)}),
