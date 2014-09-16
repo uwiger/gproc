@@ -380,9 +380,7 @@ Registers a local shared (unique) counter.
 <pre><code>
 audit_process(Pid::pid()) -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 <a name="await-1"></a>
@@ -393,9 +391,7 @@ audit_process(Pid::pid()) -&gt; ok
 <pre><code>
 await(Key::<a href="#type-key">key()</a>) -&gt; {pid(), Value}
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`await(Key, infinity)`](#await-2).
 <a name="await-2"></a>
@@ -440,9 +436,7 @@ down.
 <pre><code>
 bcast(Key::<a href="#type-key">key()</a>, Msg::any()) -&gt; Msg
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`bcast(nodes(), Key, Msg)`](#bcast-3).
 <a name="bcast-3"></a>
@@ -453,9 +447,7 @@ Equivalent to [`bcast(nodes(), Key, Msg)`](#bcast-3).
 <pre><code>
 bcast(Nodes::[atom()], Key::<a href="#type-key">key()</a>, Msg::any()) -&gt; Msg
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Sends a message to processes corresponding to Key on Nodes.
@@ -524,9 +516,7 @@ node.
 <pre><code>
 demonitor(Key::<a href="#type-key">key()</a>, Ref::reference()) -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 Remove a monitor on a registered name
 This function is the reverse of monitor/1. It removes a monitor previously
@@ -539,9 +529,7 @@ set on a unique name. This function always succeeds given legal input.
 <pre><code>
 first(Context::<a href="#type-context">context()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Behaves as ets:first(Tab) for a given type of registration.
@@ -557,9 +545,7 @@ The registry behaves as an ordered_set table.
 <pre><code>
 get_attribute(Key, Attribute::atom()) -&gt; Value
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Get attribute value of `Attr` associated with `Key` for most likely Pid.
@@ -576,9 +562,7 @@ An exception is raised if `Key` is not registered for the given process.
 <pre><code>
 get_attribute(Key, Pid::pid() | shared, Attr::atom()) -&gt; Value
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Get the attribute value of `Attr` associated with `Key` for process Pid.
@@ -594,9 +578,7 @@ will be read.
 <pre><code>
 get_attribute_shared(Key, Attr::atom()) -&gt; Value
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Get the attribute value of `Attr` associated with the shared `Key`.
@@ -612,9 +594,7 @@ Equivalent to `get_attribute(Key, shared, Attr)`
 <pre><code>
 get_attributes(Key::<a href="#type-key">key()</a>) -&gt; [{K, V}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`get_attributes(Key, self())`](#get_attributes-2).
 
@@ -627,9 +607,7 @@ Get attributes associated with registration.
 <pre><code>
 get_attributes(Key::<a href="#type-key">key()</a>, Pid::pid() | shared) -&gt; [{K, V}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Returns the list of attributes associated with the registration.
@@ -646,9 +624,7 @@ registration.
 <pre><code>
 get_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom()) -&gt; term()
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`get_env(Scope, App, Key, [app_env])`](#get_env-4).
 <a name="get_env-4"></a>
@@ -719,9 +695,7 @@ e.g. `get_env(l, mnesia, dir, [app_env, error])`.
 <pre><code>
 get_set_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom()) -&gt; term()
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`get_set_env(Scope, App, Key, [app_env])`](#get_set_env-4).
 <a name="get_set_env-4"></a>
@@ -732,9 +706,7 @@ Equivalent to [`get_set_env(Scope, App, Key, [app_env])`](#get_set_env-4).
 <pre><code>
 get_set_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom(), Strategy) -&gt; Value
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Fetch and cache an environment value, if not already cached.
@@ -754,9 +726,7 @@ __See also:__ [get_env/4](#get_env-4).
 <pre><code>
 get_value(Key) -&gt; Value
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Reads the value stored with a key registered to the current process.
@@ -771,9 +741,7 @@ If no such key is registered to the current process, this function exits.
 <pre><code>
 get_value(Key, Pid) -&gt; Value
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Reads the value stored with a key registered to the process Pid.
@@ -789,9 +757,7 @@ will be read.
 <pre><code>
 get_value_shared(Key) -&gt; Value
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Reads the value stored with a shared key.
@@ -806,9 +772,7 @@ If no such shared key is registered, this function exits.
 <pre><code>
 give_away(From::<a href="#type-key">key()</a>, To::pid() | <a href="#type-key">key()</a>) -&gt; undefined | pid()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Atomically transfers the key `From` to the process identified by `To`.
@@ -841,9 +805,7 @@ registered.
 <pre><code>
 goodbye() -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Unregister all items of the calling process and inform gproc
@@ -860,9 +822,7 @@ cleanup operations.
 <pre><code>
 i() -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 Similar to the built-in shell command `i()` but inserts information
 about names and properties registered in Gproc, where applicable.
@@ -892,9 +852,7 @@ pairs registered to the process.
 <pre><code>
 info(Pid::pid(), Item::atom()) -&gt; {Item, Info}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Similar to process_info(Pid, Item), but with additional gproc info.
@@ -911,9 +869,7 @@ same as [`http://www.erlang.org/doc/man/erlang.html#process_info-2`](http://www.
 <pre><code>
 last(Context::<a href="#type-context">context()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Behaves as ets:last(Tab) for a given type of registration.
@@ -929,9 +885,7 @@ The registry behaves as an ordered_set table.
 <pre><code>
 lookup_global_aggr_counter(Name::any()) -&gt; integer()
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`lookup_value({a, g, Name})`](#lookup_value-1).
 
@@ -945,9 +899,7 @@ Fails if there is no such object.
 <pre><code>
 lookup_global_counters(Counter::any()) -&gt; [{pid(), Value::integer()}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`lookup_values({c, g, Counter})`](#lookup_values-1).
 
@@ -961,9 +913,7 @@ Returns a list of {Pid, Value} tuples for all matching objects.
 <pre><code>
 lookup_global_name(Name::any()) -&gt; pid()
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`where({n, g, Name})`](#where-1).
 
@@ -976,9 +926,7 @@ Lookup a global unique name. Fails if there is no such name.
 <pre><code>
 lookup_global_properties(Property::any()) -&gt; [{pid(), Value}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`lookup_values({p, g, Property})`](#lookup_values-1).
 
@@ -992,9 +940,7 @@ Returns a list of {Pid, Value} tuples for all matching objects.
 <pre><code>
 lookup_local_aggr_counter(Name::any()) -&gt; integer()
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`where({a, l, Name})`](#where-1).
 
@@ -1008,9 +954,7 @@ Fails if there is no such object.
 <pre><code>
 lookup_local_counters(Counter::any()) -&gt; [{pid(), Value::integer()}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`lookup_values({c, l, Counter})`](#lookup_values-1).
 
@@ -1024,9 +968,7 @@ Returns a list of {Pid, Value} tuples for all matching objects.
 <pre><code>
 lookup_local_name(Name::any()) -&gt; pid()
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`where({n, l, Name})`](#where-1).
 
@@ -1039,9 +981,7 @@ Lookup a local unique name. Fails if there is no such name.
 <pre><code>
 lookup_local_properties(Property::any()) -&gt; [{pid(), Value}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`lookup_values({p, l, Property})`](#lookup_values-1).
 
@@ -1055,9 +995,7 @@ Returns a list of {Pid, Value} tuples for all matching objects.
 <pre><code>
 lookup_pid(Key) -&gt; Pid
 </code></pre>
-
-<br></br>
-
+<br />
 
 Lookup the Pid stored with a key.
 
@@ -1069,9 +1007,7 @@ Lookup the Pid stored with a key.
 <pre><code>
 lookup_pids(Key::<a href="#type-key">key()</a>) -&gt; [pid()]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Returns a list of pids with the published key Key
@@ -1093,9 +1029,7 @@ therefore be excluded.
 <pre><code>
 lookup_value(Key) -&gt; Value
 </code></pre>
-
-<br></br>
-
+<br />
 
 Lookup the value stored with a key.
 
@@ -1107,9 +1041,7 @@ Lookup the value stored with a key.
 <pre><code>
 lookup_values(Key::<a href="#type-key">key()</a>) -&gt; [{pid(), Value}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Retrieve the `{Pid,Value}` pairs corresponding to Key.
@@ -1133,9 +1065,7 @@ Equivalent to [`monitor(Key, info)`](#monitor-2).
 <pre><code>
 monitor(Key::<a href="#type-key">key()</a>, Type::<a href="#type-monitor_type">monitor_type()</a>) -&gt; reference()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 monitor a registered name
@@ -1173,9 +1103,7 @@ process registers the name.
 <pre><code>
 mreg(T::<a href="#type-type">type()</a>, C::<a href="#type-scope">scope()</a>, KVL::[{Key::any(), Value::any()}]) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Register multiple {Key,Value} pairs of a given type and scope.
@@ -1192,9 +1120,7 @@ or none are.
 <pre><code>
 munreg(T::<a href="#type-type">type()</a>, C::<a href="#type-scope">scope()</a>, L::[Key::any()]) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Unregister multiple Key items of a given type and scope.
@@ -1210,9 +1136,7 @@ repeatedly.
 <pre><code>
 nb_wait(Key::<a href="#type-key">key()</a>) -&gt; Ref
 </code></pre>
-
-<br></br>
-
+<br />
 
 Wait for a local name to be registered.
 The caller can expect to receive a message,
@@ -1225,9 +1149,7 @@ The caller can expect to receive a message,
 <pre><code>
 nb_wait(Node::node(), Key::<a href="#type-key">key()</a>) -&gt; Ref
 </code></pre>
-
-<br></br>
-
+<br />
 
 Wait for a local name to be registered on `Node`.
 The caller can expect to receive a message,
@@ -1240,9 +1162,7 @@ The caller can expect to receive a message,
 <pre><code>
 next(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Behaves as ets:next(Tab,Key) for a given type of registration.
@@ -1258,9 +1178,7 @@ The registry behaves as an ordered_set table.
 <pre><code>
 prev(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Behaves as ets:prev(Tab,Key) for a given type of registration.
@@ -1276,9 +1194,7 @@ The registry behaves as an ordered_set table.
 <pre><code>
 reg(Key::<a href="#type-key">key()</a>) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`reg(Key, default(Key))`](#reg-2).
 <a name="reg-2"></a>
@@ -1289,9 +1205,7 @@ Equivalent to [`reg(Key, default(Key))`](#reg-2).
 <pre><code>
 reg(Key::<a href="#type-key">key()</a>, Value) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Register a name or property for the current process
@@ -1306,9 +1220,7 @@ Register a name or property for the current process
 <pre><code>
 reg_or_locate(Key::<a href="#type-key">key()</a>) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`reg_or_locate(Key, default(Key))`](#reg_or_locate-2).
 <a name="reg_or_locate-2"></a>
@@ -1319,9 +1231,7 @@ Equivalent to [`reg_or_locate(Key, default(Key))`](#reg_or_locate-2).
 <pre><code>
 reg_or_locate(Key::<a href="#type-key">key()</a>, Value) -&gt; {pid(), NewValue}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Try registering a unique name, or return existing registration.
@@ -1338,9 +1248,7 @@ the current registration is returned instead.
 <pre><code>
 reg_or_locate(Key::<a href="#type-key">key()</a>, Value, Fun::function()) -&gt; {pid(), NewValue}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Spawn a process with a registered name, or return existing registration.
@@ -1363,9 +1271,7 @@ process is set to the group_leader of the calling process.
 <pre><code>
 reg_shared(Key::<a href="#type-key">key()</a>) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Register a resource, but don't tie it to a particular process.
@@ -1381,9 +1287,7 @@ Register a resource, but don't tie it to a particular process.
 <pre><code>
 reg_shared(Key::<a href="#type-key">key()</a>, Value) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Register a resource, but don't tie it to a particular process.
@@ -1408,9 +1312,7 @@ an aggregated counter which is owned by a process.
 <pre><code>
 register_name(Name::<a href="#type-key">key()</a>, Pid::pid()) -&gt; yes | no
 </code></pre>
-
-<br></br>
-
+<br />
 
 Behaviour support callback
 <a name="reset_counter-1"></a>
@@ -1477,9 +1379,7 @@ representation for the gproc select operations is given by
 <pre><code>
 select(Context::<a href="#type-context">context()</a>, Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -&gt; [{Key, Pid, Value}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Perform a select operation with limited context on the process registry
@@ -1506,9 +1406,7 @@ variable substitution and ensure that the scan is limited.
 <pre><code>
 select(Context::<a href="#type-context">context()</a>, Pat::<a href="#type-sel_patten">sel_patten()</a>, Limit::integer()) -&gt; {[Match], Continuation} | '$end_of_table'
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Like [`select/2`](#select-2) but returns Limit objects at a time.
@@ -1523,9 +1421,7 @@ See [`http://www.erlang.org/doc/man/ets.html#select-3`](http://www.erlang.org/do
 <pre><code>
 select_count(Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -&gt; [<a href="#type-sel_object">sel_object()</a>]
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`select_count(all, Pat)`](#select_count-2).
 <a name="select_count-2"></a>
@@ -1536,9 +1432,7 @@ Equivalent to [`select_count(all, Pat)`](#select_count-2).
 <pre><code>
 select_count(Context::<a href="#type-context">context()</a>, Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -&gt; [{Key, Pid, Value}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Perform a select_count operation on the process registry.
@@ -1554,9 +1448,7 @@ but the select patterns are transformed appropriately.
 <pre><code>
 send(Key::<a href="#type-process">process()</a> | <a href="#type-key">key()</a>, Msg::any()) -&gt; Msg
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Sends a message to the process, or processes, corresponding to Key.
@@ -1579,9 +1471,7 @@ identifier, namely a pid(), an atom(), or `{Name::atom(), Node::atom()}`.
 <pre><code>
 set_attributes(Key::<a href="#type-key">key()</a>, Props::[{atom(), any()}]) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Add/modify `{Key, Value}` attributes associated with a registration.
@@ -1602,9 +1492,7 @@ Attributs can be retrieved using `gproc:get_attribute/3` or
 <pre><code>
 set_attributes_shared(Key::<a href="#type-key">key()</a>, Props::[{K, V}]) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Add/modify `{Key, Value}` attributes associated with a shared registration.
@@ -1651,9 +1539,7 @@ to `undefined`.
 <pre><code>
 set_value(Key::<a href="#type-key">key()</a>, Value) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Sets the value of the registration given by Key
@@ -1674,9 +1560,7 @@ it must be an integer.
 <pre><code>
 set_value_shared(Key::<a href="#type-key">key()</a>, Value) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Sets the value of the shared registration given by Key
@@ -1697,9 +1581,7 @@ it must be an integer.
 <pre><code>
 start_link() -&gt; {ok, pid()}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Starts the gproc server.
@@ -1715,9 +1597,7 @@ starting the gproc application.
 <pre><code>
 table() -&gt; any()
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`table({all, all})`](#table-1).
 <a name="table-1"></a>
@@ -1728,9 +1608,7 @@ Equivalent to [`table({all, all})`](#table-1).
 <pre><code>
 table(Context::<a href="#type-context">context()</a>) -&gt; any()
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`table(Context, [])`](#table-2).
 <a name="table-2"></a>
@@ -1741,9 +1619,7 @@ Equivalent to [`table(Context, [])`](#table-2).
 <pre><code>
 table(Context::<a href="#type-context">context()</a>, Opts) -&gt; any()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 QLC table generator for the gproc registry.
@@ -1767,9 +1643,7 @@ entries in the list by the time your program processes it.
 <pre><code>
 unreg(Key::<a href="#type-key">key()</a>) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 Unregister a name or property.
 <a name="unreg_shared-1"></a>
@@ -1780,9 +1654,7 @@ Unregister a name or property.
 <pre><code>
 unreg_shared(Key::<a href="#type-key">key()</a>) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 Unregister a shared resource.
 <a name="unregister_name-1"></a>
@@ -1800,9 +1672,7 @@ Equivalent to `unreg / 1`.
 <pre><code>
 update_counter(Key::<a href="#type-key">key()</a>, Incr::<a href="#type-increment">increment()</a>) -&gt; integer()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Updates the counter registered as Key for the current process.
@@ -1842,9 +1712,7 @@ appropriate value type.
 <pre><code>
 update_counters(X1::<a href="#type-scope">scope()</a>, Cs::[{<a href="#type-key">key()</a>, pid(), <a href="#type-increment">increment()</a>}]) -&gt; [{<a href="#type-key">key()</a>, pid(), integer()}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Update a list of counters
@@ -1889,9 +1757,7 @@ that the position is omitted; in gproc, the value position is always `3`.
 <pre><code>
 where(Key::<a href="#type-key">key()</a>) -&gt; pid()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Returns the pid registered as Key

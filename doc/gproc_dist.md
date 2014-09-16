@@ -1,3 +1,5 @@
+
+
 # Module gproc_dist #
 * [Description](#description)
 * [Function Index](#index)
@@ -76,9 +78,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#reg_or_
 <pre><code>
 get_leader() -&gt; node()
 </code></pre>
-
-<br></br>
-
+<br />
 
 Returns the node of the current gproc leader.
 <a name="give_away-2"></a>
@@ -276,9 +276,7 @@ Scope = l | g (global or local)
 <pre><code>
 sync() -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Synchronize with the gproc leader
@@ -332,3 +330,5 @@ the leader died.)
 ### update_shared_counter/2 ###
 
 `update_shared_counter(Key, Incr) -> any()`
+
+

@@ -13,7 +13,7 @@
 %% Portions created by Ericsson are Copyright 1999, Ericsson Utvecklings
 %% AB. All Rights Reserved.''
 %%
-%% @author Ulf Wiger <ulf.wiger@erlang-solutions.com>
+%% @author Ulf Wiger <ulf@wiger.net>
 %%
 -module(gproc_tests).
 

@@ -25,9 +25,7 @@
 <pre><code>
 hard_reset() -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 <a name="soft_reset-0"></a>
@@ -38,8 +36,6 @@ hard_reset() -&gt; ok
 <pre><code>
 soft_reset() -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 

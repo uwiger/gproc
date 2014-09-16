@@ -98,9 +98,7 @@ status() = 1 | 0
 <pre><code>
 change_cond(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Spec::undefined | <a href="ets.md#type-match_spec">ets:match_spec()</a>) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Change the condition specification of an existing subscription.
@@ -123,9 +121,7 @@ subscription to a conditional one.
 <pre><code>
 create_single(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Creates a single-shot subscription entry for Event
@@ -155,9 +151,7 @@ as it has delivered a message.
 <pre><code>
 delete_single(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Deletes the single-shot subscription for Event
@@ -173,9 +167,7 @@ An exception will be raised if there is no such subscription.
 <pre><code>
 disable_single(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>) -&gt; integer()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Disables the single-shot subscription for Event
@@ -201,9 +193,7 @@ The return value indicates the previous status.
 <pre><code>
 enable_single(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>) -&gt; integer()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Enables the single-shot subscription for Event
@@ -233,9 +223,7 @@ The return value indicates the previous status.
 <pre><code>
 list_singles(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>) -&gt; [{pid(), <a href="#type-status">status()</a>}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 Lists all single-shot subscribers of Event, together with their status
 <a name="list_subs-2"></a>
@@ -246,9 +234,7 @@ Lists all single-shot subscribers of Event, together with their status
 <pre><code>
 list_subs(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>) -&gt; [pid()]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 List the pids of all processes subscribing to `Event`
@@ -263,9 +249,7 @@ This function uses `gproc:select/2` to find all properties indicating a subscrip
 <pre><code>
 notify_single_if_true(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, F::fun(() -&gt; boolean()), Msg::<a href="#type-msg">msg()</a>) -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Create/enable a single subscription for event; notify at once if F() -> true
@@ -282,9 +266,7 @@ immediate test returns `false`.
 <pre><code>
 publish(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Msg::<a href="#type-msg">msg()</a>) -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Publish the message `Msg` to all subscribers of `Event`
@@ -308,9 +290,7 @@ property `{p,Scope,{gproc_ps_event,Event}}`.
 <pre><code>
 publish_cond(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Msg::<a href="#type-msg">msg()</a>) -&gt; <a href="#type-msg">msg()</a>
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Publishes the message `Msg` to conditional subscribers of `Event`
@@ -329,9 +309,7 @@ __See also:__ [subscribe_cond/3](#subscribe_cond-3).
 <pre><code>
 subscribe(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Subscribe to events of type `Event`
@@ -358,9 +336,7 @@ process.
 <pre><code>
 subscribe_cond(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Spec::undefined | <a href="ets.md#type-match_spec">ets:match_spec()</a>) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Subscribe conditionally to events of type `Event`
@@ -407,9 +383,7 @@ process.
 <pre><code>
 tell_singles(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Msg::<a href="#type-msg">msg()</a>) -&gt; [pid()]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Publish `Msg` to all single-shot subscribers of `Event`
@@ -434,9 +408,7 @@ for `Event`.
 <pre><code>
 unsubscribe(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Remove subscribtion created using `subscribe(Scope, Event)`
