@@ -16,7 +16,7 @@ case lists:member("doc", Args) of
             {error, bad_name} ->
                 io:fwrite("cannot find edown~n", []),
                 D = {edown, ".*",
-                     {git, "git://github.com/esl/edown.git", "HEAD"}},
+                     {git, "git://github.com/uwiger/edown.git", "HEAD"}},
                 Deps = case lists:keyfind(deps, 1, CONFIG) of
                            false -> [D];
                            {_, Ds} ->

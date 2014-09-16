@@ -78,9 +78,7 @@ jobs will not exceed the size of the pool.<a name="index"></a>
 <pre><code>
 active_workers(Pool::any()) -&gt; [{Name, Pid}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 Return a list of currently connected workers in the pool.
 
@@ -92,9 +90,7 @@ Return a list of currently connected workers in the pool.
 <pre><code>
 add_worker(Pool::any(), Name::any()) -&gt; integer()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Assign a worker name to the pool, returning the worker's position.
@@ -124,9 +120,7 @@ Before a worker can be used, a process must connect to it (see
 <pre><code>
 add_worker(Pool::any(), Name::any(), Slot::integer()) -&gt; integer()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Assign a worker name to a given slot in the pool, returning the slot.
@@ -145,9 +139,7 @@ otherwise the pool is expanded to accomodate the new position.
 <pre><code>
 claim(Pool::any(), Fun::function()) -&gt; {true, Res} | false
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Picks the first available worker in the pool and applies `Fun`.
@@ -168,9 +160,7 @@ implemented using `gproc:update_counter/2`.
 <pre><code>
 connect_worker(Pool::any(), Name::any()) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Connect the current process to `Name` in `Pool`.
@@ -196,9 +186,7 @@ there is no such pool), or if another worker is already connected to
 <pre><code>
 defined_workers(Pool::any()) -&gt; [{Name, Pos, Count}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Return a list of added workers in the pool.
@@ -222,9 +210,7 @@ calling [`log/1`](#log-1)).
 <pre><code>
 delete(Pool::any()) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Delete an existing pool.
@@ -240,9 +226,7 @@ Ensure that workers have been disconnected before deleting the pool.
 <pre><code>
 disconnect_worker(Pool, Name) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Disconnect the current process from `Name` in `Pool`.
@@ -264,9 +248,7 @@ An exception is raised if there is no prior connection between `Pool`,
 <pre><code>
 force_delete(Pool::any()) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Forcibly remove a pool, terminating all active workers
@@ -284,9 +266,7 @@ workers (except the calling process).
 <pre><code>
 log(X1::GprocKey) -&gt; integer()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Update a counter associated with a worker name.
@@ -304,9 +284,7 @@ if the currently connected worker dies.
 <pre><code>
 new(Pool::any()) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`new(Pool, round_robin, [])`](#new-3).
 <a name="new-3"></a>
@@ -342,9 +320,7 @@ If the given pool already exists, this function will raise an exception.
 <pre><code>
 pick(Pool::any()) -&gt; GprocName | false
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Pick a worker from the pool given the pool's load-balancing algorithm.
@@ -361,9 +337,7 @@ worker, or if `Pool` is not a valid pool.
 <pre><code>
 pick(Pool::any(), Value::any()) -&gt; GprocName | false
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Pick a worker from the pool based on `Value`.
@@ -394,9 +368,7 @@ selecting a worker.
 <pre><code>
 randomize(Pool::any()) -&gt; integer()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Randomizes the "next" pointer for the pool.
@@ -413,9 +385,7 @@ balancing will always start with the first worker in the pool.
 <pre><code>
 remove_worker(Pool::any(), Name::any()) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Remove a previously added worker.
@@ -439,9 +409,7 @@ when `Name` did not exist in the pool in the first place.
 <pre><code>
 whereis_worker(Pool::any(), Name::any()) -&gt; pid() | undefined
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Look up the pid of a connected worker.
@@ -459,9 +427,7 @@ added to the pool.
 <pre><code>
 worker_id(Pool, Name) -&gt; GprocName
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Return the unique gproc name corresponding to a name in the pool.
@@ -478,9 +444,7 @@ that there is, in fact, such a connected worker.
 <pre><code>
 worker_pool(Pool::any()) -&gt; [integer() | {Name, Pos}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Return a list of slots and/or named workers in the pool.

@@ -7,7 +7,7 @@
 
 
 Extended process registry.
-__Behaviours:__ [`locks_leader`](/Users/uwiger/FL/git/gproc/deps/locks/doc/locks_leader.md).
+__Behaviours:__ [`locks_leader`](locks_leader.md).
 
 __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)).
 <a name="description"></a>
@@ -71,9 +71,7 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#reg_or_
 <pre><code>
 get_leader() -&gt; node()
 </code></pre>
-
-<br></br>
-
+<br />
 
 Returns the node of the current gproc leader.
 <a name="give_away-2"></a>
@@ -129,7 +127,7 @@ Returns the node of the current gproc leader.
 
 ### handle_leader_cast/3 ###
 
-`handle_leader_cast(X1, S, E) -> any()`
+`handle_leader_cast(Msg, S, E) -> any()`
 
 
 <a name="init-1"></a>
@@ -264,9 +262,7 @@ Scope = l | g (global or local)
 <pre><code>
 sync() -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Synchronize with the gproc leader

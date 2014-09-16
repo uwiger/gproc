@@ -36,9 +36,7 @@ Unsubscribe from registration events for a certain name.</td></tr></table>
 <pre><code>
 start_link() -&gt; {ok, Pid} | ignore | {error, Error}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Starts the server
@@ -51,9 +49,7 @@ Starts the server
 <pre><code>
 subscribe(Key::<a href="#type-key">key()</a>) -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 
@@ -77,9 +73,7 @@ sent immediately, indicating the current status of the name.
 <pre><code>
 unsubscribe(Key::<a href="#type-key">key()</a>) -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 

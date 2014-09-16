@@ -2,7 +2,7 @@
 
 # The gproc application #
 
-__Authors:__ Ulf Wiger ([`ulf.wiger@erlang-solutions.com`](mailto:ulf.wiger@erlang-solutions.com)), Joseph Wayne Norton ([`norton@geminimobile.com`](mailto:norton@geminimobile.com)).
+__Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)), Joseph Wayne Norton ([`norton@geminimobile.com`](mailto:norton@geminimobile.com)).
 
 Extended process dictionary
 
