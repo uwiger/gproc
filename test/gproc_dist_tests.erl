@@ -232,7 +232,7 @@ t_mreg([H|_] = Ns) ->
     [?assertMatch(ok, t_lookup_everywhere({n,g,K},Ns,undefined)) || K <- Keys],
     ?assertMatch(ok, t_call(P, die)).
 
-t_await_reg([A,B|_]) ->
+t_await_reg([A,B|_] = Ns) ->
     Name = ?T_NAME,
     P = t_spawn(A),
     Ref = erlang:monitor(process, P),
@@ -249,6 +249,7 @@ t_await_reg([A,B|_]) ->
 		  end),
     ?assertMatch(ok, t_call(P, die)),
     flush_down(Ref),
+    ?assertMatch(ok, t_lookup_everywhere(Name, Ns, P1)),
     ?assertMatch(ok, t_call(P1, die)).
 
 t_await_self([A|_]) ->

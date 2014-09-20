@@ -272,18 +272,21 @@ t_other_proc(F) ->
 
 t_await() ->
     Me = self(),
+    Name = {n,l,t_await},
     {_Pid,Ref} = spawn_monitor(
                    fun() ->
 			   exit(?assert(
-				   gproc:await({n,l,t_await}) =:= {Me,val}))
+				   gproc:await(Name) =:= {Me,val}))
 		   end),
-    ?assert(gproc:reg({n,l,t_await},val) =:= true),
+    ?assert(gproc:reg(Name, val) =:= true),
     receive
         {'DOWN', Ref, _, _, R} ->
             ?assertEqual(R, ok)
     after 10000 ->
             erlang:error(timeout)
-    end.
+    end,
+    ?assertMatch(Me, gproc:where(Name)),
+    ok.
 
 t_await_self() ->
     Me = self(),
