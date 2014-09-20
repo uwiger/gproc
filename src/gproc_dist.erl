@@ -730,8 +730,14 @@ filter_standbys([], _) ->
 
 remove_entry(Key, Pid, Event) ->
     K = ets_key(Key, Pid),
-    ets:delete(?TAB, K),
-    remove_rev_entry(get_opts(Pid, Key), Pid, Key, Event).
+    case ets:lookup(?TAB, K) of
+	[{_, Pid, _}] ->
+	    ets:delete(?TAB, K),
+	    remove_rev_entry(get_opts(Pid, Key), Pid, Key, Event);
+	[{_, _OtherPid, _}] ->
+	    ets:delete(?TAB, {Pid, Key}),
+	    []
+    end.
 
 remove_rev_entry(Opts, Pid, {T,g,_} = K, Event) when T==n; T==a ->
     Key = {Pid, K},
