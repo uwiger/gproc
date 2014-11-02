@@ -609,7 +609,7 @@ reg(Key) ->
 reg1(Key) ->
     reg1(Key, default(Key)).
 
-%% @spec reg_or_locate(Key::key()) -> true
+%% @spec reg_or_locate(Key::key()) -> {pid(), NewValue}
 %%
 %% @doc
 %% @equiv reg_or_locate(Key, default(Key))
@@ -1490,6 +1490,8 @@ get_attributes1(_, _) ->
 %% @spec (Key) -> Pid
 %% @doc Lookup the Pid stored with a key.
 %%
+%% This function raises a `badarg' exception if `Key' is not registered.
+%% @end
 lookup_pid({_T,_,_} = Key) ->
     case where(Key) of
         undefined -> erlang:error(badarg);
@@ -1499,6 +1501,8 @@ lookup_pid({_T,_,_} = Key) ->
 %% @spec (Key) -> Value
 %% @doc Lookup the value stored with a key.
 %%
+%% This function raises a `badarg' exception if `Key' is not registered.
+%% @end
 lookup_value({T,_,_} = Key) ->
     if T==n orelse T==a ->
             ets:lookup_element(?TAB, {Key,T}, 3);
@@ -1506,13 +1510,13 @@ lookup_value({T,_,_} = Key) ->
             erlang:error(badarg)
     end.
 
-%% @spec (Key::key()) -> pid()
+%% @spec (Key::key()) -> pid() | undefined
 %%
 %% @doc Returns the pid registered as Key
 %%
 %% The type of registration must be either name or aggregated counter.
-%% Otherwise this function will exit. Use {@link lookup_pids/1} in these
-%% cases.
+%% Otherwise this function will raise a `badarg' exception.
+%% Use {@link lookup_pids/1} in these cases.
 %% @end
 %%
 where(Key) ->

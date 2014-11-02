@@ -997,8 +997,11 @@ lookup_pid(Key) -&gt; Pid
 </code></pre>
 <br />
 
+
 Lookup the Pid stored with a key.
 
+
+This function raises a `badarg` exception if `Key` is not registered.
 <a name="lookup_pids-1"></a>
 
 ### lookup_pids/1 ###
@@ -1031,8 +1034,11 @@ lookup_value(Key) -&gt; Value
 </code></pre>
 <br />
 
+
 Lookup the value stored with a key.
 
+
+This function raises a `badarg` exception if `Key` is not registered.
 <a name="lookup_values-1"></a>
 
 ### lookup_values/1 ###
@@ -1218,7 +1224,7 @@ Register a name or property for the current process
 
 
 <pre><code>
-reg_or_locate(Key::<a href="#type-key">key()</a>) -&gt; true
+reg_or_locate(Key::<a href="#type-key">key()</a>) -&gt; {pid(), NewValue}
 </code></pre>
 <br />
 
@@ -1755,7 +1761,7 @@ that the position is omitted; in gproc, the value position is always `3`.
 
 
 <pre><code>
-where(Key::<a href="#type-key">key()</a>) -&gt; pid()
+where(Key::<a href="#type-key">key()</a>) -&gt; pid() | undefined
 </code></pre>
 <br />
 
@@ -1764,8 +1770,8 @@ Returns the pid registered as Key
 
 
 The type of registration must be either name or aggregated counter.
-Otherwise this function will exit. Use [`lookup_pids/1`](#lookup_pids-1) in these
-cases.
+Otherwise this function will raise a `badarg` exception.
+Use [`lookup_pids/1`](#lookup_pids-1) in these cases.
 <a name="whereis_name-1"></a>
 
 ### whereis_name/1 ###
