@@ -736,7 +736,8 @@ remove_entry(Key, Pid, Event) ->
 	    remove_rev_entry(get_opts(Pid, Key), Pid, Key, Event);
 	[{_, _OtherPid, _}] ->
 	    ets:delete(?TAB, {Pid, Key}),
-	    []
+	    [];
+	[] -> []
     end.
 
 remove_rev_entry(Opts, Pid, {T,g,_} = K, Event) when T==n; T==a ->
