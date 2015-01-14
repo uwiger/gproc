@@ -995,5 +995,5 @@ add_follow_to_waiters(Waiters, {T,_,_} = K, Pid, Ref, S) ->
             {reply, Ref, [{insert, [Obj, Rev]}], S};
        true ->
             {reply, Ref, [{insert, [Obj, Rev]},
-                          {notify, [{Pid, Msg}]}]}
+                          {notify, [{Pid, Msg}]}], S}
     end.

@@ -795,8 +795,8 @@ t_subscribe() ->
 t_simple_pool()->
     Key = p1w1,
     From = {n,l,Key},
-    P = t_spawn_reg(From),
-
+    _P = t_spawn_reg(From),
+    
     %% create a new pool
     ?assertEqual(gproc_pool:new(p1), ok),
 
@@ -818,7 +818,7 @@ t_simple_pool()->
     Ref = erlang:make_ref(),
     gproc:send(From, {self(), Ref, die}),
     receive
-        {_, Ref, Returned}=X ->
+        {_, Ref, Returned} ->
             ?assertEqual(Returned, ok)
     after 1000 ->
             %% the next 3 tests should fail if the worker is still alive
