@@ -127,7 +127,7 @@ got_msg(Pb, Tag) ->
 	    end}).
 
 t_pool_contains_atleast(Pool,N)->
-    Existing = lists:foldl(fun({X,Y},Acc)->
+    Existing = lists:foldl(fun({_X,_Y},Acc)->
                                    Acc+1;
                               (_,Acc) ->
                                    Acc
