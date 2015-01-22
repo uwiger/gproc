@@ -21,6 +21,9 @@
 %% For a detailed description, see
 %% <a href="erlang07-wiger.pdf">erlang07-wiger.pdf</a>.
 %%
+%% <b>NOTE:</b> The functions in the Gproc API expect the Gproc application
+%% to be running.
+%%
 %% <h2>Tuning Gproc performance</h2>
 %%
 %% Gproc relies on a central server and an ordered-set ets table.

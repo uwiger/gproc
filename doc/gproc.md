@@ -23,6 +23,11 @@ For a detailed description, see
 
 
 
+__NOTE:__ The functions in the Gproc API expect the Gproc application
+to be running.
+
+
+
 
 ## Tuning Gproc performance ##
 
