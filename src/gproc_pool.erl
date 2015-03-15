@@ -86,7 +86,8 @@
          code_change/3]).
 
 -export([test/1, test/3, ptest/4, test_run/2, test_run1/2, test_run2/2,
-         test_run0/2, setup_test_pool/3, remove_test_pool/1]).
+         test_run0/2, setup_test_pool/3, setup_test_pool/4,
+	 remove_test_pool/1]).
 
 -define(POOL(Pool), {p,l,{?MODULE,Pool}}).
 -define(POOL_CUR(Pool), {c,l,{?MODULE,Pool,cur}}).
@@ -454,11 +455,17 @@ claim_w(Pool, F, W) ->
 	    Other
     end.
 
--define(CLAIM_CHUNK, 30).
+%% Define how many workers to select in each chunk. We want to strike
+%% a good compromise between the cost of succeeding on the first try
+%% (likely a common event) and the cost of retrying. In my measurements,
+%% if a chunk size of 1 costs ca 30 us (on my Macbook), a chunk size of 5
+%% adds only ca 20% to the cost, i.e. a few us.
+-define(CLAIM_CHUNK, 5).
 
 claim_(Pool, F) ->
-    case gproc:select({l,n}, [{ {{n,l,[?MODULE,Pool,'$1','_']}, '_', 0}, [],
-                                [{{ {element,1,'$_'}, '$1' }}]}],
+    %% Sorry, but we use ets:select/3 here in order to shave off a few us.
+    case ets:select(gproc, [{ {{{n,l,[?MODULE,Pool,'_','_']},n}, '$1', 0}, [],
+			      [{{ {element,1,{element,1,'$_'}}, '$1' }}]}],
 		     ?CLAIM_CHUNK) of
         {[_|_] = Workers, Cont} ->
             case try_claim(Workers, F) of
@@ -474,7 +481,7 @@ claim_(Pool, F) ->
 claim_cont('$end_of_table', _) ->
     false;
 claim_cont(Cont, F) ->
-    case gproc:select(Cont) of
+    case ets:select(Cont) of
         {[_|_] = Workers, Cont1} ->
             case try_claim(Workers, F) of
                 {true, _} = True ->
@@ -996,14 +1003,18 @@ f(_) ->
 
 
 %% @private
-setup_test_pool(P, Type0, Opts) ->
+setup_test_pool(P, Type, Opts) ->
+    setup_test_pool(P, Type, Opts, test_workers()).
+
+setup_test_pool(P, Type0, Opts, Workers) ->
     Type = case Type0 of {_, T} -> T; T when is_atom(T) -> T end,
     new(P, Type, Opts),
     [begin R = add_worker(P, W),
            io:fwrite("add_worker(~p, ~p) -> ~p; Ws = ~p~n",
                      [P, W, R, get_workers_(?POOL(P))]),
            connect_worker(P, W)
-     end || W <- test_workers()].
+     end || W <- Workers].
+
 
 %% @private
 remove_test_pool(P) ->
