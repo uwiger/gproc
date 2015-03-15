@@ -73,6 +73,7 @@
          pick_worker/1,        % (Pool)
          pick_worker/2,        % (Pool, Value)
          claim/2,              % (Pool, Fun)
+	 claim/3,              % (Pool, Fun, Wait)
          log/1,                % (WorkerId)
          randomize/1]).        % (Pool)
 
@@ -406,8 +407,15 @@ ret(Name, pid) ->
             false
     end.
 
+%% @equiv claim(Pool, F, nowait)
+claim(Pool, F) when is_function(F, 2) ->
+    claim(Pool, F, nowait).
 
-%% @spec claim(Pool::any(), Fun::function()) -> {true, Res} | false
+%% @spec claim(Pool, Fun, Wait) -> {true, Res} | false
+%%         Pool = any()
+%%         Fun  = function()
+%%         Wait = nowait | {busy_wait, integer()}
+%%
 %% @doc Picks the first available worker in the pool and applies `Fun'.
 %%
 %% A `claim' pool allows the caller to "claim" a worker during a short span
@@ -417,21 +425,43 @@ ret(Name, pid) ->
 %% The gproc name of the worker serves as a mutex, where its value is 0 (zero)
 %% if the worker is free, and 1 (one) if it is busy. The mutex operation is
 %% implemented using `gproc:update_counter/2'.
+%%
+%% `Wait == nowait' means that the call will return `false' immediately if
+%% there is no available worker.
+%%
+%% `Wait == {busy_wait, Timeout}' will keep repeating the claim attempt
+%% for `Timeout' milliseconds. If still no worker is available, it will
+%% return `false'.
 %% @end
-claim(Pool, F) when is_function(F, 2) ->
+claim(Pool, F, Wait) ->
     case gproc:get_value(?POOL(Pool), shared) of
-        {0, _} -> false;
-        {_, claim} ->
-            claim_(Pool, F);
-        _ ->
-            error(badarg)
+	{0, _} -> false;
+	{_, claim} ->
+	    W = setup_wait(Wait, Pool),
+	    claim_w(Pool, F, W);
+	_ ->
+	    error(badarg)
     end.
+
+claim_w(_Pool, _F, timeout) ->
+    false;
+claim_w(Pool, F, W) ->
+    case claim_(Pool, F) of
+	false ->
+	    claim_w(Pool, F, do_wait(W));
+	Other ->
+	    clear_wait(W),
+	    Other
+    end.
+
+-define(CLAIM_CHUNK, 30).
 
 claim_(Pool, F) ->
     case gproc:select({l,n}, [{ {{n,l,[?MODULE,Pool,'$1','_']}, '_', 0}, [],
-                                [{{ {element,1,'$_'}, '$1' }}]}], 1) of
-        {[{K, Pid}], Cont} ->
-            case try_claim(K, Pid, F) of
+                                [{{ {element,1,'$_'}, '$1' }}]}],
+		     ?CLAIM_CHUNK) of
+        {[_|_] = Workers, Cont} ->
+            case try_claim(Workers, F) of
                 {true, _} = True ->
                     True;
                 false ->
@@ -441,10 +471,12 @@ claim_(Pool, F) ->
             false
     end.
 
+claim_cont('$end_of_table', _) ->
+    false;
 claim_cont(Cont, F) ->
     case gproc:select(Cont) of
-        {[{K, Pid}], Cont1} ->
-            case try_claim(K, Pid, F) of
+        {[_|_] = Workers, Cont1} ->
+            case try_claim(Workers, F) of
                 {true, _} = True ->
                     True;
                 false ->
@@ -454,6 +486,16 @@ claim_cont(Cont, F) ->
             false
     end.
 
+try_claim([], _) ->
+    false;
+try_claim([{K,Pid}|T], F) ->
+    case try_claim(K, Pid, F) of
+	false ->
+	    try_claim(T, F);
+	Other ->
+	    Other
+    end.
+
 try_claim(K, Pid, F) ->
     case gproc:update_counter(K, [0, {1, 1, 1}]) of
         [0, 1] ->
@@ -461,13 +503,39 @@ try_claim(K, Pid, F) ->
             try  Res = F(K, Pid),
                  {true, Res}
             after
-                gproc:set_value(K, 0)
+                gproc:reset_counter(K)
             end;
         [1, 1] ->
             %% no
             false
     end.
 
+setup_wait(nowait, _) ->
+    nowait;
+setup_wait({busy_wait, MS}, Pool) ->
+    Ref = erlang:send_after(MS, self(), {claim, Pool}),
+    {busy_wait, Ref}.
+
+do_wait(nowait) ->
+    timeout;
+do_wait({busy_wait, Ref} = W) ->
+    %% Yielding here serves two purposes:
+    %% 1) Increase the chance that whoever's before us can finish
+    %% 2) The value of read_timer/1 only refreshes after yield (so I've heard)
+    erlang:yield(),
+    case erlang:read_timer(Ref) of
+	false ->
+	    erlang:cancel_timer(Ref),
+	    timeout;
+	_ ->
+	    W
+    end.
+
+clear_wait(nowait) ->
+    ok;
+clear_wait({busy_wait, Ref}) ->
+    erlang:cancel_timer(Ref),
+    ok.
 
 %% @spec log(GprocKey) -> integer()
 %% @doc Update a counter associated with a worker name.
@@ -978,11 +1046,14 @@ test_run1(_, _, S, M) ->
 
 %% @private
 test_run2(N, P) ->
-    test_run2(N, P, fun(K,_) -> log(K) end, 0, 0).
+    test_run2(N, P, fun(K,_) ->
+			    R = log(K),
+			    timer:sleep(crypto:rand_uniform(1,50)),
+			    R
+		    end, 0, 0).
 
 test_run2(N, P, F, S, M) when N > 0 ->
-    {T, {true, _}} = timer:tc(?MODULE, claim, [P, F]),
-    timer:sleep(crypto:rand_uniform(1,50)),
+    {T, {true, _}} = timer:tc(?MODULE, claim, [P, F, {busy_wait, 5000}]),
     test_run2(N-1, P, F, S+T, M+1);
 test_run2(_, _, _, S, M) ->
     S/M.

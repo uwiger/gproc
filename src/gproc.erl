@@ -1667,7 +1667,7 @@ update_counters1(_) ->
 
 
 %% @spec (Key) -> {ValueBefore, ValueAfter}
-%%   Key   = {c, Scope, Name}
+%%   Key   = {c, Scope, Name} | {n, Scope, Name}
 %%   Scope = l | g
 %%   ValueBefore = integer()
 %%   ValueAfter  = integer()
@@ -1678,22 +1678,34 @@ update_counters1(_) ->
 %% initial value. The reset operation is done using {@link update_counter/2},
 %% which allows for concurrent calls to {@link update_counter/2} without losing
 %% updates. Aggregated counters are updated accordingly.
+%%
+%% If `Key' refers to a unique name, the operation will depend on the value
+%% part of the registration being an integer(). While non-integer values are
+%% not permitted at all for counter objects, it is the user's responsibility to
+%% ensure that a name, on which `reset_counter/1' is to be performed, has the
+%% appropriate value type.
 %% @end
 %%
 reset_counter(Key) ->
     ?CATCH_GPROC_ERROR(reset_counter1(Key), [Key]).
 
-reset_counter1({c,g,_} = Key) ->
+reset_counter1({T,g,_} = Key) when T==c; T==n ->
     ?CHK_DIST,
     gproc_dist:reset_counter(Key);
+reset_counter1({n,l,_} = Key) ->
+    [{_, Pid, Current}] = ets:lookup(?TAB, {Key, n}),
+    {Current, update_counter(Key, get_initial(Pid, Key) - Current)};
 reset_counter1({c,l,_} = Key) ->
     Current = ets:lookup_element(?TAB, {Key, self()}, 3),
-    Initial = case ets:lookup(?TAB, {self(), Key}) of
-		  [{_, r}] -> 0;
-		  [{_, Opts}] ->
-		      proplists:get_value(initial, Opts, 0)
-	      end,
-    {Current, update_counter(Key, Initial - Current)}.
+    {Current, update_counter(Key, get_initial(self(), Key) - Current)}.
+
+get_initial(Pid, Key) ->
+    case ets:lookup(?TAB, {Pid, Key}) of
+	[{_, r}] -> 0;
+	[{_, Opts}] ->
+	    proplists:get_value(initial, Opts, 0)
+    end.
+
 
 %% @spec (Key::key(), Incr) -> integer() | [integer()]
 %%    Incr = IncrVal | UpdateOp | [UpdateOp]
