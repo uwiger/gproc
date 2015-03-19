@@ -460,14 +460,22 @@ do_set_counter_value({_,C,N} = Key, Value, Pid) ->
 update_counter({T,l,Ctr} = Key, Incr, Pid) when is_integer(Incr), T==c;
 						is_integer(Incr), T==n ->
     Res = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
-    update_aggr_counter(l, Ctr, Incr),
+    if T==c ->
+	    update_aggr_counter(l, Ctr, Incr);
+       true ->
+	    ok
+    end,
     Res;
 update_counter({T,l,Ctr} = Key, {Incr, Threshold, SetValue}, Pid)
   when is_integer(Incr), is_integer(Threshold), is_integer(SetValue), T==c;
        is_integer(Incr), is_integer(Threshold), is_integer(SetValue), T==n ->
     [Prev, New] = ets:update_counter(?TAB, {Key, Pid},
 				     [{3, 0}, {3, Incr, Threshold, SetValue}]),
-    update_aggr_counter(l, Ctr, New - Prev),
+    if T==c ->
+	    update_aggr_counter(l, Ctr, New - Prev);
+       true ->
+	    ok
+    end,
     New;
 update_counter({T,l,Ctr} = Key, Ops, Pid) when is_list(Ops), T==c;
 					       is_list(Ops), T==n ->
@@ -477,7 +485,11 @@ update_counter({T,l,Ctr} = Key, Ops, Pid) when is_list(Ops), T==c;
 	    [];
 	[Prev | Rest] ->
 	    [New | _] = lists:reverse(Rest),
-	    update_aggr_counter(l, Ctr, New - Prev),
+	    if T==c ->
+		    update_aggr_counter(l, Ctr, New - Prev);
+	       true ->
+		    ok
+	    end,
 	    Rest
     end;
 update_counter(_, _, _) ->
