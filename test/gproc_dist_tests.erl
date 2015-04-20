@@ -67,6 +67,9 @@ dist_test_() ->
                                        ?debugVal(t_shared_counter(Ns))
                                end,
                                fun() ->
+                                       ?debugVal(t_prop(Ns))
+                               end,
+                               fun() ->
                                        ?debugVal(t_mreg(Ns))
                                end,
                                fun() ->
@@ -124,6 +127,7 @@ run_dist_tests() ->
 -define(T_NAME, {n, g, {?MODULE, ?LINE, erlang:now()}}).
 -define(T_KVL, [{foo, "foo"}, {bar, "bar"}]).
 -define(T_COUNTER, {c, g, {?MODULE, ?LINE}}).
+-define(T_PROP, {p, g, ?MODULE}).
 
 t_simple_reg([H|_] = Ns) ->
     Name = ?T_NAME,
@@ -222,6 +226,15 @@ t_update_counters([H1,H2|_] = Ns) ->
     ?assertMatch(ok, t_call(P12, die)),
     ?assertMatch(ok, t_call(P2, die)).
 
+t_prop([H1,H2|_] = Ns) ->
+    {p, g, _} = P = ?T_PROP,
+    P1 = t_spawn_reg(H1, P, 1),
+    P2 = t_spawn_reg(H2, P, 2),
+    ?assertMatch(ok, t_read_everywhere(P, P1, Ns, 1)),
+    ?assertMatch(ok, t_read_everywhere(P, P2, Ns, 2)),
+    ?assertMatch(ok, t_call(P1, die)),
+    ?assertMatch(ok, t_read_everywhere(P, P1, Ns, badarg)),
+    ?assertMatch(ok, t_call(P2, die)).
 
 t_mreg([H|_] = Ns) ->
     Kvl = ?T_KVL,

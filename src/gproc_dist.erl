@@ -794,10 +794,8 @@ insert_globals(Globals) ->
 
 delete_globals(Globals) ->
     lists:foreach(
-      fun({{_,g,_},T} = K) when is_atom(T) ->
+      fun({{_,g,_},T} = K) when is_atom(T); is_pid(T) ->
               ets:delete(?TAB, K);
-         ({Key, Pid}) when is_pid(Pid); Pid==shared ->
-              ets:delete(?TAB, {Pid, Key});
          ({Pid, Key}) when is_pid(Pid); Pid==shared ->
 	      ets:delete(?TAB, {Pid, Key})
       end, Globals).
