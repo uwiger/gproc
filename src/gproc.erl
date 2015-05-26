@@ -1836,7 +1836,7 @@ bcast(Key, Msg) ->
 bcast(Ns, Key, Msg) ->
     ?CATCH_GPROC_ERROR(bcast1(Ns, Key, Msg), [Key, Msg]).
 
-bcast1(Ns, {T,l,_} = Key, Msg) when T==p; T==a; T==c; T==n; T==p ->
+bcast1(Ns, {T,l,_} = Key, Msg) when T==p; T==a; T==c; T==n ->
     send1(Key, Msg),
     gen_server:abcast(Ns -- [node()], gproc_bcast, {send, Key, Msg}),
     Msg.
