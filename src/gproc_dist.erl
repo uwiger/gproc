@@ -360,9 +360,8 @@ handle_leader_call({monitor, {T,g,_} = K, MPid, Type}, _From, S, _E) when T==n;
             Opts1 = gproc_lib:add_monitor(Opts, MPid, Ref, Type),
             _ = gproc_lib:ensure_monitor(MPid, g),
             Obj = {{Pid,K}, Opts1},
-            Rev = {{MPid,K}, []},
-            ets:insert(?TAB, [Obj, Rev]),
-            {reply, Ref, [{insert, [Obj, Rev]}], S};
+            ets:insert(?TAB, Obj),
+            {reply, Ref, [{insert, [Obj]}], S};
         LookupRes ->
             Ref = make_ref(),
             case Type of
