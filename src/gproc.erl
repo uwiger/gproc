@@ -448,35 +448,53 @@ do_get_env(Context, App, Key, Alternatives, Set) ->
 set_env(Scope, App, Key, Value, Strategy)
   when Scope==l, is_atom(App), is_atom(Key);
        Scope==g, is_atom(App), is_atom(Key) ->
-    case is_valid_set_strategy(Strategy, Value) of
+    case is_valid_set_strategy(Strategy, Value, Scope) of
         true ->
             update_cached_env(Scope, App, Key, Value),
-            set_strategy(Strategy, App, Key, Value);
+            set_strategy(Strategy, App, Key, Value, Scope);
         false ->
             erlang:error(badarg)
     end.
 
-check_alternatives([{default, Val}|Alts], Scope, App, Key, _, Set) ->
-    check_alternatives(Alts, Scope, App, Key, Val, Set);
-check_alternatives([H|T], Scope, App, Key, Def, Set) ->
-    case try_alternative(H, App, Key, Scope) of
+check_alternatives(Alts, Scope, App, Key, Def, Set) ->
+    check_alternatives(Alts, Scope, App, Key, Def, Set, []).
+
+check_alternatives([{default, Val}|Alts], Scope, App, Key, _, Set, Caches) ->
+    check_alternatives(Alts, Scope, App, Key, Val, Set, Caches);
+check_alternatives([H|T], Scope, App, Key, Def, Set, Caches) ->
+    {Alt, Cache} = fetch_alternative(H, Scope, Set),
+    case try_alternative(Alt, App, Key, Scope) of
         undefined ->
-            check_alternatives(T, Scope, App, Key, Def, Set);
+            check_alternatives(T, Scope, App, Key, Def, Set,
+			       maybe_cache(Cache, Alt, Caches));
         {ok, Value} ->
             if Set ->
-                    cache_env(Scope, App, Key, Value),
+                    cache_env(Scope, App, Key, Value, Caches),
                     Value;
                true ->
                     Value
             end
     end;
-check_alternatives([], Scope, App, Key, Def, Set) ->
+check_alternatives([], Scope, App, Key, Def, Set, Caches) ->
     if Set ->
-            cache_env(Scope, App, Key, Def);
+            cache_env(Scope, App, Key, Def, Caches);
        true ->
             ok
     end,
     Def.
+
+fetch_alternative({reg, Prop}, Scope, Set) ->
+    try get_value_shared({p, Scope, Prop}) of
+	{M, F} ->
+	    {{reg, Prop, M, F}, false};
+	{M, F, cache} ->
+	    {{reg, Prop, M, F}, Set}
+    catch
+	error:_ ->
+	    {undefined, false}
+    end;
+fetch_alternative(Alt, _, _) ->
+    {Alt, false}.
 
 try_alternative(error, App, Key, Scope) ->
     erlang:error(gproc_env, [App, Key, Scope]);
@@ -523,7 +541,9 @@ try_alternative({mnesia,Type,Key,Pos}, _, _, _) ->
         [] -> undefined;
         [Found] ->
             {ok, element(Pos, Found)}
-    end.
+    end;
+try_alternative({reg, Prop, Mod, Fun}, App, Key, _) ->
+    Mod:Fun(App, Key, Prop).
 
 os_env_key(Key) ->
     string:to_upper(atom_to_list(Key)).
@@ -536,33 +556,52 @@ lookup_env(Scope, App, Key, P) ->
             {ok, Value}
     end.
 
-cache_env(Scope, App, Key, Value) ->
+maybe_cache(true, Alt, Caches) ->
+    [Alt|Caches];
+maybe_cache(false, _, Caches) ->
+    Caches.
+
+cache_env(Scope, App, Key, Value, Caches) ->
     ?CATCH_GPROC_ERROR(
-       reg1({p, Scope, {gproc_env, App, Key}}, Value),
-       [Scope,App,Key,Value]).
+       cache_env1(Scope, App, Key, Value, Caches),
+       [Scope,App,Key,Value, Caches]).
+
+cache_env1(Scope, App, Key, Value, Caches) ->
+    reg1({p, Scope, {gproc_env, App, Key}}, Value),
+    set_strategy(Caches, App, Key, Value, Scope).
 
 update_cached_env(Scope, App, Key, Value) ->
     case lookup_env(Scope, App, Key, self()) of
         undefined ->
-            cache_env(Scope, App, Key, Value);
+            cache_env1(Scope, App, Key, Value, []);
         {ok, _} ->
             set_value({p, Scope, {gproc_env, App, Key}}, Value)
     end.
 
-is_valid_set_strategy([os_env|T], Value) ->
-    is_string(Value) andalso is_valid_set_strategy(T, Value);
-is_valid_set_strategy([{os_env, _}|T], Value) ->
-    is_string(Value) andalso is_valid_set_strategy(T, Value);
-is_valid_set_strategy([app_env|T], Value) ->
-    is_valid_set_strategy(T, Value);
-is_valid_set_strategy([{mnesia,_Type,_Oid,_Pos}|T], Value) ->
-    is_valid_set_strategy(T, Value);
-is_valid_set_strategy([], _) ->
+is_valid_set_strategy([os_env|T], Value, Scope) ->
+    is_string(Value) andalso is_valid_set_strategy(T, Value, Scope);
+is_valid_set_strategy([{os_env, _}|T], Value, Scope) ->
+    is_string(Value) andalso is_valid_set_strategy(T, Value, Scope);
+is_valid_set_strategy([app_env|T], Value, Scope) ->
+    is_valid_set_strategy(T, Value, Scope);
+is_valid_set_strategy([{mnesia,_Type,_Oid,_Pos}|T], Value, Scope) ->
+    is_valid_set_strategy(T, Value, Scope);
+is_valid_set_strategy([{reg, Property}|T], Value, Scope) ->
+    try get_value_shared({property, Scope, Property}) of
+	{Mod, Fun} when is_atom(Mod), is_atom(Fun) ->
+	    is_valid_set_strategy(T, Value, Scope);
+	{Mod, Fun, cache} when is_atom(Mod), is_atom(Fun) ->
+	    is_valid_set_strategy(T, Value, Scope);
+	_ -> false
+    catch
+	error:_ -> false
+    end;
+is_valid_set_strategy([], _, _) ->
     true;
-is_valid_set_strategy(_, _) ->
+is_valid_set_strategy(_, _, _) ->
     false.
 
-set_strategy([H|T], App, Key, Value) ->
+set_strategy([H|T], App, Key, Value, Scope) ->
     case H of
         app_env ->
             application:set_env(App, Key, Value);
@@ -586,10 +625,21 @@ set_strategy([H|T], App, Key, Value) ->
                                     Old
                             end,
                       mnesia:write(setelement(Pos, Rec, Value))
-              end)
+              end);
+	{reg, Property} ->
+	    case get_value_shared({p, Scope, Property}) of
+		{Mod, Fun} when is_atom(Mod), is_atom(Fun) ->
+		    Mod:Fun(App, Key, Value, Property);
+		{Mod, Fun, cache} when is_atom(Mod), is_atom(Fun) ->
+		    Mod:Fun(App, Key, Value, Property);
+		Other ->
+		    ?THROW_GPROC_ERROR({invalid_env_reg, [Property, Other]})
+	    end;
+	{reg, Property, Mod, Fun} ->
+	    Mod:Fun(App, Key, Value, Property)
     end,
-    set_strategy(T, App, Key, Value);
-set_strategy([], _, _, Value) ->
+    set_strategy(T, App, Key, Value, Scope);
+set_strategy([], _, _, Value, _) ->
     Value.
 
 is_string(S) ->
@@ -1016,10 +1066,11 @@ reg_shared1({T,_,_} = Key) when T==a; T==p; T==c ->
 %%
 %% Shared resources are all unique. They remain until explicitly unregistered
 %% (using {@link unreg_shared/1}). The types of shared resources currently
-%% supported are `counter' and `aggregated counter'. In listings and query
-%% results, shared resources appear as other similar resources, except that
-%% `Pid == shared'. To wit, update_counter({c,l,myCounter}, shared, 1) would
-%% increment the shared counter `myCounter' with 1, provided it exists.
+%% supported are `property', `counter' and `aggregated counter'.
+%% In listings and query results, shared resources appear as other similar
+%% resources, except that `Pid == shared'. To wit,
+%% update_counter({c,l,myCounter}, shared, 1) would increment the shared
+%% counter `myCounter' with 1, provided it exists.
 %%
 %% A shared aggregated counter will track updates in exactly the same way as
 %% an aggregated counter which is owned by a process.
