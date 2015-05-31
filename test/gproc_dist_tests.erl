@@ -61,6 +61,9 @@ dist_test_() ->
                                        ?debugVal(t_aggr_counter(Ns))
                                end,
                                fun() ->
+                                       ?debugVal(t_awaited_aggr_counter(Ns))
+                               end,
+                               fun() ->
                                        ?debugVal(t_update_counters(Ns))
                                end,
                                fun() ->
@@ -201,6 +204,29 @@ t_aggr_counter([H1,H2|_] = Ns) ->
     ?assertMatch(ok, t_call(Pc2, die)),
     ?assertMatch(ok, t_call(Pa, die)).
 
+t_awaited_aggr_counter([H1,H2|_] = Ns) ->
+    {c,g,Nm} = Ctr = ?T_COUNTER,
+    Aggr = {a,g,Nm},
+    Pc1 = t_spawn_reg(H1, Ctr, 3),
+    P = t_spawn(H2),
+    Ref = erlang:monitor(process, P),
+    P ! {self(), Ref, {apply, gproc, await, [Aggr]}},
+    t_sleep(),
+    P1 = t_spawn_reg(H2, Aggr),
+    ?assert(P1 == receive
+                      {P, Ref, Res} ->
+                          element(1, Res);
+                      {'DOWN', Ref, _, _, Reason} ->
+                          erlang:error(Reason);
+                      Other ->
+                          erlang:error({received, Other})
+                  end),
+    ?assertMatch(ok, t_read_everywhere(Aggr, P1, Ns, 3)),
+    ?assertMatch(ok, t_call(Pc1, die)),
+    ?assertMatch(ok, t_call(P, die)),
+    flush_down(Ref),
+    ?assertMatch(ok, t_call(P1, die)).
+
 t_update_counters([H1,H2|_] = Ns) ->
     {c,g,N1} = C1 = ?T_COUNTER,
     A1 = {a,g,N1},
@@ -213,7 +239,6 @@ t_update_counters([H1,H2|_] = Ns) ->
     ?assertMatch(ok, t_read_everywhere(C1, P12, Ns, 2)),
     ?assertMatch(ok, t_read_everywhere(C2, P2, Ns, 1)),
     ?assertMatch(ok, t_read_everywhere(A1, Pa1, Ns, 4)),
-    ?debugFmt("code:which(gproc_dist) = ~p~n", [code:which(gproc_dist)]),
     ?assertMatch([{C1,P1, 3},
 		  {C1,P12,4},
 		  {C2,P2, 0}], t_call(P1, {apply, gproc, update_counters,
@@ -347,12 +372,12 @@ t_standby_monitor([A,B|_] = Ns) ->
     ?assertMatch({gproc,unreg,Ref1,Na}, got_msg(Pc, gproc)),
     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, undefined)).
 
-t_follow_monitor([A,B|_] = Ns) ->
+t_follow_monitor([A,B|_]) ->
     Na = ?T_NAME,
     Pa = t_spawn(A, _Selective = true),
     Ref = t_call(Pa, {apply, gproc, monitor, [Na, follow]}),
     {gproc,unreg,Ref,Na} = got_msg(Pa),
-    Pb = t_spawn_reg(A, Na),
+    Pb = t_spawn_reg(B, Na),
     {gproc,registered,Ref,Na} = got_msg(Pa),
     ok = t_call(Pb, die),
     ok = t_call(Pa, die).

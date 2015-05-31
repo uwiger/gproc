@@ -84,6 +84,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_aggr_counter()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_awaited_aggr_counter()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_update_counters()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_prop()))}
@@ -228,6 +230,16 @@ t_simple_aggr_counter() ->
 	    gproc:audit_process(P1)
     end,
     ?assert(gproc:get_value({a,l,c1}) =:= 7).
+
+t_awaited_aggr_counter() ->
+    ?assert(gproc:reg({c,l,c1}, 3) =:= true),
+    gproc:nb_wait({a,l,c1}),
+    ?assert(gproc:reg({a,l,c1}) =:= true),
+    receive {gproc,_,registered,{{a,l,c1},_,_}} -> ok
+    after 1000 ->
+            error(timeout)
+    end,
+    ?assertMatch(3, gproc:get_value({a,l,c1})).
 
 t_update_counters() ->
     ?assert(gproc:reg({c,l,c1}, 3) =:= true),

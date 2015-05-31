@@ -25,3 +25,7 @@
 	end).
 
 -define(THROW_GPROC_ERROR(E), throw({gproc_error, E})).
+
+%% Used to wrap operations that may fail, but we ignore the exception.
+%% Use instead of catch, to avoid building a stacktrace unnecessarily.
+-define(MAY_FAIL(Expr), try (Expr) catch _:_ -> '$caught_exception' end).

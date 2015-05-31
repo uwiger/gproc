@@ -81,7 +81,9 @@ insert_reg({T,_,Name} = K, Value, Pid, Scope, Event) when T==a; T==n ->
             MaybeScan();
         false ->
             if T==n; T==a ->
-                    maybe_waiters(K, Pid, Value, T, Event);
+                    Res = maybe_waiters(K, Pid, Value, T, Event),
+                    MaybeScan(),
+                    Res;
                true ->
                     false
             end
@@ -442,13 +444,13 @@ do_set_value({T,_,_} = Key, Value, Pid) ->
 	    T==n orelse T==a -> T;
 	    true -> Pid
          end,
-    case (catch ets:lookup_element(?TAB, {Key,K2}, 2)) of
-        {'EXIT', {badarg, _}} ->
-            false;
+    try ets:lookup_element(?TAB, {Key,K2}, 2) of
         Pid ->
             ets:insert(?TAB, {{Key, K2}, Pid, Value});
         _ ->
             false
+    catch
+        error:_ -> false
     end.
 
 do_set_counter_value({_,C,N} = Key, Value, Pid) ->
@@ -510,7 +512,7 @@ expand_ops(_) ->
 
 
 update_aggr_counter(C, N, Val) ->
-    catch ets:update_counter(?TAB, {{a,C,N},a}, {3, Val}).
+    ?MAY_FAIL(ets:update_counter(?TAB, {{a,C,N},a}, {3, Val})).
 
 scan_existing_counters(Ctxt, Name) ->
     Head = {{{c,Ctxt,Name},'_'},'_','$1'},

@@ -635,7 +635,7 @@ await(Key) ->
 %% @spec await(Key::key(), Timeout) -> {pid(),Value}
 %%   Timeout = integer() | infinity
 %%
-%% @doc Wait for a local name to be registered.
+%% @doc Wait for a name or aggregated counter to be registered.
 %% The function raises an exception if the timeout expires. Timeout must be
 %% either an interger &gt; 0 or 'infinity'.
 %% A small optimization: we first perform a lookup, to see if the name
@@ -650,7 +650,7 @@ await(Key, Timeout) ->
 %% @spec await(Node::node(), Key::key(), Timeout) -> {pid(),Value}
 %%   Timeout = integer() | infinity
 %%
-%% @doc Wait for a local name to be registered on `Node'.
+%% @doc Wait for a name or aggregated counter to be registered on `Node'.
 %% This function works exactly like {@link await/2}, but queries a remote
 %% node instead. An exception is thrown if `Node' cannot be reached. If gproc
 %% is not running on a given node, this is treated the same as the node being
@@ -662,11 +662,11 @@ await(Node, Key, Timeout) when Node == node() ->
 await(Node, Key, Timeout) when is_atom(Node) ->
     ?CATCH_GPROC_ERROR(await1(Node, Key, Timeout), [Node, Key, Timeout]).
 
-await1({n,g,_} = Key, Timeout) ->
+await1({T,g,_} = Key, Timeout) when T=:=n; T=:=a ->
     ?CHK_DIST,
     request_wait(Key, Timeout);
-await1({n,l,_} = Key, Timeout) ->
-    case ets:lookup(?TAB, {Key, n}) of
+await1({T,l,_} = Key, Timeout) when T=:=n; T=:=a ->
+    case ets:lookup(?TAB, {Key, T}) of
         [{_, Pid, Value}] ->
 	    case is_process_alive(Pid) of
 		true ->
@@ -698,7 +698,7 @@ request_wait({_,g,_} = Key, Timeout) ->
 request_wait(Key, Timeout) ->
     request_wait(node(), Key, Timeout).
 
-request_wait(N, {n,C,_} = Key, Timeout) when C==l; C==g ->
+request_wait(N, {_,C,_} = Key, Timeout) when C==l; C==g ->
     TRef = case Timeout of
                infinity -> no_timer;
                T when is_integer(T), T > 0 ->
@@ -741,7 +741,7 @@ request_wait(N, {n,C,_} = Key, Timeout) when C==l; C==g ->
 wide_await(Nodes, Key, Timeout) ->
     ?CATCH_GPROC_ERROR(wide_await1(Nodes, Key, Timeout), [Nodes, Key, Timeout]).
 
-wide_await1(Nodes, {n,l,_} = Key, Timeout) ->
+wide_await1(Nodes, {T,l,_} = Key, Timeout) when T=:=n; T=:=a ->
     {_, Ref} = spawn_monitor(fun() ->
 				     wide_request_wait(Nodes, Key, Timeout)
 			     end),
@@ -758,7 +758,7 @@ wide_await1(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 
-wide_request_wait(Nodes, {n,l,_} = Key, Timeout) ->
+wide_request_wait(Nodes, {Tk,l,_} = Key, Timeout) when Tk=:=n; Tk=:=a ->
         TRef = case Timeout of
                infinity -> no_timer;
                T when is_integer(T), T > 0 ->
@@ -771,8 +771,8 @@ wide_request_wait(Nodes, {n,l,_} = Key, Timeout) ->
 	     fun(Node) ->
 		     S = {?MODULE, Node},
 		     Ref = erlang:monitor(process, S),
-		     catch erlang:send(S, {'$gen_call', {self(), Ref}, Req},
-				       [noconnect]),
+		     ?MAY_FAIL(erlang:send(S, {'$gen_call', {self(), Ref}, Req},
+                                           [noconnect])),
 		     {Node, Ref}
 	     end, Nodes),
     collect_replies(Refs, Key, TRef).
@@ -798,7 +798,7 @@ collect_replies(Refs, Key, TRef) ->
 
 %% @spec nb_wait(Key::key()) -> Ref
 %%
-%% @doc Wait for a local name to be registered.
+%% @doc Wait for a name or aggregated counter to be registered.
 %% The caller can expect to receive a message,
 %% {gproc, Ref, registered, {Key, Pid, Value}}, once the name is registered.
 %% @end
@@ -808,23 +808,24 @@ nb_wait(Key) ->
 
 %% @spec nb_wait(Node::node(), Key::key()) -> Ref
 %%
-%% @doc Wait for a local name to be registered on `Node'.
+%% @doc Wait for a name or aggregated counter to be registered on `Node'.
 %% The caller can expect to receive a message,
 %% {gproc, Ref, registered, {Key, Pid, Value}}, once the name is registered.
 %% @end
 %%
-nb_wait(Node, {n,l,_} = Key) when is_atom(Node) ->
+nb_wait(Node, Key) ->
     ?CATCH_GPROC_ERROR(nb_wait1(Node, Key), [Node, Key]).
 
-nb_wait1({n,g,_} = Key) ->
+nb_wait1({T,g,_} = Key) when T=:=n; T=:=a ->
     ?CHK_DIST,
     call({await, Key, self()}, g);
-nb_wait1({n,l,_} = Key) ->
+nb_wait1({T,l,_} = Key) when T=:=n; T=:=a ->
     call({await, Key, self()}, l);
 nb_wait1(_) ->
     ?THROW_GPROC_ERROR(badarg).
 
-nb_wait1(Node, {n,l,_} = Key) when is_atom(Node) ->
+nb_wait1(Node, {T,l,_} = Key) when is_atom(Node), T=:=n;
+                                   is_atom(Node), T=:=a ->
     call(Node, {await, Key, self()}, l).
 
 
