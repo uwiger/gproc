@@ -2385,7 +2385,7 @@ process_is_down(Pid) when is_pid(Pid) ->
                  ({{r,l,Rsrc} = K, _}) ->
                       Key = {K, Pid},
                       ets:delete(?TAB, Key),
-                      update_refcount(l, Rsrc, -1);
+                      update_resource_count(l, Rsrc, -1);
                  ({{rc,l,_} = K, R}) ->
                       remove_aggregate(rc, K, R, Pid);
                  ({{a,l,_} = K, R}) ->
@@ -2398,8 +2398,8 @@ process_is_down(Pid) when is_pid(Pid) ->
             ok
     end.
 
-update_refcount(C, R, V) ->
-    gproc_lib:update_refcount(C, R, V),
+update_resource_count(C, R, V) ->
+    gproc_lib:update_resource_count(C, R, V),
     flush_unregs().
 
 flush_unregs() ->
