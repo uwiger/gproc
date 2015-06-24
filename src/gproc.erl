@@ -42,43 +42,13 @@
 %%
 %% @end
 
-%% @type type()  = n | p | c | a. n = name; p = property; c = counter;
-%%                                a = aggregate_counter
-%% @type scope() = l | g. l = local registration; g = global registration
-%%
-%% @type reg_id() = {type(), scope(), any()}.
-%% @type unique_id() = {n | a, scope(), any()}.
-%%
-%% @type monitor_type() = info | standby | follow.
-%%
-%% @type sel_scope() = scope | all | global | local.
-%% @type sel_type() = type() | names | props | counters | aggr_counters.
-%% @type context() = {scope(), type()} | type(). {'all','all'} is the default
-%%
-%% @type headpat() = {keypat(),pidpat(),ValPat}.
-%% @type keypat() = {sel_type() | sel_var(),
-%%                   l | g | sel_var(),
-%%                   any()}.
-%% @type pidpat() = pid() | sel_var().
-%% @type sel_var() = DollarVar | '_'.
-%% @type sel_pattern() = [{headpat(), Guards, Prod}].
-%% @type key()   = {type(), scope(), any()}.
-%%
-%% update_counter increment
-%% @type ctr_incr()   = integer().
-%% @type ctr_thr()    = integer().
-%% @type ctr_setval() = integer().
-%% @type ctr_update()  = ctr_incr()
-%% 		     | {ctr_incr(), ctr_thr(), ctr_setval()}.
-%% @type increment() = ctr_incr() | ctr_update() | [ctr_update()].
-
 -module(gproc).
 -behaviour(gen_server).
 
 -export([start_link/0,
-         reg/1, reg/2, unreg/1, set_attributes/2,
+         reg/1, reg/2, reg/3, unreg/1, set_attributes/2,
 	 reg_or_locate/1, reg_or_locate/2, reg_or_locate/3,
-	 reg_shared/1, reg_shared/2, unreg_shared/1,
+	 reg_shared/1, reg_shared/2, reg_shared/3, unreg_shared/1,
 	 set_attributes_shared/2, set_value_shared/2,
          mreg/3,
          munreg/3,
@@ -161,6 +131,40 @@
 -include("gproc_int.hrl").
 -include("gproc.hrl").
 
+-export_type([scope/0, type/0, key/0,
+              context/0, sel_pattern/0, sel_scope/0, sel_context/0,
+              reg_id/0, unique_id/0, monitor_type/0]).
+
+-type type()     :: n | p | c | a | r | rc.
+-type scope()    :: l | g.
+-type context()  :: {scope(),type()} | type().
+-type sel_type() :: type()
+                    | names | props | counters | aggr_counters
+                    | resources | resource_counters.
+
+-type sel_var() :: '_' | atom().
+-type keypat()  :: {sel_type() | sel_var(), l | g | sel_var(), any()}.
+-type pidpat()  :: pid() | sel_var().
+-type headpat() :: {keypat(), pidpat(), any()}.
+-type key()     :: {type(), scope(), any()}.
+
+-type sel_pattern() :: [{headpat(), list(), list()}].
+
+-type reg_id() :: {type(), scope(), any()}.
+-type unique_id() :: {n | a, scope(), any()}.
+-type monitor_type() :: info | standby | follow.
+-type sel_scope() :: scope | all | global | local.
+-type sel_context() :: {scope(), type()} | type().
+
+%% update_counter increment
+-type ctr_incr()   :: integer().
+-type ctr_thr()    :: integer().
+-type ctr_setval() :: integer().
+-type ctr_update()  :: ctr_incr()
+		     | {ctr_incr(), ctr_thr(), ctr_setval()}.
+-type increment() :: ctr_incr() | ctr_update() | [ctr_update()].
+
+
 -define(SERVER, ?MODULE).
 %%-define(l, l(?LINE)). % when activated, calls a traceable empty function
 -define(l, ignore).
@@ -196,7 +200,8 @@ start_link() ->
 %% @doc Registers a local (unique) name. @equiv reg({n,l,Name})
 %% @end
 %%
-add_local_name(Name)  -> ?CATCH_GPROC_ERROR(reg1({n,l,Name}, undefined), [Name]).
+add_local_name(Name)  ->
+    ?CATCH_GPROC_ERROR(reg1({n,l,Name}, undefined, []), [Name]).
 
 
 %% spec(Name::any()) -> true
@@ -204,7 +209,8 @@ add_local_name(Name)  -> ?CATCH_GPROC_ERROR(reg1({n,l,Name}, undefined), [Name])
 %% @doc Registers a global (unique) name. @equiv reg({n,g,Name})
 %% @end
 %%
-add_global_name(Name) -> ?CATCH_GPROC_ERROR(reg1({n,g,Name}, undefined), [Name]).
+add_global_name(Name) ->
+    ?CATCH_GPROC_ERROR(reg1({n,g,Name}, undefined, []), [Name]).
 
 
 %% spec(Name::any(), Value::any()) -> true
@@ -213,7 +219,7 @@ add_global_name(Name) -> ?CATCH_GPROC_ERROR(reg1({n,g,Name}, undefined), [Name])
 %% @end
 %%
 add_local_property(Name , Value) ->
-    ?CATCH_GPROC_ERROR(reg1({p,l,Name}, Value), [Name, Value]).
+    ?CATCH_GPROC_ERROR(reg1({p,l,Name}, Value, []), [Name, Value]).
 
 %% spec(Name::any(), Value::any()) -> true
 %%
@@ -221,7 +227,7 @@ add_local_property(Name , Value) ->
 %% @end
 %%
 add_global_property(Name, Value) ->
-    ?CATCH_GPROC_ERROR(reg1({p,g,Name}, Value), [Name, Value]).
+    ?CATCH_GPROC_ERROR(reg1({p,g,Name}, Value, []), [Name, Value]).
 
 %% spec(Name::any(), Initial::integer()) -> true
 %%
@@ -229,7 +235,7 @@ add_global_property(Name, Value) ->
 %% @end
 %%
 add_local_counter(Name, Initial) when is_integer(Initial) ->
-    ?CATCH_GPROC_ERROR(reg1({c,l,Name}, Initial), [Name, Initial]).
+    ?CATCH_GPROC_ERROR(reg1({c,l,Name}, Initial, []), [Name, Initial]).
 
 
 %% spec(Name::any(), Initial::integer()) -> true
@@ -248,7 +254,7 @@ add_shared_local_counter(Name, Initial) when is_integer(Initial) ->
 %% @end
 %%
 add_global_counter(Name, Initial) when is_integer(Initial) ->
-    ?CATCH_GPROC_ERROR(reg1({c,g,Name}, Initial), [Name, Initial]).
+    ?CATCH_GPROC_ERROR(reg1({c,g,Name}, Initial, []), [Name, Initial]).
 
 %% spec(Name::any()) -> true
 %%
@@ -538,7 +544,7 @@ lookup_env(Scope, App, Key, P) ->
 
 cache_env(Scope, App, Key, Value) ->
     ?CATCH_GPROC_ERROR(
-       reg1({p, Scope, {gproc_env, App, Key}}, Value),
+       reg1({p, Scope, {gproc_env, App, Key}}, Value, []),
        [Scope,App,Key,Value]).
 
 update_cached_env(Scope, App, Key, Value) ->
@@ -604,13 +610,13 @@ is_string(S) ->
 %% @spec reg(Key::key()) -> true
 %%
 %% @doc
-%% @equiv reg(Key, default(Key))
+%% @equiv reg(Key, default(Key), [])
 %% @end
 reg(Key) ->
     ?CATCH_GPROC_ERROR(reg1(Key), [Key]).
 
 reg1(Key) ->
-    reg1(Key, default(Key)).
+    reg1(Key, default(Key), []).
 
 %% @spec reg_or_locate(Key::key()) -> {pid(), NewValue}
 %%
@@ -662,10 +668,10 @@ await(Node, Key, Timeout) when Node == node() ->
 await(Node, Key, Timeout) when is_atom(Node) ->
     ?CATCH_GPROC_ERROR(await1(Node, Key, Timeout), [Node, Key, Timeout]).
 
-await1({T,g,_} = Key, Timeout) when T=:=n; T=:=a ->
+await1({T,g,_} = Key, Timeout) when T=:=n; T=:=a; T=:=rc ->
     ?CHK_DIST,
     request_wait(Key, Timeout);
-await1({T,l,_} = Key, Timeout) when T=:=n; T=:=a ->
+await1({T,l,_} = Key, Timeout) when T=:=n; T=:=a; T=:=rc ->
     case ets:lookup(?TAB, {Key, T}) of
         [{_, Pid, Value}] ->
 	    case is_process_alive(Pid) of
@@ -685,12 +691,12 @@ await1({T,l,_} = Key, Timeout) when T=:=n; T=:=a ->
             request_wait(Key, Timeout)
     end;
 await1(_, _) ->
-    throw(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 await1(N, {n,l,_} = Key, Timeout) when is_atom(N) ->
     request_wait(N, Key, Timeout);
 await1(_, _, _) ->
-    throw(badarg).
+    ?THROW_GPROC_ERROR(badarg).
 
 
 request_wait({_,g,_} = Key, Timeout) ->
@@ -816,16 +822,17 @@ nb_wait(Key) ->
 nb_wait(Node, Key) ->
     ?CATCH_GPROC_ERROR(nb_wait1(Node, Key), [Node, Key]).
 
-nb_wait1({T,g,_} = Key) when T=:=n; T=:=a ->
+nb_wait1({T,g,_} = Key) when T=:=n; T=:=a; T=:=rc ->
     ?CHK_DIST,
     call({await, Key, self()}, g);
-nb_wait1({T,l,_} = Key) when T=:=n; T=:=a ->
+nb_wait1({T,l,_} = Key) when T=:=n; T=:=a; T=:=rc ->
     call({await, Key, self()}, l);
 nb_wait1(_) ->
     ?THROW_GPROC_ERROR(badarg).
 
 nb_wait1(Node, {T,l,_} = Key) when is_atom(Node), T=:=n;
-                                   is_atom(Node), T=:=a ->
+                                   is_atom(Node), T=:=a;
+                                   is_atom(Node), T=:=rc ->
     call(Node, {await, Key, self()}, l).
 
 
@@ -946,25 +953,65 @@ demonitor1(_, _) ->
 %%
 %%
 reg(Key, Value) ->
-    ?CATCH_GPROC_ERROR(reg1(Key, Value), [Key, Value]).
+    ?CATCH_GPROC_ERROR(reg1(Key, Value, []), [Key, Value]).
 
-reg1({_,g,_} = Key, Value) ->
+%% @spec reg(Key::key(), Value, Attrs::[{atom(),any()}]) -> true
+%%
+%% @doc Register a name or property for the current process
+%% `Attrs' (default: `[]') can be inspected using {@link get_attribute/2}.
+%%
+%% The structure of `Key' is `{Type, Context, Name}', where:
+%%
+%% * `Context :: l | g' - `l' means 'local' context; `g' means 'global'
+%% * `Type :: p | n | c | a | r | rc' specifies the type of entry
+%%
+%% The semantics of the different types:
+%%
+%% * `p' - 'property', is non-unique, i.e. different processes can each
+%%    register a property with the same name.
+%% * `n' - 'name, is unique within the given context (local or global).
+%% * `c' - 'counter', is similar to a property, but has a numeric value
+%%    and behaves roughly as an ets counter (see {@link update_counter/2}.)
+%% * `a' - 'aggregated counter', is automatically updated by gproc, and
+%%    reflects the sum of all counter objects with the same name in the given
+%%    scope. The initial value for an aggregated counter must be `undefined'.
+%% * `r' - 'resource property', behaves like a property, but can be tracked
+%%    with a 'resource counter'.
+%% * `rc' - 'resource counter', tracks the number of resource properties
+%%    with the same name. When the resource count reaches `0', any triggers
+%%    specified using an `on_zero' attribute may be executed (see below).
+%%
+%% On-zero triggers:
+%%
+%% `Msg = {gproc, resource_on_zero, Context, Name, Pid}'
+%%
+%% * `{send, Key}' - run `gproc:send(Key, Msg)'
+%% * `{bcast, Key}' - run `gproc:bcast(Key, Msg)'
+%% * `publish' - run
+%%  `gproc_ps:publish(Context, gproc_resource_on_zero, {Context, Name, Pid})'
+%% * `{unreg_shared, Type, Name}' - unregister the shared key
+%%  `{Type, Context, Name}'
+%% @end
+reg(Key, Value, Attrs) ->
+    ?CATCH_GPROC_ERROR(reg1(Key, Value, Attrs), [Key, Value, Attrs]).
+
+reg1({T,g,_} = Key, Value, As) when T==p; T==a; T==c; T==n; T==r; T==rc ->
     %% anything global
     ?CHK_DIST,
-    gproc_dist:reg(Key, Value);
-reg1({p,l,_} = Key, Value) ->
-    local_reg(Key, Value);
-reg1({a,l,_} = Key, undefined) ->
-    call({reg, Key, undefined});
-reg1({c,l,_} = Key, Value) when is_integer(Value) ->
-    call({reg, Key, Value});
-reg1({n,l,_} = Key, Value) ->
-    call({reg, Key, Value});
-reg1({r,l,_} = Key, Value) ->
-    call({reg, Key, Value});
-reg1({rc,l,_} = Key, Value) ->
-    call({reg, Key, Value});
-reg1(_, _) ->
+    gproc_dist:reg(Key, Value, As);
+reg1({p,l,_} = Key, Value, As) ->
+    local_reg(Key, Value, As);
+reg1({a,l,_} = Key, undefined, As) ->
+    call({reg, Key, undefined, As});
+reg1({c,l,_} = Key, Value, As) when is_integer(Value) ->
+    call({reg, Key, Value, As});
+reg1({n,l,_} = Key, Value, As) ->
+    call({reg, Key, Value, As});
+reg1({r,l,_} = Key, Value, As) ->
+    call({reg, Key, Value, As});
+reg1({rc,l,_} = Key, Value, As) ->
+    call({reg, Key, Value, As});
+reg1(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 %% @spec reg_or_locate(Key::key(), Value) -> {pid(), NewValue}
@@ -1031,22 +1078,25 @@ reg_shared1({T,_,_} = Key) when T==a; T==p; T==c ->
 %% @end
 %%
 reg_shared(Key, Value) ->
-    ?CATCH_GPROC_ERROR(reg_shared1(Key, Value), [Key, Value]).
+    ?CATCH_GPROC_ERROR(reg_shared1(Key, Value, []), [Key, Value]).
+
+reg_shared(Key, Value, Attrs) when is_list(Attrs) ->
+    ?CATCH_GPROC_ERROR(reg_shared1(Key, Value, Attrs), [Key, Value, Attrs]).
 
 %% @private
-reg_shared1({_,g,_} = Key, Value) ->
+reg_shared1({_,g,_} = Key, Value, As) ->
     %% anything global
     ?CHK_DIST,
-    gproc_dist:reg_shared(Key, Value);
-reg_shared1({a,l,_} = Key, undefined) ->
-    call({reg_shared, Key, undefined});
-reg_shared1({c,l,_} = Key, Value) when is_integer(Value) ->
-    call({reg_shared, Key, Value});
-reg_shared1({p,l,_} = Key, Value) ->
-    call({reg_shared, Key, Value});
-reg_shared1({rc,l,_} = Key, undefined) ->
-    call({reg_shared, Key, undefined});
-reg_shared1(_, _) ->
+    gproc_dist:reg_shared(Key, Value, As);
+reg_shared1({a,l,_} = Key, undefined, As) ->
+    call({reg_shared, Key, undefined, As});
+reg_shared1({c,l,_} = Key, Value, As) when is_integer(Value) ->
+    call({reg_shared, Key, Value, As});
+reg_shared1({p,l,_} = Key, Value, As) ->
+    call({reg_shared, Key, Value, As});
+reg_shared1({rc,l,_} = Key, undefined, As) ->
+    call({reg_shared, Key, undefined, As});
+reg_shared1(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 %% @spec mreg(type(), scope(), [{Key::any(), Value::any()}]) -> true
@@ -1243,7 +1293,7 @@ select({?TAB, _, _, _, _, _, _, _} = Continuation) ->
 select(Pat) ->
     select(all, Pat).
 
-%% @spec (Context::context(), Pat::sel_pattern()) -> [{Key, Pid, Value}]
+%% @spec (Context::sel_context(), Pat::sel_pattern()) -> [{Key, Pid, Value}]
 %%
 %% @doc Perform a select operation with limited context on the process registry
 %%
@@ -1293,10 +1343,15 @@ select_count(Context, Pat) ->
 %%% Local properties can be registered in the local process, since
 %%% no other process can interfere.
 %%%
-local_reg(Key, Value) ->
+local_reg({_,Scope,_} = Key, Value, As) ->
     case gproc_lib:insert_reg(Key, Value, self(), l) of
         false -> ?THROW_GPROC_ERROR(badarg);
-        true  -> monitor_me()
+        true  ->
+            monitor_me(),
+            if As =/= [] ->
+                    gproc_lib:insert_attr(Key, As, self(), Scope);
+               true -> true
+            end
     end.
 
 local_mreg(_, []) -> true;
@@ -2067,10 +2122,14 @@ handle_cast({cancel_wait_or_monitor, Pid, {T,_,_} = Key}, S) ->
     {noreply, S}.
 
 %% @hidden
-handle_call({reg, {_T,l,_} = Key, Val}, {Pid,_}, S) ->
+handle_call({reg, {_T,l,_} = Key, Val, Attrs}, {Pid,_}, S) ->
     case try_insert_reg(Key, Val, Pid) of
         true ->
             _ = gproc_lib:ensure_monitor(Pid,l),
+            _ = if Attrs =/= [] ->
+                        gproc_lib:insert_attr(Key, Attrs, Pid, l);
+                   true -> true
+                end,
             {reply, true, S};
         false ->
             {reply, badarg, S}
@@ -2161,10 +2220,13 @@ handle_call({demonitor, {T,l,_} = Key, Ref, Pid}, _From, S)
 		end
 	end,
     {reply, ok, S};
-handle_call({reg_shared, {_T,l,_} = Key, Val}, _From, S) ->
+handle_call({reg_shared, {_T,l,_} = Key, Val, Attrs}, _From, S) ->
     case try_insert_reg(Key, Val, shared) of
-    %% case try_insert_shared(Key, Val) of
 	true ->
+            _ = if Attrs =/= [] ->
+                        gproc_lib:insert_attr(Key, Attrs, shared, l);
+                   true -> true
+                end,
 	    {reply, true, S};
 	false ->
 	    {reply, badarg, S}
@@ -2173,7 +2235,6 @@ handle_call({unreg, {_,l,_} = Key}, {Pid,_}, S) ->
     case ets:lookup(?TAB, {Pid,Key}) of
         [{_, r}] ->
             _ = gproc_lib:remove_reg(Key, Pid, unreg, []),
-            flush_unregs(),
             {reply, true, S};
         [{_, Opts}] when is_list(Opts) ->
             _ = gproc_lib:remove_reg(Key, Pid, unreg, Opts),
@@ -2184,8 +2245,7 @@ handle_call({unreg, {_,l,_} = Key}, {Pid,_}, S) ->
 handle_call({unreg_shared, {_,l,_} = Key}, _, S) ->
     _ = case ets:lookup(?TAB, {shared, Key}) of
 	    [{_, r}] ->
-		_ = gproc_lib:remove_reg(Key, shared, unreg, []),
-                flush_unregs();
+		_ = gproc_lib:remove_reg(Key, shared, unreg, []);
 	    [{_, Opts}] ->
 		_ = gproc_lib:remove_reg(Key, shared, unreg, Opts);
 	    [] ->
@@ -2212,7 +2272,6 @@ handle_call({mreg, T, l, L}, {Pid,_}, S) ->
     end;
 handle_call({munreg, T, l, L}, {Pid,_}, S) ->
     _ = gproc_lib:remove_many(T, l, L, Pid),
-    flush_unregs(),
     {reply, true, S};
 handle_call({set, {_,l,_} = Key, Value}, {Pid,_}, S) ->
     case gproc_lib:do_set_value(Key, Value, Pid) of
@@ -2323,7 +2382,6 @@ try_insert_reg({T,l,_} = Key, Val, Pid) ->
             true
     end.
 
-
 %% try_insert_shared({c,l,_} = Key, Val) ->
 %%     ets:insert_new(?TAB, [{{Key,shared}, shared, Val}, {{shared, Key}, []}]);
 %% try_insert_shared({a,l,_} = Key, Val) ->
@@ -2385,7 +2443,7 @@ process_is_down(Pid) when is_pid(Pid) ->
                  ({{r,l,Rsrc} = K, _}) ->
                       Key = {K, Pid},
                       ets:delete(?TAB, Key),
-                      update_resource_count(l, Rsrc, -1);
+                      gproc_lib:decrement_resource_count(l, Rsrc);
                  ({{rc,l,_} = K, R}) ->
                       remove_aggregate(rc, K, R, Pid);
                  ({{a,l,_} = K, R}) ->
@@ -2395,18 +2453,6 @@ process_is_down(Pid) when is_pid(Pid) ->
               end, Revs),
             ets:select_delete(?TAB, [{{{Pid,{'_',l,'_'}},'_'}, [], [true]}]),
             ets:delete(?TAB, Marker),
-            ok
-    end.
-
-update_resource_count(C, R, V) ->
-    gproc_lib:update_resource_count(C, R, V),
-    flush_unregs().
-
-flush_unregs() ->
-    receive
-        {gproc_unreg, _} ->
-            flush_unregs()
-    after 0 ->
             ok
     end.
 
@@ -2427,7 +2473,6 @@ remove_aggregate(T, K, R, Pid) ->
         [] ->
             opt_notify(R, K, Pid, undefined)
     end.
-
 
 opt_notify(r, _, _, _) ->
     ok;

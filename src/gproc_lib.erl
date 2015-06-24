@@ -42,6 +42,7 @@
 	 remove_wait/4,
          update_aggr_counter/3,
          update_counter/3,
+         decrement_resource_count/2,
 	 valid_opts/2]).
 
 -export([dbg/1]).
@@ -62,7 +63,7 @@ dbg(Mods) ->
 %% Pid around as payload as well. This is a bit redundant, but
 %% symmetric.
 %%
--spec insert_reg(key(), any(), pid() | shared, scope()) -> boolean().
+-spec insert_reg(gproc:key(), any(), pid() | shared, gproc:scope()) -> boolean().
 insert_reg(K, Value, Pid, Scope) ->
     insert_reg(K, Value, Pid, Scope, registered).
 
@@ -153,7 +154,7 @@ get_attr(Attr, Pid, {_,_,_} = Key, Default) ->
             Default
     end.
 
--spec insert_many(type(), scope(), [{key(),any()}], pid()) ->
+-spec insert_many(gproc:type(), gproc:scope(), [{gproc:key(),any()}], pid()) ->
           {true,list()} | false.
 
 insert_many(T, Scope, KVL, Pid) ->
@@ -183,7 +184,7 @@ insert_many(T, Scope, KVL, Pid) ->
             end
     end.
 
--spec insert_objects([{key(), pid(), any()}]) -> ok.
+-spec insert_objects([{gproc:key(), pid(), any()}]) -> ok.
 
 insert_objects(Objs) ->
     lists:foreach(
@@ -239,7 +240,7 @@ maybe_waiters(K, Pid, Value, T, Event) ->
             false
     end.
 
--spec notify_waiters([{pid(), reference()}], key(), pid(), any(), any()) -> ok.
+-spec notify_waiters([{pid(), reference()}], gproc:key(), pid(), any(), any()) -> ok.
 notify_waiters([{P, Ref}|T], K, Pid, V, E) ->
     P ! {gproc, Ref, registered, {K, Pid, V}},
     notify_waiters(T, K, Pid, V, E);
@@ -302,7 +303,7 @@ remove_monitors(Key, Pid, MPid) ->
     end.
 
 
-mk_reg_objs(T, Scope, Pid, L) when T==n; T==a ->
+mk_reg_objs(T, Scope, Pid, L) when T==n; T==a; T==rc ->
     lists:map(fun({K,V}) ->
                       {{{T,Scope,K},T}, Pid, V};
                  (_) ->
@@ -542,6 +543,9 @@ expand_ops(_) ->
 update_aggr_counter(C, N, Val) ->
     ?MAY_FAIL(ets:update_counter(?TAB, {{a,C,N},a}, {3, Val})).
 
+decrement_resource_count(C, N) ->
+    update_resource_count(C, N, -1).
+
 update_resource_count(C, N, Val) ->
     try ets:update_counter(?TAB, {{rc,C,N},rc}, {3, Val}) of
         0 ->
@@ -566,28 +570,34 @@ resource_count_zero(C, N) ->
 perform_on_zero(Actions, C, N, Pid) ->
     lists:foreach(
       fun(A) ->
-              perform_on_zero_(A, C, N, Pid)
+              try perform_on_zero_(A, C, N, Pid)
+              catch error:_ -> ignore
+              end
       end, Actions).
 
 perform_on_zero_({send, ToProc}, C, N, Pid) ->
     gproc:send(ToProc, {gproc, resource_on_zero, C, N, Pid}),
-    [];
+    ok;
+perform_on_zero_({bcast, ToProc}, C, N, Pid) ->
+    gproc:bcast(ToProc, {gproc, resource_on_zero, C, N, Pid}),
+    ok;
 perform_on_zero_(publish, C, N, Pid) ->
     gproc_ps:publish(C, gproc_resource_on_zero, {C, N, Pid}),
-    [];
+    ok;
 perform_on_zero_({unreg_shared, T,N}, C, _, _) ->
     K = {T, C, N},
     case ets:member(?TAB, {K, shared}) of
         true ->
-            self() ! {gproc_unreg, remove_reg(K, shared, unreg)};
+            Objs = remove_reg(K, shared, unreg),
+            _ = if C == g -> self() ! {gproc_unreg, Objs};
+                   true   -> ok
+                end,
+            ok;
         false ->
-            []
+            ok
     end;
 perform_on_zero_(_, _, _, _) ->
-    [].
-
-
-
+    ok.
 
 scan_existing_counters(Ctxt, Name) ->
     Head = {{{c,Ctxt,Name},'_'},'_','$1'},

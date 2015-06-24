@@ -23,9 +23,9 @@
 -behaviour(gen_leader).
 
 -export([start_link/0, start_link/1,
-         reg/1, reg/2, unreg/1,
+         reg/1, reg/3, unreg/1,
 	 reg_or_locate/3,
-	 reg_shared/2, unreg_shared/1,
+	 reg_shared/3, unreg_shared/1,
          monitor/2,
          demonitor/2,
 	 set_attributes/2,
@@ -91,7 +91,7 @@ start_link({Nodes, Opts}) ->
 %% {@see gproc:reg/1}
 %%
 reg(Key) ->
-    reg(Key, gproc:default(Key)).
+    reg(Key, gproc:default(Key), []).
 
 %% {@see gproc:reg_or_locate/2}
 %%
@@ -117,15 +117,15 @@ reg_or_locate(_, _, _) ->
 %%%          | a  - aggregated counter
 %%%    Scope = l | g (global or local)
 %%% @end
-reg({_,g,_} = Key, Value) ->
+reg({_,g,_} = Key, Value, Attrs) ->
     %% anything global
-    leader_call({reg, Key, Value, self()});
-reg(_, _) ->
+    leader_call({reg, Key, Value, self(), Attrs});
+reg(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
-reg_shared({_,g,_} = Key, Value) ->
-    leader_call({reg, Key, Value, shared});
-reg_shared(_, _) ->
+reg_shared({_,g,_} = Key, Value, Attrs) ->
+    leader_call({reg, Key, Value, shared, Attrs});
+reg_shared(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 monitor({_,g,_} = Key, Type) when Type==info;
@@ -255,6 +255,8 @@ handle_info({'DOWN', _MRef, process, Pid, _}, S) ->
     ets:delete(?TAB, {Pid, g}),
     leader_cast({pid_is_DOWN, Pid}),
     {ok, S};
+handle_info({gproc_unreg, Objs}, S) ->
+    {ok, [{delete, Objs}], S};
 handle_info(_, S) ->
     {ok, S}.
 
@@ -332,23 +334,17 @@ handle_leader_call(sync, From, #state{sync_requests = SReqs} = S, E) ->
             GenLeader:broadcast({from_leader, {sync, From}}, Alive, E),
             {noreply, S#state{sync_requests = [{From, Alive}|SReqs]}}
     end;
-handle_leader_call({reg, {_C,g,_Name} = K, Value, Pid}, _From, S, _E) ->
+handle_leader_call({reg, {_C,g,_Name} = K, Value, Pid, As}, _From, S, _E) ->
     case gproc_lib:insert_reg(K, Value, Pid, g) of
         false ->
             {reply, badarg, S};
         true ->
             _ = gproc_lib:ensure_monitor(Pid,g),
+            _ = if As =/= [] ->
+                        gproc_lib:insert_attr(K, As, Pid, g);
+                   true -> []
+                end,
 	    Vals = mk_broadcast_insert_vals([{K, Pid, Value}]),
-            %% Vals =
-            %%     if C == a ->
-            %%             ets:lookup(?TAB, {K,a});
-            %%        C == c ->
-            %%             [{{K,Pid},Pid,Value} | ets:lookup(?TAB,{{a,g,Name},a})];
-            %%        C == n ->
-            %%             [{{K,n},Pid,Value}];
-            %%        true ->
-            %%             [{{K,Pid},Pid,Value}]
-            %%     end,
             {reply, true, [{insert, Vals}], S}
     end;
 handle_leader_call({monitor, {T,g,_} = K, MPid, Type}, _From, S, _E) when T==n;
@@ -484,7 +480,7 @@ handle_leader_call({reset_counter, {c,g,_Ctr} = Key, Pid}, _From, S, _E) ->
 	    {reply, badarg, S}
     end;
 handle_leader_call({unreg, {T,g,Name} = K, Pid}, _From, S, _E) ->
-    Key = if T == n; T == a -> {K,T};
+    Key = if T == n; T == a; T == rc -> {K,T};
              true -> {K, Pid}
           end,
     case ets:member(?TAB, Key) of
@@ -499,6 +495,14 @@ handle_leader_call({unreg, {T,g,Name} = K, Pid}, _From, S, _E) ->
                         [] ->
                             {reply, true, [{delete, [Key, {Pid,K}]}], S}
                     end;
+               T == r ->
+                    case ets:lookup(?TAB, {{rc,g,Name},rc}) of
+                        [RC] ->
+                            {reply, true, [{delete,[Key, {Pid,K}]},
+                                           {insert, [RC]}], S};
+                        [] ->
+                            {reply, true, [{delete, [Key, {Pid, K}]}], S}
+                    end;
                true ->
                     {reply, true, [{notify, [{K, Pid, unreg}]},
                                    {delete, [Key, {Pid,K}]}], S}
@@ -507,7 +511,7 @@ handle_leader_call({unreg, {T,g,Name} = K, Pid}, _From, S, _E) ->
             {reply, badarg, S}
     end;
 handle_leader_call({give_away, {T,g,_} = K, To, Pid}, _From, S, _E)
-  when T == a; T == n ->
+  when T == a; T == n; T == rc ->
     Key = {K, T},
     case ets:lookup(?TAB, Key) of
         [{_, Pid, Value}] ->
@@ -537,7 +541,7 @@ handle_leader_call({give_away, {T,g,_} = K, To, Pid}, _From, S, _E)
             {reply, badarg, S}
     end;
 handle_leader_call({mreg, T, g, L, Pid}, _From, S, _E) ->
-    if T==p; T==n ->
+    if T==p; T==n; T==r ->
             try gproc_lib:insert_many(T, g, L, Pid) of
                 {true,Objs} -> {reply, true, [{insert,Objs}], S};
                 false       -> {reply, badarg, S}
@@ -655,11 +659,14 @@ handle_leader_cast({pid_is_DOWN, Pid}, S, _E) ->
 mk_broadcast_insert_vals(Objs) ->
     lists:flatmap(
       fun({{C, g, Name} = K, Pid, Value}) ->
-	      if C == a ->
-		      ets:lookup(?TAB, {K,a}) ++ ets:lookup(?TAB, {Pid,K});
+	      if C == a; C == rc ->
+		      ets:lookup(?TAB, {K,C}) ++ ets:lookup(?TAB, {Pid,K});
 		 C == c ->
 		      [{{K,Pid},Pid,Value} | ets:lookup(?TAB,{{a,g,Name},a})]
 			  ++ ets:lookup(?TAB, {Pid,K});
+                 C == r ->
+                      [{{K,Pid},Pid,Value} | ets:lookup(?TAB,{{rc,g,Name},rc})]
+                          ++ ets:lookup(?TAB, {Pid, K});
 		 C == n ->
 		      [{{K,n},Pid,Value}| ets:lookup(?TAB, {Pid,K})];
 		 true ->
@@ -671,7 +678,7 @@ mk_broadcast_insert_vals(Objs) ->
 process_globals(Globals) ->
     {Modified, Notifications} =
         lists:foldl(
-          fun({{T,_,_} = Key, Pid}, A) when T==n; T==a ->
+          fun({{T,_,_} = Key, Pid}, A) when T==n; T==a; T==rc ->
                   case ets:lookup(?TAB, {Pid,Key}) of
                       [{_, Opts}] when is_list(Opts) ->
                           maybe_failover(Key, Pid, Opts, A);
@@ -683,6 +690,8 @@ process_globals(Globals) ->
                             c ->
                                 Incr = ets:lookup_element(?TAB, {Key,Pid}, 3),
                                 update_aggr_counter(Key, -Incr) ++ MA;
+                            r ->
+                                decrement_resource_count(Key, []) ++ MA;
                             _ ->
                                MA
                         end,
@@ -813,7 +822,7 @@ do_notify([]) ->
     ok.
 
 
-ets_key({T,_,_} = K, _) when T==n; T==a ->
+ets_key({T,_,_} = K, _) when T==n; T==a; T==rc ->
     {K, T};
 ets_key(K, Pid) ->
     {K, Pid}.
@@ -951,6 +960,17 @@ update_aggr_counter({c,g,Ctr}, Incr, Acc) ->
             [New|Acc]
     end.
 
+decrement_resource_count({r,g,Rsrc}, Acc) ->
+    Key = {{rc,g,Rsrc},rc},
+    case ets:member(?TAB, Key) of
+        false ->
+            Acc;
+        true ->
+            %% Call the lib function, which might trigger events
+            gproc_lib:decrement_resource_count(g, Rsrc),
+            ets:lookup(?TAB, Key) ++ Acc
+    end.
+
 pid_to_give_away_to(P) when is_pid(P) ->
     P;
 pid_to_give_away_to({T,g,_} = Key) when T==n; T==a ->
@@ -962,7 +982,7 @@ pid_to_give_away_to({T,g,_} = Key) when T==n; T==a ->
     end.
 
 insert_reg([{_, Waiters}], K, Val, Pid, Event) ->
-    gproc_lib:insert_reg(K, Val, Pid, g, []),
+    gproc_lib:insert_reg(K, Val, Pid, g),
     tell_waiters(Waiters, K, Pid, Val, Event).
 
 tell_waiters([{P,R}|T], K, Pid, V, Event) ->

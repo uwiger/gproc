@@ -1,7 +1,7 @@
 -module(gproc_test_lib).
 
 -export([t_spawn/1, t_spawn/2,
-         t_spawn_reg/2, t_spawn_reg/3,
+         t_spawn_reg/2, t_spawn_reg/3, t_spawn_reg/4,
          t_spawn_reg_shared/3,
          t_spawn_mreg/2,
          t_call/2,
@@ -33,6 +33,19 @@ t_spawn_reg(Node, Name, Value) ->
     Me = self(),
     P = spawn(Node, fun() ->
                             ?assertMatch(true, gproc:reg(Name, Value)),
+                            Me ! {self(), ok},
+                            t_loop()
+                    end),
+    receive
+	{P, ok} -> P
+    after 1000 ->
+            erlang:error({timeout, t_spawn_reg, [Node, Name, Value]})
+    end.
+
+t_spawn_reg(Node, Name, Value, Attrs) ->
+    Me = self(),
+    P = spawn(Node, fun() ->
+                            ?assertMatch(true, gproc:reg(Name, Value, Attrs)),
                             Me ! {self(), ok},
                             t_loop()
                     end),
