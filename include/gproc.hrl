@@ -18,26 +18,3 @@
 %% gproc.hrl: Common definitions
 
 -define(TAB, gproc).
-
-
--type type()     :: n | p | c | a.
--type scope()    :: l | g.
--type context()  :: {scope(),type()} | type().
--type sel_type() :: n | p | c | a |
-                    names | props | counters | aggr_counters.
-
--type sel_var() :: '_' | atom().
--type keypat()  :: {sel_type() | sel_var(), l | g | sel_var(), any()}.
--type pidpat()  :: pid() | sel_var().
--type headpat() :: {keypat(),pidpat(),any()}.
--type key()     :: {type(), scope(), any()}.
-
--type sel_pattern() :: [{headpat(), list(), list()}].
-
-%% update_counter increment
--type ctr_incr()   :: integer().
--type ctr_thr()    :: integer().
--type ctr_setval() :: integer().
--type ctr_update()  :: ctr_incr()
-		     | {ctr_incr(), ctr_thr(), ctr_setval()}.
--type increment() :: ctr_incr() | ctr_update() | [ctr_update()].

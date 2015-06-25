@@ -63,7 +63,7 @@ jobs will not exceed the size of the pool.<a name="index"></a>
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#active_workers-1">active_workers/1</a></td><td>Return a list of currently connected workers in the pool.</td></tr><tr><td valign="top"><a href="#add_worker-2">add_worker/2</a></td><td>Assign a worker name to the pool, returning the worker's position.</td></tr><tr><td valign="top"><a href="#add_worker-3">add_worker/3</a></td><td>Assign a worker name to a given slot in the pool, returning the slot.</td></tr><tr><td valign="top"><a href="#claim-2">claim/2</a></td><td>Picks the first available worker in the pool and applies <code>Fun</code>.</td></tr><tr><td valign="top"><a href="#connect_worker-2">connect_worker/2</a></td><td>Connect the current process to <code>Name</code> in <code>Pool</code>.</td></tr><tr><td valign="top"><a href="#defined_workers-1">defined_workers/1</a></td><td>Return a list of added workers in the pool.</td></tr><tr><td valign="top"><a href="#delete-1">delete/1</a></td><td>Delete an existing pool.</td></tr><tr><td valign="top"><a href="#disconnect_worker-2">disconnect_worker/2</a></td><td>Disconnect the current process from <code>Name</code> in <code>Pool</code>.</td></tr><tr><td valign="top"><a href="#force_delete-1">force_delete/1</a></td><td>Forcibly remove a pool, terminating all active workers.</td></tr><tr><td valign="top"><a href="#log-1">log/1</a></td><td>Update a counter associated with a worker name.</td></tr><tr><td valign="top"><a href="#new-1">new/1</a></td><td>Equivalent to <a href="#new-3"><tt>new(Pool, round_robin, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Create a new pool.</td></tr><tr><td valign="top"><a href="#pick-1">pick/1</a></td><td>Pick a worker from the pool given the pool's load-balancing algorithm.</td></tr><tr><td valign="top"><a href="#pick-2">pick/2</a></td><td>Pick a worker from the pool based on <code>Value</code>.</td></tr><tr><td valign="top"><a href="#pick_worker-1">pick_worker/1</a></td><td>Pick a worker pid from the pool given the pool's load-balancing algorithm.</td></tr><tr><td valign="top"><a href="#pick_worker-2">pick_worker/2</a></td><td>Pick a worker pid from the pool given the pool's load-balancing algorithm.</td></tr><tr><td valign="top"><a href="#ptest-4">ptest/4</a></td><td></td></tr><tr><td valign="top"><a href="#randomize-1">randomize/1</a></td><td>Randomizes the "next" pointer for the pool.</td></tr><tr><td valign="top"><a href="#remove_worker-2">remove_worker/2</a></td><td>Remove a previously added worker.</td></tr><tr><td valign="top"><a href="#test_run0-2">test_run0/2</a></td><td></td></tr><tr><td valign="top"><a href="#whereis_worker-2">whereis_worker/2</a></td><td>Look up the pid of a connected worker.</td></tr><tr><td valign="top"><a href="#worker_id-2">worker_id/2</a></td><td>Return the unique gproc name corresponding to a name in the pool.</td></tr><tr><td valign="top"><a href="#worker_pool-1">worker_pool/1</a></td><td>Return a list of slots and/or named workers in the pool.</td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#active_workers-1">active_workers/1</a></td><td>Return a list of currently connected workers in the pool.</td></tr><tr><td valign="top"><a href="#add_worker-2">add_worker/2</a></td><td>Assign a worker name to the pool, returning the worker's position.</td></tr><tr><td valign="top"><a href="#add_worker-3">add_worker/3</a></td><td>Assign a worker name to a given slot in the pool, returning the slot.</td></tr><tr><td valign="top"><a href="#claim-2">claim/2</a></td><td>Equivalent to <a href="#claim-3"><tt>claim(Pool, F, nowait)</tt></a>.</td></tr><tr><td valign="top"><a href="#claim-3">claim/3</a></td><td>Picks the first available worker in the pool and applies <code>Fun</code>.</td></tr><tr><td valign="top"><a href="#connect_worker-2">connect_worker/2</a></td><td>Connect the current process to <code>Name</code> in <code>Pool</code>.</td></tr><tr><td valign="top"><a href="#defined_workers-1">defined_workers/1</a></td><td>Return a list of added workers in the pool.</td></tr><tr><td valign="top"><a href="#delete-1">delete/1</a></td><td>Delete an existing pool.</td></tr><tr><td valign="top"><a href="#disconnect_worker-2">disconnect_worker/2</a></td><td>Disconnect the current process from <code>Name</code> in <code>Pool</code>.</td></tr><tr><td valign="top"><a href="#force_delete-1">force_delete/1</a></td><td>Forcibly remove a pool, terminating all active workers.</td></tr><tr><td valign="top"><a href="#log-1">log/1</a></td><td>Update a counter associated with a worker name.</td></tr><tr><td valign="top"><a href="#new-1">new/1</a></td><td>Equivalent to <a href="#new-3"><tt>new(Pool, round_robin, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Create a new pool.</td></tr><tr><td valign="top"><a href="#pick-1">pick/1</a></td><td>Pick a worker from the pool given the pool's load-balancing algorithm.</td></tr><tr><td valign="top"><a href="#pick-2">pick/2</a></td><td>Pick a worker from the pool based on <code>Value</code>.</td></tr><tr><td valign="top"><a href="#pick_worker-1">pick_worker/1</a></td><td>Pick a worker pid from the pool given the pool's load-balancing algorithm.</td></tr><tr><td valign="top"><a href="#pick_worker-2">pick_worker/2</a></td><td>Pick a worker pid from the pool given the pool's load-balancing algorithm.</td></tr><tr><td valign="top"><a href="#ptest-4">ptest/4</a></td><td></td></tr><tr><td valign="top"><a href="#randomize-1">randomize/1</a></td><td>Randomizes the "next" pointer for the pool.</td></tr><tr><td valign="top"><a href="#remove_worker-2">remove_worker/2</a></td><td>Remove a previously added worker.</td></tr><tr><td valign="top"><a href="#setup_test_pool-4">setup_test_pool/4</a></td><td></td></tr><tr><td valign="top"><a href="#test_run0-2">test_run0/2</a></td><td></td></tr><tr><td valign="top"><a href="#whereis_worker-2">whereis_worker/2</a></td><td>Look up the pid of a connected worker.</td></tr><tr><td valign="top"><a href="#worker_id-2">worker_id/2</a></td><td>Return the unique gproc name corresponding to a name in the pool.</td></tr><tr><td valign="top"><a href="#worker_pool-1">worker_pool/1</a></td><td>Return a list of slots and/or named workers in the pool.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -135,14 +135,23 @@ otherwise the pool is expanded to accomodate the new position.
 
 ### claim/2 ###
 
+`claim(Pool, F) -> any()`
+
+Equivalent to [`claim(Pool, F, nowait)`](#claim-3).
+<a name="claim-3"></a>
+
+### claim/3 ###
+
 
 <pre><code>
-claim(Pool::any(), Fun::function()) -&gt; {true, Res} | false
+claim(Pool, F::Fun, Wait) -&gt; {true, Res} | false
 </code></pre>
-<br />
+
+<ul class="definitions"><li><code>Pool = any()</code></li><li><code>Fun = function()</code></li><li><code>Wait = nowait | {busy_wait, integer()}</code></li></ul>
 
 
 Picks the first available worker in the pool and applies `Fun`.
+
 
 
 A `claim` pool allows the caller to "claim" a worker during a short span
@@ -152,6 +161,16 @@ unique gproc name of the worker, and `Pid` is its process identifier.
 The gproc name of the worker serves as a mutex, where its value is 0 (zero)
 if the worker is free, and 1 (one) if it is busy. The mutex operation is
 implemented using `gproc:update_counter/2`.
+
+
+
+`Wait == nowait` means that the call will return `false` immediately if
+there is no available worker.
+
+
+`Wait == {busy_wait, Timeout}` will keep repeating the claim attempt
+for `Timeout` milliseconds. If still no worker is available, it will
+return `false`.
 <a name="connect_worker-2"></a>
 
 ### connect_worker/2 ###
@@ -424,6 +443,13 @@ Remove a previously added worker.
 This function will assume that any connected worker is disconnected first.
 It will fail if there is no such pool, but will return `true` in the case
 when `Name` did not exist in the pool in the first place.
+<a name="setup_test_pool-4"></a>
+
+### setup_test_pool/4 ###
+
+`setup_test_pool(P, Type0, Opts, Workers) -> any()`
+
+
 <a name="test_run0-2"></a>
 
 ### test_run0/2 ###

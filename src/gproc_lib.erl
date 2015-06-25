@@ -42,6 +42,7 @@
 	 remove_wait/4,
          update_aggr_counter/3,
          update_counter/3,
+         decrement_resource_count/2,
 	 valid_opts/2]).
 
 -export([dbg/1]).
@@ -62,30 +63,21 @@ dbg(Mods) ->
 %% Pid around as payload as well. This is a bit redundant, but
 %% symmetric.
 %%
--spec insert_reg(key(), any(), pid() | shared, scope()) -> boolean().
+-spec insert_reg(gproc:key(), any(), pid() | shared, gproc:scope()) -> boolean().
 insert_reg(K, Value, Pid, Scope) ->
     insert_reg(K, Value, Pid, Scope, registered).
 
-insert_reg({T,_,Name} = K, Value, Pid, Scope, Event) when T==a; T==n ->
-    MaybeScan = fun() ->
-                        if T==a ->
-                                Initial = scan_existing_counters(Scope, Name),
-                                ets:insert(?TAB, {{K,a}, Pid, Initial});
-                           true ->
-                                true
-                        end
-                end,
-    case ets:insert_new(?TAB, {{K,T}, Pid, Value}) of
-        true ->
-            _ = ets:insert_new(?TAB, {{Pid,K}, []}),
-            MaybeScan();
-        false ->
-            if T==n; T==a ->
-                    maybe_waiters(K, Pid, Value, T, Event);
-               true ->
-                    false
-            end
-    end;
+insert_reg({T,_,Name} = K, Value, Pid, Scope, Event) when T==a; T==n; T==rc ->
+    Res = case ets:insert_new(?TAB, {{K,T}, Pid, Value}) of
+              true ->
+                  %% Use insert_new to avoid overwriting existing entry
+                  _ = ets:insert_new(?TAB, {{Pid,K}, []}),
+                  true;
+              false ->
+                  maybe_waiters(K, Pid, Value, T, Event)
+          end,
+    maybe_scan(T, Pid, Scope, Name, K),
+    Res;
 insert_reg({p,Scope,_} = K, Value, shared, Scope, _E)
   when Scope == g; Scope == l ->
     %% shared properties are unique
@@ -103,12 +95,31 @@ insert_reg({c,Scope,Ctr} = Key, Value, Pid, Scope, _E) when Scope==l; Scope==g -
             ignore
     end,
     Res;
+insert_reg({r,Scope,R} = Key, Value, Pid, Scope, _E) when Scope==l; Scope==g ->
+    K = {Key, Pid},
+    Kr = {Pid, Key},
+    Res = ets:insert_new(?TAB, [{K, Pid, Value}, {Kr, [{initial, Value}]}]),
+    case Res of
+        true ->
+            update_resource_count(Scope, R, 1);
+        false ->
+            ignore
+    end,
+    Res;
 insert_reg({_,_,_} = Key, Value, Pid, _Scope, _E) when is_pid(Pid) ->
     %% Non-unique keys; store Pid in the key part
     K = {Key, Pid},
     Kr = {Pid, Key},
     ets:insert_new(?TAB, [{K, Pid, Value}, {Kr, []}]).
 
+maybe_scan(a, Pid, Scope, Name, K) ->
+    Initial = scan_existing_counters(Scope, Name),
+    ets:insert(?TAB, {{K,a}, Pid, Initial});
+maybe_scan(rc, Pid, Scope, Name, K) ->
+    Initial = scan_existing_resources(Scope, Name),
+    ets:insert(?TAB, {{K,rc}, Pid, Initial});
+maybe_scan(_, _, _, _, _) ->
+    true.
 
 insert_attr({_,Scope,_} = Key, Attrs, Pid, Scope) when Scope==l;
 						       Scope==g ->
@@ -125,7 +136,25 @@ insert_attr({_,Scope,_} = Key, Attrs, Pid, Scope) when Scope==l;
 	    false
     end.
 
--spec insert_many(type(), scope(), [{key(),any()}], pid()) ->
+get_attr(Attr, Pid, {_,_,_} = Key, Default) ->
+    case ets:lookup(?TAB, {Pid, Key}) of
+        [{_, Opts}] when is_list(Opts) ->
+            case lists:keyfind(attrs, 1, Opts) of
+                {_, Attrs} ->
+                    case lists:keyfind(Attr, 1, Attrs) of
+                        {_, Val} ->
+                            Val;
+                        _ ->
+                            Default
+                    end;
+                _ ->
+                    Default
+            end;
+        _ ->
+            Default
+    end.
+
+-spec insert_many(gproc:type(), gproc:scope(), [{gproc:key(),any()}], pid()) ->
           {true,list()} | false.
 
 insert_many(T, Scope, KVL, Pid) ->
@@ -155,7 +184,7 @@ insert_many(T, Scope, KVL, Pid) ->
             end
     end.
 
--spec insert_objects([{key(), pid(), any()}]) -> ok.
+-spec insert_objects([{gproc:key(), pid(), any()}]) -> ok.
 
 insert_objects(Objs) ->
     lists:foreach(
@@ -211,7 +240,7 @@ maybe_waiters(K, Pid, Value, T, Event) ->
             false
     end.
 
--spec notify_waiters([{pid(), reference()}], key(), pid(), any(), any()) -> ok.
+-spec notify_waiters([{pid(), reference()}], gproc:key(), pid(), any(), any()) -> ok.
 notify_waiters([{P, Ref}|T], K, Pid, V, E) ->
     P ! {gproc, Ref, registered, {K, Pid, V}},
     notify_waiters(T, K, Pid, V, E);
@@ -274,7 +303,7 @@ remove_monitors(Key, Pid, MPid) ->
     end.
 
 
-mk_reg_objs(T, Scope, Pid, L) when T==n; T==a ->
+mk_reg_objs(T, Scope, Pid, L) when T==n; T==a; T==rc ->
     lists:map(fun({K,V}) ->
                       {{{T,Scope,K},T}, Pid, V};
                  (_) ->
@@ -422,11 +451,11 @@ unreg_opts(Key, Pid) ->
 remove_reg_1({c,_,_} = Key, Pid) ->
     remove_counter_1(Key, ets:lookup_element(?TAB, Reg = {Key,Pid}, 3), Pid),
     Reg;
-remove_reg_1({a,_,_} = Key, _Pid) ->
-    ets:delete(?TAB, Reg = {Key,a}),
+remove_reg_1({r,_,_} = Key, Pid) ->
+    remove_resource_1(Key, ets:lookup_element(?TAB, Reg = {Key,Pid}, 3), Pid),
     Reg;
-remove_reg_1({n,_,_} = Key, _Pid) ->
-    ets:delete(?TAB, Reg = {Key,n}),
+remove_reg_1({T,_,_} = Key, _Pid) when T==a; T==n; T==rc ->
+    ets:delete(?TAB, Reg = {Key,T}),
     Reg;
 remove_reg_1({_,_,_} = Key, Pid) ->
     ets:delete(?TAB, Reg = {Key, Pid}),
@@ -437,18 +466,23 @@ remove_counter_1({c,C,N} = Key, Val, Pid) ->
     update_aggr_counter(C, N, -Val),
     Res.
 
+remove_resource_1({r,C,N} = Key, _, Pid) ->
+    Res = ets:delete(?TAB, {Key, Pid}),
+    update_resource_count(C, N, -1),
+    Res.
+
 do_set_value({T,_,_} = Key, Value, Pid) ->
     K2 = if Pid == shared -> shared;
-	    T==n orelse T==a -> T;
+	    T==n orelse T==a orelse T==rc -> T;
 	    true -> Pid
          end,
-    case (catch ets:lookup_element(?TAB, {Key,K2}, 2)) of
-        {'EXIT', {badarg, _}} ->
-            false;
+    try ets:lookup_element(?TAB, {Key,K2}, 2) of
         Pid ->
             ets:insert(?TAB, {{Key, K2}, Pid, Value});
         _ ->
             false
+    catch
+        error:_ -> false
     end.
 
 do_set_counter_value({_,C,N} = Key, Value, Pid) ->
@@ -478,6 +512,7 @@ update_counter({T,l,Ctr} = Key, {Incr, Threshold, SetValue}, Pid)
     end,
     New;
 update_counter({T,l,Ctr} = Key, Ops, Pid) when is_list(Ops), T==c;
+                                               is_list(Ops), T==r;
 					       is_list(Ops), T==n ->
     case ets:update_counter(?TAB, {Key, Pid},
 			    [{3, 0} | expand_ops(Ops)]) of
@@ -505,18 +540,73 @@ expand_ops([]) ->
 expand_ops(_) ->
     ?THROW_GPROC_ERROR(badarg).
 
-
-
-
-
 update_aggr_counter(C, N, Val) ->
-    catch ets:update_counter(?TAB, {{a,C,N},a}, {3, Val}).
+    ?MAY_FAIL(ets:update_counter(?TAB, {{a,C,N},a}, {3, Val})).
+
+decrement_resource_count(C, N) ->
+    update_resource_count(C, N, -1).
+
+update_resource_count(C, N, Val) ->
+    try ets:update_counter(?TAB, {{rc,C,N},rc}, {3, Val}) of
+        0 ->
+            resource_count_zero(C, N);
+        _ ->
+            ok
+    catch
+        _:_ -> ok
+    end.
+
+resource_count_zero(C, N) ->
+    case ets:lookup(?TAB, {K = {rc,C,N},rc}) of
+        [{_, Pid, _}] ->
+            case get_attr(on_zero, Pid, K, undefined) of
+                undefined -> ok;
+                Actions ->
+                    perform_on_zero(Actions, C, N, Pid)
+            end;
+        _ -> ok
+    end.
+
+perform_on_zero(Actions, C, N, Pid) ->
+    lists:foreach(
+      fun(A) ->
+              try perform_on_zero_(A, C, N, Pid)
+              catch error:_ -> ignore
+              end
+      end, Actions).
+
+perform_on_zero_({send, ToProc}, C, N, Pid) ->
+    gproc:send(ToProc, {gproc, resource_on_zero, C, N, Pid}),
+    ok;
+perform_on_zero_({bcast, ToProc}, C, N, Pid) ->
+    gproc:bcast(ToProc, {gproc, resource_on_zero, C, N, Pid}),
+    ok;
+perform_on_zero_(publish, C, N, Pid) ->
+    gproc_ps:publish(C, gproc_resource_on_zero, {C, N, Pid}),
+    ok;
+perform_on_zero_({unreg_shared, T,N}, C, _, _) ->
+    K = {T, C, N},
+    case ets:member(?TAB, {K, shared}) of
+        true ->
+            Objs = remove_reg(K, shared, unreg),
+            _ = if C == g -> self() ! {gproc_unreg, Objs};
+                   true   -> ok
+                end,
+            ok;
+        false ->
+            ok
+    end;
+perform_on_zero_(_, _, _, _) ->
+    ok.
 
 scan_existing_counters(Ctxt, Name) ->
     Head = {{{c,Ctxt,Name},'_'},'_','$1'},
     Cs = ets:select(?TAB, [{Head, [], ['$1']}]),
     lists:sum(Cs).
 
+scan_existing_resources(Ctxt, Name) ->
+    Head = {{{r,Ctxt,Name},'_'},'_','_'},
+    ets:select_count(?TAB, [{Head, [], [true]}]).
 
 valid_opts(Type, Default) ->
     Opts = get_app_env(Type, Default),

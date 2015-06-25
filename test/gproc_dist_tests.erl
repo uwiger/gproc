@@ -61,6 +61,18 @@ dist_test_() ->
                                        ?debugVal(t_aggr_counter(Ns))
                                end,
                                fun() ->
+                                       ?debugVal(t_awaited_aggr_counter(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_simple_resource_count(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_awaited_resource_count(Ns))
+                               end,
+                               fun() ->
+                                       ?debugVal(t_resource_count_on_zero(Ns))
+                               end,
+                               fun() ->
                                        ?debugVal(t_update_counters(Ns))
                                end,
                                fun() ->
@@ -127,6 +139,7 @@ run_dist_tests() ->
 -define(T_NAME, {n, g, {?MODULE, ?LINE, erlang:now()}}).
 -define(T_KVL, [{foo, "foo"}, {bar, "bar"}]).
 -define(T_COUNTER, {c, g, {?MODULE, ?LINE}}).
+-define(T_RESOURCE, {r, g, {?MODULE, ?LINE}}).
 -define(T_PROP, {p, g, ?MODULE}).
 
 t_simple_reg([H|_] = Ns) ->
@@ -201,6 +214,92 @@ t_aggr_counter([H1,H2|_] = Ns) ->
     ?assertMatch(ok, t_call(Pc2, die)),
     ?assertMatch(ok, t_call(Pa, die)).
 
+t_awaited_aggr_counter([H1,H2|_] = Ns) ->
+    {c,g,Nm} = Ctr = ?T_COUNTER,
+    Aggr = {a,g,Nm},
+    Pc1 = t_spawn_reg(H1, Ctr, 3),
+    P = t_spawn(H2),
+    Ref = erlang:monitor(process, P),
+    P ! {self(), Ref, {apply, gproc, await, [Aggr]}},
+    t_sleep(),
+    P1 = t_spawn_reg(H2, Aggr),
+    ?assert(P1 == receive
+                      {P, Ref, Res} ->
+                          element(1, Res);
+                      {'DOWN', Ref, _, _, Reason} ->
+                          erlang:error(Reason);
+                      Other ->
+                          erlang:error({received, Other})
+                  end),
+    ?assertMatch(ok, t_read_everywhere(Aggr, P1, Ns, 3)),
+    ?assertMatch(ok, t_call(Pc1, die)),
+    ?assertMatch(ok, t_call(P, die)),
+    flush_down(Ref),
+    ?assertMatch(ok, t_call(P1, die)).
+
+t_simple_resource_count([H1,H2|_] = Ns) ->
+    {r,g,Nm} = R = ?T_RESOURCE,
+    RC = {rc,g,Nm},
+    Pr1 = t_spawn_reg(H1, R, 3),
+    Prc = t_spawn_reg(H2, RC),
+    ?assertMatch(ok, t_read_everywhere(R, Pr1, Ns, 3)),
+    ?assertMatch(ok, t_read_everywhere(RC, Prc, Ns, 1)),
+    Pr2 = t_spawn_reg(H2, R, 4),
+    ?assertMatch(ok, t_read_everywhere(R, Pr2, Ns, 4)),
+    ?assertMatch(ok, t_read_everywhere(RC, Prc, Ns, 2)),
+    ?assertMatch(ok, t_call(Pr1, die)),
+    ?assertMatch(ok, t_read_everywhere(RC, Prc, Ns, 1)),
+    ?assertMatch(ok, t_call(Pr2, die)),
+    ?assertMatch(ok, t_call(Prc, die)).
+
+t_awaited_resource_count([H1,H2|_] = Ns) ->
+    {r,g,Nm} = R = ?T_RESOURCE,
+    RC = {rc,g,Nm},
+    Pr1 = t_spawn_reg(H1, R, 3),
+    P = t_spawn(H2),
+    Ref = erlang:monitor(process, P),
+    P ! {self(), Ref, {apply, gproc, await, [RC]}},
+    t_sleep(),
+    P1 = t_spawn_reg(H2, RC),
+    ?assert(P1 == receive
+                      {P, Ref, Res} ->
+                          element(1, Res);
+                      {'DOWN', Ref, _, _, Reason} ->
+                          erlang:error(Reason);
+                      Other ->
+                          erlang:error({received, Other})
+                  end),
+    ?assertMatch(ok, t_read_everywhere(RC, P1, Ns, 1)),
+    ?assertMatch(ok, t_call(Pr1, die)),
+    ?assertMatch(ok, t_call(P, die)),
+    flush_down(Ref),
+    ?assertMatch(ok, t_call(P1, die)).
+
+t_resource_count_on_zero([H1,H2|_] = Ns) ->
+    {r,g,Nm} = R = ?T_RESOURCE,
+    Prop = ?T_PROP,
+    RC = {rc,g,Nm},
+    Pr1 = t_spawn_reg(H1, R, 3),
+    Pp = t_spawn_reg(H2, Prop),
+    ?assertMatch(ok, t_call(Pp, {selective, true})),
+    Prc = t_spawn_reg(H2, RC, undefined, [{on_zero, [{send, Prop}]}]),
+    ?assertMatch(ok, t_read_everywhere(R, Pr1, Ns, 3)),
+    ?assertMatch(ok, t_read_everywhere(RC, Prc, Ns, 1)),
+    ?assertMatch(ok, t_call(Pr1, die)),
+    ?assertMatch(ok, t_read_everywhere(RC, Prc, Ns, 0)),
+    ?assertMatch({gproc, resource_on_zero, g, Nm, Prc},
+                 t_call(Pp, {apply_fun, fun() ->
+                                                receive
+                                                    {gproc, _, _, _, _} = M ->
+                                                        M
+                                                after 10000 ->
+                                                        timeout
+                                                end
+                                        end})),
+    ?assertMatch(ok, t_call(Pp, {selective, false})),
+    ?assertMatch(ok, t_call(Pp, die)),
+    ?assertMatch(ok, t_call(Prc, die)).
+
 t_update_counters([H1,H2|_] = Ns) ->
     {c,g,N1} = C1 = ?T_COUNTER,
     A1 = {a,g,N1},
@@ -213,7 +312,6 @@ t_update_counters([H1,H2|_] = Ns) ->
     ?assertMatch(ok, t_read_everywhere(C1, P12, Ns, 2)),
     ?assertMatch(ok, t_read_everywhere(C2, P2, Ns, 1)),
     ?assertMatch(ok, t_read_everywhere(A1, Pa1, Ns, 4)),
-    ?debugFmt("code:which(gproc_dist) = ~p~n", [code:which(gproc_dist)]),
     ?assertMatch([{C1,P1, 3},
 		  {C1,P12,4},
 		  {C2,P2, 0}], t_call(P1, {apply, gproc, update_counters,
@@ -347,12 +445,12 @@ t_standby_monitor([A,B|_] = Ns) ->
     ?assertMatch({gproc,unreg,Ref1,Na}, got_msg(Pc, gproc)),
     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, undefined)).
 
-t_follow_monitor([A,B|_] = Ns) ->
+t_follow_monitor([A,B|_]) ->
     Na = ?T_NAME,
     Pa = t_spawn(A, _Selective = true),
     Ref = t_call(Pa, {apply, gproc, monitor, [Na, follow]}),
     {gproc,unreg,Ref,Na} = got_msg(Pa),
-    Pb = t_spawn_reg(A, Na),
+    Pb = t_spawn_reg(B, Na),
     {gproc,registered,Ref,Na} = got_msg(Pa),
     ok = t_call(Pb, die),
     ok = t_call(Pa, die).
@@ -468,6 +566,7 @@ t_spawn(Node, Selective) -> gproc_test_lib:t_spawn(Node, Selective).
 t_spawn_mreg(Node, KVL) -> gproc_test_lib:t_spawn_mreg(Node, KVL).
 t_spawn_reg(Node, N) -> gproc_test_lib:t_spawn_reg(Node, N).
 t_spawn_reg(Node, N, V) -> gproc_test_lib:t_spawn_reg(Node, N, V).
+t_spawn_reg(Node, N, V, As) -> gproc_test_lib:t_spawn_reg(Node, N, V, As).
 t_spawn_reg_shared(Node, N, V) -> gproc_test_lib:t_spawn_reg_shared(Node, N, V).
 got_msg(P) -> gproc_test_lib:got_msg(P).
 got_msg(P, Tag) -> gproc_test_lib:got_msg(P, Tag).

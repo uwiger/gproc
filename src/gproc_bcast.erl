@@ -35,6 +35,8 @@
 	 terminate/2,
 	 code_change/3]).
 
+-include("gproc_int.hrl").
+
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
@@ -45,7 +47,7 @@ handle_call(_, _, S) ->
     {reply, {error, unknown_call}, S}.
 
 handle_cast({send, Key, Msg}, S) ->
-    catch gproc:send(Key, Msg),
+    ?MAY_FAIL(gproc:send(Key, Msg)),
     {noreply, S};
 handle_cast(_, S) ->
     {noreply, S}.

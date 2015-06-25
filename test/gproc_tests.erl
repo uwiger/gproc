@@ -84,6 +84,14 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_aggr_counter()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_awaited_aggr_counter()))}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_simple_resource_count()))}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_awaited_resource_count()))}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_resource_count_on_zero_send()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_update_counters()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_prop()))}
@@ -228,6 +236,65 @@ t_simple_aggr_counter() ->
 	    gproc:audit_process(P1)
     end,
     ?assert(gproc:get_value({a,l,c1}) =:= 7).
+
+t_awaited_aggr_counter() ->
+    ?assert(gproc:reg({c,l,c1}, 3) =:= true),
+    gproc:nb_wait({a,l,c1}),
+    ?assert(gproc:reg({a,l,c1}) =:= true),
+    receive {gproc,_,registered,{{a,l,c1},_,_}} -> ok
+    after 1000 ->
+            error(timeout)
+    end,
+    ?assertMatch(3, gproc:get_value({a,l,c1})).
+
+t_simple_resource_count() ->
+    ?assert(gproc:reg({r,l,r1}, 1) =:= true),
+    ?assert(gproc:reg({rc,l,r1}) =:= true),
+    ?assert(gproc:get_value({rc,l,r1}) =:= 1),
+    P = self(),
+    P1 = spawn_link(fun() ->
+                            gproc:reg({r,l,r1}, 1),
+                            P ! {self(), ok},
+                            receive
+                                {P, goodbye} -> ok
+                            end
+                    end),
+    receive {P1, ok} -> ok end,
+    ?assert(gproc:get_value({rc,l,r1}) =:= 2),
+    P1 ! {self(), goodbye},
+    R = erlang:monitor(process, P1),
+    receive {'DOWN', R, _, _, _} ->
+            gproc:audit_process(P1)
+    end,
+    ?assert(gproc:get_value({rc,l,r1}) =:= 1).
+
+t_awaited_resource_count() ->
+    ?assert(gproc:reg({r,l,r1}, 3) =:= true),
+    ?assert(gproc:reg({r,l,r2}, 3) =:= true),
+    ?assert(gproc:reg({r,l,r3}, 3) =:= true),
+    gproc:nb_wait({rc,l,r1}),
+    ?assert(gproc:reg({rc,l,r1}) =:= true),
+    receive {gproc,_,registered,{{rc,l,r1},_,_}} -> ok
+    after 1000 ->
+            error(timeout)
+    end,
+    ?assertMatch(1, gproc:get_value({rc,l,r1})).
+
+t_resource_count_on_zero_send() ->
+    Me = self(),
+    ?assertMatch(true, gproc:reg({p,l,myp})),
+    ?assertMatch(true, gproc:reg({r,l,r1})),
+    ?assertMatch(true, gproc:reg({rc,l,r1}, 1, [{on_zero,
+                                                 [{send, {p,l,myp}}]}])),
+    ?assertMatch(1, gproc:get_value({rc,l,r1})),
+    ?assertMatch(true, gproc:unreg({r,l,r1})),
+    ?assertMatch(0, gproc:get_value({rc,l,r1})),
+    receive
+        {gproc, resource_on_zero, l, r1, Me} ->
+            ok
+    after 1000 ->
+            error(timeout)
+    end.
 
 t_update_counters() ->
     ?assert(gproc:reg({c,l,c1}, 3) =:= true),
