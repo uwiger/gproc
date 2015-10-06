@@ -4,7 +4,7 @@
 
 {application, gproc,
  [
-  {description, "GPROC"},
+  {description, "Extended process registry for Erlang"},
   {vsn, git},
   {id, "GPROC"},
   {registered, [ ] },
