@@ -47,6 +47,7 @@
 
 -export([start_link/0,
          reg/1, reg/2, reg/3, unreg/1, set_attributes/2,
+         reg_other/2, reg_other/3, reg_other/4, unreg_other/2,
 	 reg_or_locate/1, reg_or_locate/2, reg_or_locate/3,
 	 reg_shared/1, reg_shared/2, reg_shared/3, unreg_shared/1,
 	 set_attributes_shared/2, set_value_shared/2,
@@ -1014,6 +1015,48 @@ reg1({rc,l,_} = Key, Value, As) ->
 reg1(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
+%% @equiv reg_other(Key, Pid, default(Key), [])
+reg_other(Key, Pid) ->
+    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid), [Key, Pid]).
+
+%% @equiv reg_other(Key, Pid, Value, [])
+reg_other(Key, Pid, Value) ->
+    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, Value, []), [Key, Pid, Value]).
+
+%% @spec reg_other(Key, Pid, Value, Attrs) -> true
+%% @doc Register name or property to another process.
+%%
+%% Equivalent to {@link reg/3}, but allows for registration of another process
+%% instead of the current process.
+%%
+%% Note that registering other processes introduces the possibility of
+%% confusing race conditions in user code. Letting each process register
+%% its own resources is highly recommended.
+%%
+%% Only the following resource types can be registered through this function:
+%%
+%% * `n'  - unique names
+%% * `a'  - aggregated counters
+%% * `r'  - resource properties
+%% * `rc' - resource counters
+%% @end
+reg_other(Key, Pid, Value, Attrs) ->
+    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, Value, Attrs),
+                       [Key, Pid, Value, Attrs]).
+
+reg_other1(Key, Pid) ->
+    reg_other1(Key, Pid, default(Key), []).
+
+reg_other1({_,g,_} = Key, Pid, Value, As) when is_pid(Pid) ->
+    ?CHK_DIST,
+    gproc_dist:reg_other(Key, Pid, Value, As);
+reg_other1({T,l,_} = Key, Pid, Value, As) when is_pid(Pid) ->
+    if T==n; T==a; T==r; T==rc ->
+            call({reg_other, Key, Pid, Value, As});
+       true ->
+            ?THROW_GPROC_ERROR(badarg)
+    end.
+
 %% @spec reg_or_locate(Key::key(), Value) -> {pid(), NewValue}
 %%
 %% @doc Try registering a unique name, or return existing registration.
@@ -1183,6 +1226,26 @@ unreg1(Key) ->
                 false ->
                     ?THROW_GPROC_ERROR(badarg)
             end
+    end.
+
+%% @spec unreg_other(key(), pid()) -> true
+%% @doc Unregister a name registered to another process.
+%%
+%% This function is equivalent to {@link unreg/1}, but specifies another
+%% process as the holder of the registration. An exception is raised if the
+%% name or property is not registered to the given process.
+%% @end
+unreg_other(Key, Pid) ->
+    ?CATCH_GPROC_ERROR(unreg_other1(Key, Pid), [Key, Pid]).
+
+unreg_other1({_,g,_} = Key, Pid) ->
+    ?CHK_DIST,
+    gproc_dist:unreg_other(Key, Pid);
+unreg_other1({T,l,_} = Key, Pid) when is_pid(Pid) ->
+    if T==n; T==a; T==r; T==rc ->
+            call({unreg_other, Key, Pid});
+       true ->
+            ?THROW_GPROC_ERROR(badarg)
     end.
 
 %% @spec (Key::key(), Props::[{atom(), any()}]) -> true
@@ -2123,17 +2186,9 @@ handle_cast({cancel_wait_or_monitor, Pid, {T,_,_} = Key}, S) ->
 
 %% @hidden
 handle_call({reg, {_T,l,_} = Key, Val, Attrs}, {Pid,_}, S) ->
-    case try_insert_reg(Key, Val, Pid) of
-        true ->
-            _ = gproc_lib:ensure_monitor(Pid,l),
-            _ = if Attrs =/= [] ->
-                        gproc_lib:insert_attr(Key, Attrs, Pid, l);
-                   true -> true
-                end,
-            {reply, true, S};
-        false ->
-            {reply, badarg, S}
-    end;
+    handle_reg_call(Key, Pid, Val, Attrs, S);
+handle_call({reg_other, {_T,l,_} = Key, Pid, Val, Attrs}, _, S) ->
+    handle_reg_call(Key, Pid, Val, Attrs, S);
 handle_call({set_attributes, {_,l,_} = Key, Attrs}, {Pid,_}, S) ->
     case gproc_lib:insert_attr(Key, Attrs, Pid, l) of
 	false -> {reply, badarg, S};
@@ -2232,16 +2287,9 @@ handle_call({reg_shared, {_T,l,_} = Key, Val, Attrs}, _From, S) ->
 	    {reply, badarg, S}
     end;
 handle_call({unreg, {_,l,_} = Key}, {Pid,_}, S) ->
-    case ets:lookup(?TAB, {Pid,Key}) of
-        [{_, r}] ->
-            _ = gproc_lib:remove_reg(Key, Pid, unreg, []),
-            {reply, true, S};
-        [{_, Opts}] when is_list(Opts) ->
-            _ = gproc_lib:remove_reg(Key, Pid, unreg, Opts),
-            {reply, true, S};
-        [] ->
-            {reply, badarg, S}
-    end;
+    handle_unreg_call(Key, Pid, S);
+handle_call({unreg_other, {_,l,_} = Key, Pid}, _, S) ->
+    handle_unreg_call(Key, Pid, S);
 handle_call({unreg_shared, {_,l,_} = Key}, _, S) ->
     _ = case ets:lookup(?TAB, {shared, Key}) of
 	    [{_, r}] ->
@@ -2321,11 +2369,36 @@ code_change(_FromVsn, S, _Extra) ->
         end,
     {ok, S}.
 
-
 %% @hidden
 terminate(_Reason, _S) ->
     ok.
 
+%% handle_call body common to reg and reg_other.
+%%
+handle_reg_call(Key, Pid, Val, Attrs, S) ->
+    case try_insert_reg(Key, Val, Pid) of
+        true ->
+            _ = gproc_lib:ensure_monitor(Pid,l),
+            _ = if Attrs =/= [] ->
+                        gproc_lib:insert_attr(Key, Attrs, Pid, l);
+                   true -> true
+                end,
+            {reply, true, S};
+        false ->
+            {reply, badarg, S}
+    end.
+
+handle_unreg_call(Key, Pid, S) ->
+    case ets:lookup(?TAB, {Pid,Key}) of
+        [{_, r}] ->
+            _ = gproc_lib:remove_reg(Key, Pid, unreg, []),
+            {reply, true, S};
+        [{_, Opts}] when is_list(Opts) ->
+            _ = gproc_lib:remove_reg(Key, Pid, unreg, Opts),
+            {reply, true, S};
+        [] ->
+            {reply, badarg, S}
+    end.
 
 call(Req) ->
     call(Req, l).

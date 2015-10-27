@@ -24,6 +24,7 @@
 
 -export([start_link/0, start_link/1,
          reg/1, reg/3, unreg/1,
+         reg_other/4, unreg_other/2,
 	 reg_or_locate/3,
 	 reg_shared/3, unreg_shared/1,
          monitor/2,
@@ -109,18 +110,46 @@ reg_or_locate(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 
-%%% @spec({Class,Scope, Key}, Value) -> true
+%%% @spec({Class,g, Key}, Value) -> true
 %%% @doc
 %%%    Class = n  - unique name
 %%%          | p  - non-unique property
 %%%          | c  - counter
 %%%          | a  - aggregated counter
-%%%    Scope = l | g (global or local)
+%%%          | r  - resource property
+%%%          | rc - resource counter
 %%% @end
 reg({_,g,_} = Key, Value, Attrs) ->
     %% anything global
     leader_call({reg, Key, Value, self(), Attrs});
 reg(_, _, _) ->
+    ?THROW_GPROC_ERROR(badarg).
+
+%% @spec ({Class,g,Key}, pid(), Value, Attrs) -> true
+%% @doc
+%%    Class = n  - unique name
+%%          | a  - aggregated counter
+%%          | r  - resource property
+%%          | rc - resource counter
+%%    Value = term()
+%%    Attrs = [{Key, Value}]
+%% @end
+reg_other({T,g,_} = Key, Pid, Value, Attrs) when is_pid(Pid) ->
+    if T==n; T==a; T==r; T==rc ->
+            leader_call({reg_other, Key, Value, Pid, Attrs});
+       true ->
+            ?THROW_GPROC_ERROR(badarg)
+    end;
+reg_other(_, _, _, _) ->
+    ?THROW_GPROC_ERROR(badarg).
+
+unreg_other({T,g,_} = Key, Pid) when is_pid(Pid) ->
+    if T==n; T==a; T==r; T==rc ->
+            leader_call({unreg_other, Key, Pid});
+       true ->
+            ?THROW_GPROC_ERROR(badarg)
+    end;
+unreg_other(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 reg_shared({_,g,_} = Key, Value, Attrs) ->
@@ -334,7 +363,8 @@ handle_leader_call(sync, From, #state{sync_requests = SReqs} = S, E) ->
             GenLeader:broadcast({from_leader, {sync, From}}, Alive, E),
             {noreply, S#state{sync_requests = [{From, Alive}|SReqs]}}
     end;
-handle_leader_call({reg, {_C,g,_Name} = K, Value, Pid, As}, _From, S, _E) ->
+handle_leader_call({Reg, {_C,g,_Name} = K, Value, Pid, As}, _From, S, _E)
+  when Reg==reg; Reg==reg_other ->
     case gproc_lib:insert_reg(K, Value, Pid, g) of
         false ->
             {reply, badarg, S};
@@ -479,7 +509,9 @@ handle_leader_call({reset_counter, {c,g,_Ctr} = Key, Pid}, _From, S, _E) ->
 	    io:fwrite("reset_counter failed: ~p~n~p~n", [_R, erlang:get_stacktrace()]),
 	    {reply, badarg, S}
     end;
-handle_leader_call({unreg, {T,g,Name} = K, Pid}, _From, S, _E) ->
+handle_leader_call({Unreg, {T,g,Name} = K, Pid}, _From, S, _E)
+  when Unreg==unreg;
+       Unreg==unreg_other->
     Key = if T == n; T == a; T == rc -> {K,T};
              true -> {K, Pid}
           end,
