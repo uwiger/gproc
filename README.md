@@ -7,6 +7,7 @@ __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)), Joseph Wayne N
 Extended process dictionary
 
 [![Build Status](https://travis-ci.org/uwiger/gproc.png?branch=master)](https://travis-ci.org/uwiger/gproc)
+[![Hex pm](http://img.shields.io/hexpm/v/gproc.svg?style=flat)](https://hex.pm/packages/gproc)
 
 
 ## Note ##
@@ -119,4 +120,3 @@ Freiburg 2007 ([Paper available here](http://github.com/uwiger/gproc/blob/master
 <tr><td><a href="http://github.com/uwiger/gproc/blob/master/doc/gproc_ps.md" class="module">gproc_ps</a></td></tr>
 <tr><td><a href="http://github.com/uwiger/gproc/blob/master/doc/gproc_pt.md" class="module">gproc_pt</a></td></tr>
 <tr><td><a href="http://github.com/uwiger/gproc/blob/master/doc/gproc_sup.md" class="module">gproc_sup</a></td></tr></table>
-
