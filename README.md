@@ -97,9 +97,9 @@ global gproc.
 
 ## Building Edoc ##
 
-
 By default, `./rebar doc` generates Github-flavored Markdown files.
 If you want to change this, remove the `edoc_opts` line from `rebar.config`.
+
 Gproc was first introduced at the ACM SIGPLAN Erlang Workshop in
 Freiburg 2007 ([Paper available here](http://github.com/uwiger/gproc/blob/master/doc/erlang07-wiger.pdf)).
 
@@ -120,3 +120,4 @@ Freiburg 2007 ([Paper available here](http://github.com/uwiger/gproc/blob/master
 <tr><td><a href="http://github.com/uwiger/gproc/blob/master/doc/gproc_ps.md" class="module">gproc_ps</a></td></tr>
 <tr><td><a href="http://github.com/uwiger/gproc/blob/master/doc/gproc_pt.md" class="module">gproc_pt</a></td></tr>
 <tr><td><a href="http://github.com/uwiger/gproc/blob/master/doc/gproc_sup.md" class="module">gproc_sup</a></td></tr></table>
+

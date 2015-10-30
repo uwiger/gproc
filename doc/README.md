@@ -7,6 +7,7 @@ __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)), Joseph Wayne N
 Extended process dictionary
 
 [![Build Status](https://travis-ci.org/uwiger/gproc.png?branch=master)](https://travis-ci.org/uwiger/gproc)
+[![Hex pm](http://img.shields.io/hexpm/v/gproc.svg?style=flat)](https://hex.pm/packages/gproc)
 
 
 ## Note ##
@@ -96,9 +97,9 @@ global gproc.
 
 ## Building Edoc ##
 
-
 By default, `./rebar doc` generates Github-flavored Markdown files.
 If you want to change this, remove the `edoc_opts` line from `rebar.config`.
+
 Gproc was first introduced at the ACM SIGPLAN Erlang Workshop in
 Freiburg 2007 ([Paper available here](erlang07-wiger.pdf)).
 

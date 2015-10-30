@@ -5,17 +5,16 @@
 * [Function Index](#index)
 * [Function Details](#functions)
 
-
 Gproc message broadcast server
 This module is used to support gproc:bcast(Key, Msg).
+
 __Behaviours:__ [`gen_server`](gen_server.md).
 
 __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)).
+
 <a name="description"></a>
 
 ## Description ##
-
-
 gproc:bcast/2 allows for e.g. distributed publish/subscribe, without
 having to resort to global property registration.
 To ensure that erlang's message ordering guarantees are kept, all sends
@@ -37,13 +36,11 @@ are channeled through a broadcast server on each node.<a name="index"></a>
 
 `code_change(X1, S, X3) -> any()`
 
-
 <a name="handle_call-3"></a>
 
 ### handle_call/3 ###
 
 `handle_call(X1, X2, S) -> any()`
-
 
 <a name="handle_cast-2"></a>
 
@@ -51,13 +48,11 @@ are channeled through a broadcast server on each node.<a name="index"></a>
 
 `handle_cast(X1, S) -> any()`
 
-
 <a name="handle_info-2"></a>
 
 ### handle_info/2 ###
 
 `handle_info(X1, S) -> any()`
-
 
 <a name="init-1"></a>
 
@@ -65,18 +60,15 @@ are channeled through a broadcast server on each node.<a name="index"></a>
 
 `init(X1) -> any()`
 
-
 <a name="start_link-0"></a>
 
 ### start_link/0 ###
 
 `start_link() -> any()`
 
-
 <a name="terminate-2"></a>
 
 ### terminate/2 ###
 
 `terminate(X1, X2) -> any()`
-
 

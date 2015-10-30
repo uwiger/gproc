@@ -5,6 +5,7 @@
 * [Function Details](#functions)
 
 __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)).
+
 <a name="index"></a>
 
 ## Function Index ##
@@ -21,10 +22,8 @@ __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)).
 
 ### i/0 ###
 
-
 <pre><code>
 i() -&gt; ok
 </code></pre>
 <br />
-
 

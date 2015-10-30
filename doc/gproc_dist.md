@@ -5,19 +5,20 @@
 * [Function Index](#index)
 * [Function Details](#functions)
 
-
 Extended process registry.
+
 __Behaviours:__ [`gen_leader`](gen_leader.md).
 
 __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)).
+
 <a name="description"></a>
 
 ## Description ##
 
 This module implements an extended process registry
 
-
 For a detailed description, see gproc/doc/erlang07-wiger.pdf.
+
 <a name="index"></a>
 
 ## Function Index ##
@@ -41,13 +42,11 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#reg_or_
 
 `code_change(FromVsn, S, Extra, E) -> any()`
 
-
 <a name="demonitor-2"></a>
 
 ### demonitor/2 ###
 
 `demonitor(Key, Ref) -> any()`
-
 
 <a name="elected-2"></a>
 
@@ -55,13 +54,11 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#reg_or_
 
 `elected(S, E) -> any()`
 
-
 <a name="elected-3"></a>
 
 ### elected/3 ###
 
 `elected(S, E, Node) -> any()`
-
 
 <a name="from_leader-3"></a>
 
@@ -69,11 +66,9 @@ Scope = l | g (global or local).</td></tr><tr><td valign="top"><a href="#reg_or_
 
 `from_leader(Ops, S, E) -> any()`
 
-
 <a name="get_leader-0"></a>
 
 ### get_leader/0 ###
-
 
 <pre><code>
 get_leader() -&gt; node()
@@ -81,12 +76,12 @@ get_leader() -&gt; node()
 <br />
 
 Returns the node of the current gproc leader.
+
 <a name="give_away-2"></a>
 
 ### give_away/2 ###
 
 `give_away(Key, To) -> any()`
-
 
 <a name="handle_DOWN-3"></a>
 
@@ -94,13 +89,11 @@ Returns the node of the current gproc leader.
 
 `handle_DOWN(Node, S, E) -> any()`
 
-
 <a name="handle_call-4"></a>
 
 ### handle_call/4 ###
 
 `handle_call(X1, X2, S, E) -> any()`
-
 
 <a name="handle_cast-3"></a>
 
@@ -108,13 +101,11 @@ Returns the node of the current gproc leader.
 
 `handle_cast(Msg, S, X3) -> any()`
 
-
 <a name="handle_info-2"></a>
 
 ### handle_info/2 ###
 
 `handle_info(X1, S) -> any()`
-
 
 <a name="handle_info-3"></a>
 
@@ -122,13 +113,11 @@ Returns the node of the current gproc leader.
 
 `handle_info(Msg, S, E) -> any()`
 
-
 <a name="handle_leader_call-4"></a>
 
 ### handle_leader_call/4 ###
 
 `handle_leader_call(X1, From, State, E) -> any()`
-
 
 <a name="handle_leader_cast-3"></a>
 
@@ -136,13 +125,11 @@ Returns the node of the current gproc leader.
 
 `handle_leader_cast(X1, S, E) -> any()`
 
-
 <a name="init-1"></a>
 
 ### init/1 ###
 
 `init(Opts) -> any()`
-
 
 <a name="leader_call-1"></a>
 
@@ -150,13 +137,11 @@ Returns the node of the current gproc leader.
 
 `leader_call(Req) -> any()`
 
-
 <a name="leader_cast-1"></a>
 
 ### leader_cast/1 ###
 
 `leader_cast(Msg) -> any()`
-
 
 <a name="monitor-2"></a>
 
@@ -164,13 +149,11 @@ Returns the node of the current gproc leader.
 
 `monitor(Key, Type) -> any()`
 
-
 <a name="mreg-2"></a>
 
 ### mreg/2 ###
 
 `mreg(T, KVL) -> any()`
-
 
 <a name="munreg-2"></a>
 
@@ -178,13 +161,11 @@ Returns the node of the current gproc leader.
 
 `munreg(T, Keys) -> any()`
 
-
 <a name="reg-1"></a>
 
 ### reg/1 ###
 
 `reg(Key) -> any()`
-
 
 <a name="reg-3"></a>
 
@@ -192,18 +173,17 @@ Returns the node of the current gproc leader.
 
 `reg(Key, Value, Attrs) -> any()`
 
-
 Class = n  - unique name
 | p  - non-unique property
 | c  - counter
 | a  - aggregated counter
 Scope = l | g (global or local)
+
 <a name="reg_or_locate-3"></a>
 
 ### reg_or_locate/3 ###
 
 `reg_or_locate(Key, Value, Pid) -> any()`
-
 
 <a name="reg_shared-3"></a>
 
@@ -211,13 +191,11 @@ Scope = l | g (global or local)
 
 `reg_shared(Key, Value, Attrs) -> any()`
 
-
 <a name="reset_counter-1"></a>
 
 ### reset_counter/1 ###
 
 `reset_counter(Key) -> any()`
-
 
 <a name="set_attributes-2"></a>
 
@@ -225,13 +203,11 @@ Scope = l | g (global or local)
 
 `set_attributes(Key, Attrs) -> any()`
 
-
 <a name="set_attributes_shared-2"></a>
 
 ### set_attributes_shared/2 ###
 
 `set_attributes_shared(Key, Attrs) -> any()`
-
 
 <a name="set_value-2"></a>
 
@@ -239,13 +215,11 @@ Scope = l | g (global or local)
 
 `set_value(Key, Value) -> any()`
 
-
 <a name="set_value_shared-2"></a>
 
 ### set_value_shared/2 ###
 
 `set_value_shared(Key, Value) -> any()`
-
 
 <a name="start_link-0"></a>
 
@@ -253,13 +227,11 @@ Scope = l | g (global or local)
 
 `start_link() -> any()`
 
-
 <a name="start_link-1"></a>
 
 ### start_link/1 ###
 
 `start_link(Nodes) -> any()`
-
 
 <a name="surrendered-3"></a>
 
@@ -267,20 +239,16 @@ Scope = l | g (global or local)
 
 `surrendered(State, X2, E) -> any()`
 
-
 <a name="sync-0"></a>
 
 ### sync/0 ###
-
 
 <pre><code>
 sync() -&gt; true
 </code></pre>
 <br />
 
-
 Synchronize with the gproc leader
-
 
 This function can be used to ensure that data has been replicated from the
 leader to the current node. It does so by asking the leader to ping all
@@ -290,12 +258,12 @@ during an ongoing sync, the call will fail with a timeout exception.
 (Actually, it should be a `leader_died` exception; more study needed to find
 out why gen_leader times out in this situation, rather than reporting that
 the leader died.)
+
 <a name="terminate-2"></a>
 
 ### terminate/2 ###
 
 `terminate(Reason, S) -> any()`
-
 
 <a name="unreg-1"></a>
 
@@ -303,13 +271,11 @@ the leader died.)
 
 `unreg(Key) -> any()`
 
-
 <a name="unreg_shared-1"></a>
 
 ### unreg_shared/1 ###
 
 `unreg_shared(Key) -> any()`
-
 
 <a name="update_counter-3"></a>
 
@@ -317,18 +283,15 @@ the leader died.)
 
 `update_counter(Key, Pid, Incr) -> any()`
 
-
 <a name="update_counters-1"></a>
 
 ### update_counters/1 ###
 
 `update_counters(List) -> any()`
 
-
 <a name="update_shared_counter-2"></a>
 
 ### update_shared_counter/2 ###
 
 `update_shared_counter(Key, Incr) -> any()`
-
 

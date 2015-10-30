@@ -6,39 +6,31 @@
 * [Function Index](#index)
 * [Function Details](#functions)
 
-
 Extended process registry
 This module implements an extended process registry.
+
 __Behaviours:__ [`gen_server`](gen_server.md).
 
 __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)).
+
 <a name="description"></a>
 
 ## Description ##
 
-
-
 For a detailed description, see
 [erlang07-wiger.pdf](erlang07-wiger.pdf).
-
-
 
 __NOTE:__ The functions in the Gproc API expect the Gproc application
 to be running.
 
 
-
-
 ## Tuning Gproc performance ##
-
-
 
 Gproc relies on a central server and an ordered-set ets table.
 Effort is made to perform as much work as possible in the client without
 sacrificing consistency. A few things can be tuned by setting the following
 application environment variables in the top application of `gproc`
 (usually `gproc`):
-
 
 * `{ets_options, list()}` - Currently, the options `{write_concurrency, F}`
 and `{read_concurrency, F}` are allowed. The default is
@@ -58,7 +50,6 @@ will improve performance.
 ### <a name="type-context">context()</a> ###
 
 
-
 <pre><code>
 context() = {<a href="#type-scope">scope()</a>, <a href="#type-type">type()</a>} | <a href="#type-type">type()</a>
 </code></pre>
@@ -66,9 +57,7 @@ context() = {<a href="#type-scope">scope()</a>, <a href="#type-type">type()</a>}
 
 
 
-
 ### <a name="type-ctr_incr">ctr_incr()</a> ###
-
 
 
 <pre><code>
@@ -78,9 +67,7 @@ ctr_incr() = integer()
 
 
 
-
 ### <a name="type-ctr_setval">ctr_setval()</a> ###
-
 
 
 <pre><code>
@@ -90,9 +77,7 @@ ctr_setval() = integer()
 
 
 
-
 ### <a name="type-ctr_thr">ctr_thr()</a> ###
-
 
 
 <pre><code>
@@ -102,9 +87,7 @@ ctr_thr() = integer()
 
 
 
-
 ### <a name="type-ctr_update">ctr_update()</a> ###
-
 
 
 <pre><code>
@@ -114,9 +97,7 @@ ctr_update() = <a href="#type-ctr_incr">ctr_incr()</a> | {<a href="#type-ctr_inc
 
 
 
-
 ### <a name="type-headpat">headpat()</a> ###
-
 
 
 <pre><code>
@@ -126,9 +107,7 @@ headpat() = {<a href="#type-keypat">keypat()</a>, <a href="#type-pidpat">pidpat(
 
 
 
-
 ### <a name="type-increment">increment()</a> ###
-
 
 
 <pre><code>
@@ -138,9 +117,7 @@ increment() = <a href="#type-ctr_incr">ctr_incr()</a> | <a href="#type-ctr_updat
 
 
 
-
 ### <a name="type-key">key()</a> ###
-
 
 
 <pre><code>
@@ -150,9 +127,7 @@ key() = {<a href="#type-type">type()</a>, <a href="#type-scope">scope()</a>, any
 
 
 
-
 ### <a name="type-keypat">keypat()</a> ###
-
 
 
 <pre><code>
@@ -162,9 +137,7 @@ keypat() = {<a href="#type-sel_type">sel_type()</a> | <a href="#type-sel_var">se
 
 
 
-
 ### <a name="type-monitor_type">monitor_type()</a> ###
-
 
 
 <pre><code>
@@ -174,9 +147,7 @@ monitor_type() = info | standby | follow
 
 
 
-
 ### <a name="type-pidpat">pidpat()</a> ###
-
 
 
 <pre><code>
@@ -186,9 +157,7 @@ pidpat() = pid() | <a href="#type-sel_var">sel_var()</a>
 
 
 
-
 ### <a name="type-reg_id">reg_id()</a> ###
-
 
 
 <pre><code>
@@ -198,9 +167,7 @@ reg_id() = {<a href="#type-type">type()</a>, <a href="#type-scope">scope()</a>, 
 
 
 
-
 ### <a name="type-scope">scope()</a> ###
-
 
 
 <pre><code>
@@ -210,9 +177,7 @@ scope() = l | g
 
 
 
-
 ### <a name="type-sel_context">sel_context()</a> ###
-
 
 
 <pre><code>
@@ -222,9 +187,7 @@ sel_context() = {<a href="#type-scope">scope()</a>, <a href="#type-type">type()<
 
 
 
-
 ### <a name="type-sel_pattern">sel_pattern()</a> ###
-
 
 
 <pre><code>
@@ -234,9 +197,7 @@ sel_pattern() = [{<a href="#type-headpat">headpat()</a>, list(), list()}]
 
 
 
-
 ### <a name="type-sel_scope">sel_scope()</a> ###
-
 
 
 <pre><code>
@@ -246,9 +207,7 @@ sel_scope() = scope | all | global | local
 
 
 
-
 ### <a name="type-sel_type">sel_type()</a> ###
-
 
 
 <pre><code>
@@ -258,9 +217,7 @@ sel_type() = <a href="#type-type">type()</a> | names | props | counters | aggr_c
 
 
 
-
 ### <a name="type-sel_var">sel_var()</a> ###
-
 
 
 <pre><code>
@@ -270,9 +227,7 @@ sel_var() = '_' | atom()
 
 
 
-
 ### <a name="type-type">type()</a> ###
-
 
 
 <pre><code>
@@ -282,15 +237,12 @@ type() = n | p | c | a | r | rc
 
 
 
-
 ### <a name="type-unique_id">unique_id()</a> ###
-
 
 
 <pre><code>
 unique_id() = {n | a, <a href="#type-scope">scope()</a>, any()}
 </code></pre>
-
 
 <a name="index"></a>
 
@@ -319,6 +271,7 @@ a unique name registered via gproc.</td></tr><tr><td valign="top"><a href="#mreg
 Equivalent to [`reg({a, g, Name})`](#reg-1).
 
 Registers a global (unique) aggregated counter.
+
 <a name="add_global_counter-2"></a>
 
 ### add_global_counter/2 ###
@@ -326,6 +279,7 @@ Registers a global (unique) aggregated counter.
 `add_global_counter(Name, Initial) -> any()`
 
 Registers a global (non-unique) counter. @equiv reg({c,g,Name},Value)
+
 <a name="add_global_name-1"></a>
 
 ### add_global_name/1 ###
@@ -333,6 +287,7 @@ Registers a global (non-unique) counter. @equiv reg({c,g,Name},Value)
 `add_global_name(Name) -> any()`
 
 Registers a global (unique) name. @equiv reg({n,g,Name})
+
 <a name="add_global_property-2"></a>
 
 ### add_global_property/2 ###
@@ -340,6 +295,7 @@ Registers a global (unique) name. @equiv reg({n,g,Name})
 `add_global_property(Name, Value) -> any()`
 
 Registers a global (non-unique) property. @equiv reg({p,g,Name},Value)
+
 <a name="add_local_aggr_counter-1"></a>
 
 ### add_local_aggr_counter/1 ###
@@ -349,6 +305,7 @@ Registers a global (non-unique) property. @equiv reg({p,g,Name},Value)
 Equivalent to [`reg({a, l, Name})`](#reg-1).
 
 Registers a local (unique) aggregated counter.
+
 <a name="add_local_counter-2"></a>
 
 ### add_local_counter/2 ###
@@ -356,6 +313,7 @@ Registers a local (unique) aggregated counter.
 `add_local_counter(Name, Initial) -> any()`
 
 Registers a local (non-unique) counter. @equiv reg({c,l,Name},Value)
+
 <a name="add_local_name-1"></a>
 
 ### add_local_name/1 ###
@@ -363,6 +321,7 @@ Registers a local (non-unique) counter. @equiv reg({c,l,Name},Value)
 `add_local_name(Name) -> any()`
 
 Registers a local (unique) name. @equiv reg({n,l,Name})
+
 <a name="add_local_property-2"></a>
 
 ### add_local_property/2 ###
@@ -370,6 +329,7 @@ Registers a local (unique) name. @equiv reg({n,l,Name})
 `add_local_property(Name, Value) -> any()`
 
 Registers a local (non-unique) property. @equiv reg({p,l,Name},Value)
+
 <a name="add_shared_local_counter-2"></a>
 
 ### add_shared_local_counter/2 ###
@@ -379,21 +339,19 @@ Registers a local (non-unique) property. @equiv reg({p,l,Name},Value)
 Equivalent to [`reg_shared({c, l, Name}, Value)`](#reg_shared-2).
 
 Registers a local shared (unique) counter.
+
 <a name="audit_process-1"></a>
 
 ### audit_process/1 ###
-
 
 <pre><code>
 audit_process(Pid::pid()) -&gt; ok
 </code></pre>
 <br />
 
-
 <a name="await-1"></a>
 
 ### await/1 ###
-
 
 <pre><code>
 await(Key::<a href="#type-key">key()</a>) -&gt; {pid(), Value}
@@ -401,10 +359,10 @@ await(Key::<a href="#type-key">key()</a>) -&gt; {pid(), Value}
 <br />
 
 Equivalent to [`await(Key, infinity)`](#await-2).
+
 <a name="await-2"></a>
 
 ### await/2 ###
-
 
 <pre><code>
 await(Key::<a href="#type-key">key()</a>, Timeout) -&gt; {pid(), Value}
@@ -419,10 +377,10 @@ A small optimization: we first perform a lookup, to see if the name
 is already registered. This way, the cost of the operation will be
 roughly the same as of where/1 in the case where the name is already
 registered (the difference: await/2 also returns the value).
+
 <a name="await-3"></a>
 
 ### await/3 ###
-
 
 <pre><code>
 await(Node::node(), Key::<a href="#type-key">key()</a>, Timeout) -&gt; {pid(), Value}
@@ -435,10 +393,10 @@ This function works exactly like [`await/2`](#await-2), but queries a remote
 node instead. An exception is thrown if `Node` cannot be reached. If gproc
 is not running on a given node, this is treated the same as the node being
 down.
+
 <a name="bcast-2"></a>
 
 ### bcast/2 ###
-
 
 <pre><code>
 bcast(Key::<a href="#type-key">key()</a>, Msg::any()) -&gt; Msg
@@ -446,19 +404,17 @@ bcast(Key::<a href="#type-key">key()</a>, Msg::any()) -&gt; Msg
 <br />
 
 Equivalent to [`bcast(nodes(), Key, Msg)`](#bcast-3).
+
 <a name="bcast-3"></a>
 
 ### bcast/3 ###
-
 
 <pre><code>
 bcast(Nodes::[atom()], Key::<a href="#type-key">key()</a>, Msg::any()) -&gt; Msg
 </code></pre>
 <br />
 
-
 Sends a message to processes corresponding to Key on Nodes.
-
 
 This function complements `send/2` and works on locally registered resources
 that `send/2` supports. Messages are routed via a special broadcast server
@@ -467,10 +423,10 @@ is asynchronous and carries the same guarantees as normal message passing
 (with the added proviso that the broadcast server also needs to be available).
 
 __See also:__ [send/2](#send-2).
+
 <a name="cancel_wait-2"></a>
 
 ### cancel_wait/2 ###
-
 
 <pre><code>
 cancel_wait(Key::<a href="#type-key">key()</a>, Ref) -&gt; ok
@@ -478,16 +434,14 @@ cancel_wait(Key::<a href="#type-key">key()</a>, Ref) -&gt; ok
 
 <ul class="definitions"><li><code>Ref = all | reference()</code></li></ul>
 
-
 Cancels a previous call to nb_wait/1
-
 
 If `Ref = all`, all wait requests on `Key` from the calling process
 are canceled.
+
 <a name="cancel_wait-3"></a>
 
 ### cancel_wait/3 ###
-
 
 <pre><code>
 cancel_wait(Node::node(), Key::<a href="#type-key">key()</a>, Ref) -&gt; ok
@@ -495,18 +449,16 @@ cancel_wait(Node::node(), Key::<a href="#type-key">key()</a>, Ref) -&gt; ok
 
 <ul class="definitions"><li><code>Ref = all | reference()</code></li></ul>
 
-
 Cancels a previous call to nb_wait/2
-
 
 This function works just like [`cancel_wait/2`](#cancel_wait-2), but talks to a remote
 node.
+
 <a name="cancel_wait_or_monitor-1"></a>
 
 ### cancel_wait_or_monitor/1 ###
 
 `cancel_wait_or_monitor(Key) -> any()`
-
 
 <a name="default-1"></a>
 
@@ -514,11 +466,9 @@ node.
 
 `default(X1) -> any()`
 
-
 <a name="demonitor-2"></a>
 
 ### demonitor/2 ###
-
 
 <pre><code>
 demonitor(Key::<a href="#type-key">key()</a>, Ref::reference()) -&gt; ok
@@ -528,75 +478,67 @@ demonitor(Key::<a href="#type-key">key()</a>, Ref::reference()) -&gt; ok
 Remove a monitor on a registered name
 This function is the reverse of monitor/1. It removes a monitor previously
 set on a unique name. This function always succeeds given legal input.
+
 <a name="first-1"></a>
 
 ### first/1 ###
-
 
 <pre><code>
 first(Context::<a href="#type-context">context()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'
 </code></pre>
 <br />
 
-
 Behaves as ets:first(Tab) for a given type of registration.
-
 
 See [`http://www.erlang.org/doc/man/ets.html#first-1`](http://www.erlang.org/doc/man/ets.html#first-1).
 The registry behaves as an ordered_set table.
+
 <a name="get_attribute-2"></a>
 
 ### get_attribute/2 ###
-
 
 <pre><code>
 get_attribute(Key, Attribute::atom()) -&gt; Value
 </code></pre>
 <br />
 
-
 Get attribute value of `Attr` associated with `Key` for most likely Pid.
-
 
 The most likely Pid in this case is `self()` for properties and counters,
 and the current registration holder in case of names or aggregated counters.
 An exception is raised if `Key` is not registered for the given process.
+
 <a name="get_attribute-3"></a>
 
 ### get_attribute/3 ###
-
 
 <pre><code>
 get_attribute(Key, Pid::pid() | shared, Attr::atom()) -&gt; Value
 </code></pre>
 <br />
 
-
 Get the attribute value of `Attr` associated with `Key` for process Pid.
-
 
 If `Pid == shared`, the attribute of a shared key (see [`reg_shared/1`](#reg_shared-1))
 will be read.
+
 <a name="get_attribute_shared-2"></a>
 
 ### get_attribute_shared/2 ###
-
 
 <pre><code>
 get_attribute_shared(Key, Attr::atom()) -&gt; Value
 </code></pre>
 <br />
 
-
 Get the attribute value of `Attr` associated with the shared `Key`.
-
 
 Equivalent to `get_attribute(Key, shared, Attr)`
 (see [`get_attribute/3`](#get_attribute-3)).
+
 <a name="get_attributes-1"></a>
 
 ### get_attributes/1 ###
-
 
 <pre><code>
 get_attributes(Key::<a href="#type-key">key()</a>) -&gt; [{K, V}]
@@ -606,19 +548,17 @@ get_attributes(Key::<a href="#type-key">key()</a>) -&gt; [{K, V}]
 Equivalent to [`get_attributes(Key, self())`](#get_attributes-2).
 
 Get attributes associated with registration.
+
 <a name="get_attributes-2"></a>
 
 ### get_attributes/2 ###
-
 
 <pre><code>
 get_attributes(Key::<a href="#type-key">key()</a>, Pid::pid() | shared) -&gt; [{K, V}]
 </code></pre>
 <br />
 
-
 Returns the list of attributes associated with the registration.
-
 
 This function raises a `badarg` exception if there is no corresponding
 registration.
@@ -627,17 +567,16 @@ registration.
 
 ### get_env/3 ###
 
-
 <pre><code>
 get_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom()) -&gt; term()
 </code></pre>
 <br />
 
 Equivalent to [`get_env(Scope, App, Key, [app_env])`](#get_env-4).
+
 <a name="get_env-4"></a>
 
 ### get_env/4 ###
-
 
 <pre><code>
 get_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom(), Strategy) -&gt; term()
@@ -645,17 +584,12 @@ get_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom(), Stra
 
 <ul class="definitions"><li><code>Strategy = [Alternative]</code></li><li><code>Alternative = app_env | os_env | inherit | {inherit, pid()} | {inherit, <a href="#type-unique_id">unique_id()</a>} | init_arg | {mnesia, ActivityType, Oid, Pos} | {default, term()} | error</code></li></ul>
 
-
 Read an environment value, potentially cached as a `gproc_env` property.
-
-
 
 This function first tries to read the value of a cached property,
 `{p, Scope, {gproc_env, App, Key}}`. If this fails, it will try the provided
 alternative strategy. `Strategy` is a list of alternatives, tried in order.
 Each alternative can be one of:
-
-
 
 * `app_env` - try `application:get_env(App, Key)`
 * `os_env` - try `os:getenv(ENV)`, where `ENV` is `Key` converted into an
@@ -673,31 +607,24 @@ the value in position `Pos` if object found.
 been exhausted; if not set, `undefined` will be returned.
 * `error` - raise an exception, `erlang:error(gproc_env, [App, Key, Scope])`.
 
-
-
 While any alternative can occur more than once, the only one that might make
 sense to use multiple times is `{default, Value}`.
 
-
-
 The return value will be one of:
-
-
 
 * The value of the first matching alternative, or `error` eception,
 whichever comes first
 * The last instance of `{default, Value}`, or `undefined`, if there is no
 matching alternative, default or `error` entry in the list.
 
-
 The `error` option can be used to assert that a value has been previously
 cached. Alternatively, it can be used to assert that a value is either cached
 or at least defined somewhere,
 e.g. `get_env(l, mnesia, dir, [app_env, error])`.
+
 <a name="get_set_env-3"></a>
 
 ### get_set_env/3 ###
-
 
 <pre><code>
 get_set_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom()) -&gt; term()
@@ -705,126 +632,107 @@ get_set_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom()) 
 <br />
 
 Equivalent to [`get_set_env(Scope, App, Key, [app_env])`](#get_set_env-4).
+
 <a name="get_set_env-4"></a>
 
 ### get_set_env/4 ###
-
 
 <pre><code>
 get_set_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom(), Strategy) -&gt; Value
 </code></pre>
 <br />
 
-
 Fetch and cache an environment value, if not already cached.
-
 
 This function does the same thing as [`get_env/4`](#get_env-4), but also updates the
 cache. Note that the cache will be updated even if the result of the lookup
 is `undefined`.
 
-
 __See also:__ [get_env/4](#get_env-4).
+
 <a name="get_value-1"></a>
 
 ### get_value/1 ###
-
 
 <pre><code>
 get_value(Key) -&gt; Value
 </code></pre>
 <br />
 
-
 Reads the value stored with a key registered to the current process.
 
-
 If no such key is registered to the current process, this function exits.
+
 <a name="get_value-2"></a>
 
 ### get_value/2 ###
-
 
 <pre><code>
 get_value(Key, Pid) -&gt; Value
 </code></pre>
 <br />
 
-
 Reads the value stored with a key registered to the process Pid.
-
 
 If `Pid == shared`, the value of a shared key (see [`reg_shared/1`](#reg_shared-1))
 will be read.
+
 <a name="get_value_shared-1"></a>
 
 ### get_value_shared/1 ###
-
 
 <pre><code>
 get_value_shared(Key) -&gt; Value
 </code></pre>
 <br />
 
-
 Reads the value stored with a shared key.
 
-
 If no such shared key is registered, this function exits.
+
 <a name="give_away-2"></a>
 
 ### give_away/2 ###
-
 
 <pre><code>
 give_away(From::<a href="#type-key">key()</a>, To::pid() | <a href="#type-key">key()</a>) -&gt; undefined | pid()
 </code></pre>
 <br />
 
-
 Atomically transfers the key `From` to the process identified by `To`.
-
-
 
 This function transfers any gproc key (name, property, counter, aggr counter)
 from one process to another, and returns the pid of the new owner.
-
-
 
 `To` must be either a pid or a unique name (name or aggregated counter), but
 does not necessarily have to resolve to an existing process. If there is
 no process registered with the `To` key, `give_away/2` returns `undefined`,
 and the `From` key is effectively unregistered.
 
-
-
 It is allowed to give away a key to oneself, but of course, this operation
 will have no effect.
 
-
 Fails with `badarg` if the calling process does not have a `From` key
 registered.
+
 <a name="goodbye-0"></a>
 
 ### goodbye/0 ###
-
 
 <pre><code>
 goodbye() -&gt; ok
 </code></pre>
 <br />
 
-
 Unregister all items of the calling process and inform gproc
 to forget about the calling process.
 
-
 This function is more efficient than letting gproc perform these
 cleanup operations.
+
 <a name="i-0"></a>
 
 ### i/0 ###
-
 
 <pre><code>
 i() -&gt; ok
@@ -833,10 +741,10 @@ i() -&gt; ok
 
 Similar to the built-in shell command `i()` but inserts information
 about names and properties registered in Gproc, where applicable.
+
 <a name="info-1"></a>
 
 ### info/1 ###
-
 
 <pre><code>
 info(Pid::pid()) -&gt; ProcessInfo
@@ -844,50 +752,44 @@ info(Pid::pid()) -&gt; ProcessInfo
 
 <ul class="definitions"><li><code>ProcessInfo = [{gproc, [{Key, Value}]} | ProcessInfo]</code></li></ul>
 
-
 Similar to `process_info(Pid)` but with additional gproc info.
-
 
 Returns the same information as process_info(Pid), but with the
 addition of a `gproc` information item, containing the `{Key,Value}`
 pairs registered to the process.
+
 <a name="info-2"></a>
 
 ### info/2 ###
-
 
 <pre><code>
 info(Pid::pid(), Item::atom()) -&gt; {Item, Info}
 </code></pre>
 <br />
 
-
 Similar to process_info(Pid, Item), but with additional gproc info.
-
 
 For `Item = gproc`, this function returns a list of `{Key, Value}` pairs
 registered to the process Pid. For other values of Item, it returns the
 same as [`http://www.erlang.org/doc/man/erlang.html#process_info-2`](http://www.erlang.org/doc/man/erlang.html#process_info-2).
+
 <a name="last-1"></a>
 
 ### last/1 ###
-
 
 <pre><code>
 last(Context::<a href="#type-context">context()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'
 </code></pre>
 <br />
 
-
 Behaves as ets:last(Tab) for a given type of registration.
-
 
 See [`http://www.erlang.org/doc/man/ets.html#last-1`](http://www.erlang.org/doc/man/ets.html#last-1).
 The registry behaves as an ordered_set table.
+
 <a name="lookup_global_aggr_counter-1"></a>
 
 ### lookup_global_aggr_counter/1 ###
-
 
 <pre><code>
 lookup_global_aggr_counter(Name::any()) -&gt; integer()
@@ -898,10 +800,10 @@ Equivalent to [`lookup_value({a, g, Name})`](#lookup_value-1).
 
 Lookup a global (unique) aggregated counter and returns its value.
 Fails if there is no such object.
+
 <a name="lookup_global_counters-1"></a>
 
 ### lookup_global_counters/1 ###
-
 
 <pre><code>
 lookup_global_counters(Counter::any()) -&gt; [{pid(), Value::integer()}]
@@ -912,10 +814,10 @@ Equivalent to [`lookup_values({c, g, Counter})`](#lookup_values-1).
 
 Look up all global (non-unique) instances of a given Counter.
 Returns a list of {Pid, Value} tuples for all matching objects.
+
 <a name="lookup_global_name-1"></a>
 
 ### lookup_global_name/1 ###
-
 
 <pre><code>
 lookup_global_name(Name::any()) -&gt; pid()
@@ -925,10 +827,10 @@ lookup_global_name(Name::any()) -&gt; pid()
 Equivalent to [`where({n, g, Name})`](#where-1).
 
 Lookup a global unique name. Fails if there is no such name.
+
 <a name="lookup_global_properties-1"></a>
 
 ### lookup_global_properties/1 ###
-
 
 <pre><code>
 lookup_global_properties(Property::any()) -&gt; [{pid(), Value}]
@@ -939,10 +841,10 @@ Equivalent to [`lookup_values({p, g, Property})`](#lookup_values-1).
 
 Look up all global (non-unique) instances of a given Property.
 Returns a list of {Pid, Value} tuples for all matching objects.
+
 <a name="lookup_local_aggr_counter-1"></a>
 
 ### lookup_local_aggr_counter/1 ###
-
 
 <pre><code>
 lookup_local_aggr_counter(Name::any()) -&gt; integer()
@@ -953,10 +855,10 @@ Equivalent to [`where({a, l, Name})`](#where-1).
 
 Lookup a local (unique) aggregated counter and returns its value.
 Fails if there is no such object.
+
 <a name="lookup_local_counters-1"></a>
 
 ### lookup_local_counters/1 ###
-
 
 <pre><code>
 lookup_local_counters(Counter::any()) -&gt; [{pid(), Value::integer()}]
@@ -967,10 +869,10 @@ Equivalent to [`lookup_values({c, l, Counter})`](#lookup_values-1).
 
 Look up all local (non-unique) instances of a given Counter.
 Returns a list of {Pid, Value} tuples for all matching objects.
+
 <a name="lookup_local_name-1"></a>
 
 ### lookup_local_name/1 ###
-
 
 <pre><code>
 lookup_local_name(Name::any()) -&gt; pid()
@@ -980,10 +882,10 @@ lookup_local_name(Name::any()) -&gt; pid()
 Equivalent to [`where({n, l, Name})`](#where-1).
 
 Lookup a local unique name. Fails if there is no such name.
+
 <a name="lookup_local_properties-1"></a>
 
 ### lookup_local_properties/1 ###
-
 
 <pre><code>
 lookup_local_properties(Property::any()) -&gt; [{pid(), Value}]
@@ -994,75 +896,66 @@ Equivalent to [`lookup_values({p, l, Property})`](#lookup_values-1).
 
 Look up all local (non-unique) instances of a given Property.
 Returns a list of {Pid, Value} tuples for all matching objects.
+
 <a name="lookup_pid-1"></a>
 
 ### lookup_pid/1 ###
-
 
 <pre><code>
 lookup_pid(Key) -&gt; Pid
 </code></pre>
 <br />
 
-
 Lookup the Pid stored with a key.
 
-
 This function raises a `badarg` exception if `Key` is not registered.
+
 <a name="lookup_pids-1"></a>
 
 ### lookup_pids/1 ###
-
 
 <pre><code>
 lookup_pids(Key::<a href="#type-key">key()</a>) -&gt; [pid()]
 </code></pre>
 <br />
 
-
 Returns a list of pids with the published key Key
-
-
 
 If the type of registration is either name or aggregated counter,
 this function will return either an empty list, or a list of one pid.
 For non-unique types, the return value can be a list of any length.
 
-
 Note: shared resources are not associated with any pid, and will
 therefore be excluded.
+
 <a name="lookup_value-1"></a>
 
 ### lookup_value/1 ###
-
 
 <pre><code>
 lookup_value(Key) -&gt; Value
 </code></pre>
 <br />
 
-
 Lookup the value stored with a key.
 
-
 This function raises a `badarg` exception if `Key` is not registered.
+
 <a name="lookup_values-1"></a>
 
 ### lookup_values/1 ###
-
 
 <pre><code>
 lookup_values(Key::<a href="#type-key">key()</a>) -&gt; [{pid(), Value}]
 </code></pre>
 <br />
 
-
 Retrieve the `{Pid,Value}` pairs corresponding to Key.
-
 
 Key refer to any type of registry object. If it refers to a unique
 object, the list will be of length 0 or 1. If it refers to a non-unique
 object, the return value can be a list of any length.
+
 <a name="monitor-1"></a>
 
 ### monitor/1 ###
@@ -1070,16 +963,15 @@ object, the return value can be a list of any length.
 `monitor(Key) -> any()`
 
 Equivalent to [`monitor(Key, info)`](#monitor-2).
+
 <a name="monitor-2"></a>
 
 ### monitor/2 ###
-
 
 <pre><code>
 monitor(Key::<a href="#type-key">key()</a>, Type::<a href="#type-monitor_type">monitor_type()</a>) -&gt; reference()
 </code></pre>
 <br />
-
 
 monitor a registered name
 `monitor(Key, info)` works much like erlang:monitor(process, Pid), but monitors
@@ -1090,61 +982,52 @@ message `{gproc, {failover, ToPid}, Ref, Key}` is sent to all monitors.
 If the name is passed to another process using [`give_away/2`](#give_away-2), the event
 `{gproc, {migrated, ToPid}, Ref, Key}` is sent to all monitors.
 
-
-
 `monitor(Key, standby)` sets up the monitoring process as a standby for the
 registered name. If the registered process dies, the first standby process
 inherits the name, and a message `{gproc, {failover, ToPid}, Ref, Key}` is
 sent to all monitors, including the one that inherited the name.
 
-
-
 If the name is not yet registered, the unreg event is sent immediately.
 If the calling process in this case tried to start a `standby` monitoring,
 it receives the registered name and the failover event immediately.
-
 
 `monitor(Key, follow)` keeps monitoring the registered name even if it is
 temporarily unregistered. The messages received are the same as for the other
 monitor types, but `{gproc, registered, Ref, Key}` is also sent when a new
 process registers the name.
+
 <a name="mreg-3"></a>
 
 ### mreg/3 ###
-
 
 <pre><code>
 mreg(T::<a href="#type-type">type()</a>, C::<a href="#type-scope">scope()</a>, KVL::[{Key::any(), Value::any()}]) -&gt; true
 </code></pre>
 <br />
 
-
 Register multiple {Key,Value} pairs of a given type and scope.
-
 
 This function is more efficient than calling [`reg/2`](#reg-2) repeatedly.
 It is also atomic in regard to unique names; either all names are registered
 or none are.
+
 <a name="munreg-3"></a>
 
 ### munreg/3 ###
-
 
 <pre><code>
 munreg(T::<a href="#type-type">type()</a>, C::<a href="#type-scope">scope()</a>, L::[Key::any()]) -&gt; true
 </code></pre>
 <br />
 
-
 Unregister multiple Key items of a given type and scope.
-
 
 This function is usually more efficient than calling [`unreg/1`](#unreg-1)
 repeatedly.
+
 <a name="nb_wait-1"></a>
 
 ### nb_wait/1 ###
-
 
 <pre><code>
 nb_wait(Key::<a href="#type-key">key()</a>) -&gt; Ref
@@ -1154,10 +1037,10 @@ nb_wait(Key::<a href="#type-key">key()</a>) -&gt; Ref
 Wait for a name or aggregated counter to be registered.
 The caller can expect to receive a message,
 {gproc, Ref, registered, {Key, Pid, Value}}, once the name is registered.
+
 <a name="nb_wait-2"></a>
 
 ### nb_wait/2 ###
-
 
 <pre><code>
 nb_wait(Node::node(), Key::<a href="#type-key">key()</a>) -&gt; Ref
@@ -1167,42 +1050,38 @@ nb_wait(Node::node(), Key::<a href="#type-key">key()</a>) -&gt; Ref
 Wait for a name or aggregated counter to be registered on `Node`.
 The caller can expect to receive a message,
 {gproc, Ref, registered, {Key, Pid, Value}}, once the name is registered.
+
 <a name="next-2"></a>
 
 ### next/2 ###
-
 
 <pre><code>
 next(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'
 </code></pre>
 <br />
 
-
 Behaves as ets:next(Tab,Key) for a given type of registration.
-
 
 See [`http://www.erlang.org/doc/man/ets.html#next-2`](http://www.erlang.org/doc/man/ets.html#next-2).
 The registry behaves as an ordered_set table.
+
 <a name="prev-2"></a>
 
 ### prev/2 ###
-
 
 <pre><code>
 prev(Context::<a href="#type-context">context()</a>, Key::<a href="#type-key">key()</a>) -&gt; <a href="#type-key">key()</a> | '$end_of_table'
 </code></pre>
 <br />
 
-
 Behaves as ets:prev(Tab,Key) for a given type of registration.
-
 
 See [`http://www.erlang.org/doc/man/ets.html#prev-2`](http://www.erlang.org/doc/man/ets.html#prev-2).
 The registry behaves as an ordered_set table.
+
 <a name="reg-1"></a>
 
 ### reg/1 ###
-
 
 <pre><code>
 reg(Key::<a href="#type-key">key()</a>) -&gt; true
@@ -1210,49 +1089,36 @@ reg(Key::<a href="#type-key">key()</a>) -&gt; true
 <br />
 
 Equivalent to [`reg(Key, default(Key), [])`](#reg-3).
+
 <a name="reg-2"></a>
 
 ### reg/2 ###
-
 
 <pre><code>
 reg(Key::<a href="#type-key">key()</a>, Value) -&gt; true
 </code></pre>
 <br />
 
-
 Register a name or property for the current process
-
-
 
 <a name="reg-3"></a>
 
 ### reg/3 ###
-
 
 <pre><code>
 reg(Key::<a href="#type-key">key()</a>, Value, Attrs::[{atom(), any()}]) -&gt; true
 </code></pre>
 <br />
 
-
 Register a name or property for the current process
 `Attrs` (default: `[]`) can be inspected using [`get_attribute/2`](#get_attribute-2).
 
-
-
 The structure of `Key` is `{Type, Context, Name}`, where:
-
-
 
 * `Context :: l | g` - `l` means 'local' context; `g` means 'global'
 * `Type :: p | n | c | a | r | rc` specifies the type of entry
 
-
-
 The semantics of the different types:
-
-
 
 * `p` - 'property', is non-unique, i.e. different processes can each
 register a property with the same name.
@@ -1268,14 +1134,9 @@ with a 'resource counter'.
 with the same name. When the resource count reaches `0`, any triggers
 specified using an `on_zero` attribute may be executed (see below).
 
-
-
 On-zero triggers:
 
-
-
 `Msg = {gproc, resource_on_zero, Context, Name, Pid}`
-
 
 * `{send, Key}` - run `gproc:send(Key, Msg)`
 * `{bcast, Key}` - run `gproc:bcast(Key, Msg)`
@@ -1283,10 +1144,10 @@ On-zero triggers:
 `gproc_ps:publish(Context, gproc_resource_on_zero, {Context, Name, Pid})`
 * `{unreg_shared, Type, Name}` - unregister the shared key
 `{Type, Context, Name}`
+
 <a name="reg_or_locate-1"></a>
 
 ### reg_or_locate/1 ###
-
 
 <pre><code>
 reg_or_locate(Key::<a href="#type-key">key()</a>) -&gt; {pid(), NewValue}
@@ -1294,76 +1155,65 @@ reg_or_locate(Key::<a href="#type-key">key()</a>) -&gt; {pid(), NewValue}
 <br />
 
 Equivalent to [`reg_or_locate(Key, default(Key))`](#reg_or_locate-2).
+
 <a name="reg_or_locate-2"></a>
 
 ### reg_or_locate/2 ###
-
 
 <pre><code>
 reg_or_locate(Key::<a href="#type-key">key()</a>, Value) -&gt; {pid(), NewValue}
 </code></pre>
 <br />
 
-
 Try registering a unique name, or return existing registration.
-
 
 This function tries to register the name `Key`, if available.
 If such a registration object already exists, the pid and value of
 the current registration is returned instead.
+
 <a name="reg_or_locate-3"></a>
 
 ### reg_or_locate/3 ###
-
 
 <pre><code>
 reg_or_locate(Key::<a href="#type-key">key()</a>, Value, Fun::function()) -&gt; {pid(), NewValue}
 </code></pre>
 <br />
 
-
 Spawn a process with a registered name, or return existing registration.
-
-
 
 This function checks whether a local name is registered; if not, it spawns
 a new process (with `spawn(Fun)`) and gives it the name.
 The pid and value of the resulting registration is returned.
 
-
 When a global name is registered in this fashion, the process is
 spawned on the caller's node, and the group_leader of the spawned
 process is set to the group_leader of the calling process.
+
 <a name="reg_shared-1"></a>
 
 ### reg_shared/1 ###
-
 
 <pre><code>
 reg_shared(Key::<a href="#type-key">key()</a>) -&gt; true
 </code></pre>
 <br />
 
-
 Register a resource, but don't tie it to a particular process.
-
 
 `reg_shared({c,l,C}) -> reg_shared({c,l,C}, 0).`
 `reg_shared({a,l,A}) -> reg_shared({a,l,A}, undefined).`
+
 <a name="reg_shared-2"></a>
 
 ### reg_shared/2 ###
-
 
 <pre><code>
 reg_shared(Key::<a href="#type-key">key()</a>, Value) -&gt; true
 </code></pre>
 <br />
 
-
 Register a resource, but don't tie it to a particular process.
-
-
 
 Shared resources are all unique. They remain until explicitly unregistered
 (using [`unreg_shared/1`](#unreg_shared-1)). The types of shared resources currently
@@ -1372,20 +1222,18 @@ results, shared resources appear as other similar resources, except that
 `Pid == shared`. To wit, update_counter({c,l,myCounter}, shared, 1) would
 increment the shared counter `myCounter` with 1, provided it exists.
 
-
 A shared aggregated counter will track updates in exactly the same way as
 an aggregated counter which is owned by a process.
+
 <a name="reg_shared-3"></a>
 
 ### reg_shared/3 ###
 
 `reg_shared(Key, Value, Attrs) -> any()`
 
-
 <a name="register_name-2"></a>
 
 ### register_name/2 ###
-
 
 <pre><code>
 register_name(Name::<a href="#type-key">key()</a>, Pid::pid()) -&gt; yes | no
@@ -1393,10 +1241,10 @@ register_name(Name::<a href="#type-key">key()</a>, Pid::pid()) -&gt; yes | no
 <br />
 
 Behaviour support callback
+
 <a name="reset_counter-1"></a>
 
 ### reset_counter/1 ###
-
 
 <pre><code>
 reset_counter(Key) -&gt; {ValueBefore, ValueAfter}
@@ -1404,26 +1252,22 @@ reset_counter(Key) -&gt; {ValueBefore, ValueAfter}
 
 <ul class="definitions"><li><code>Key = {c, Scope, Name} | {n, Scope, Name}</code></li><li><code>Scope = l | g</code></li><li><code>ValueBefore = integer()</code></li><li><code>ValueAfter = integer()</code></li></ul>
 
-
 Reads and resets a counter in a "thread-safe" way
-
-
 
 This function reads the current value of a counter and then resets it to its
 initial value. The reset operation is done using [`update_counter/2`](#update_counter-2),
 which allows for concurrent calls to [`update_counter/2`](#update_counter-2) without losing
 updates. Aggregated counters are updated accordingly.
 
-
 If `Key` refers to a unique name, the operation will depend on the value
 part of the registration being an integer(). While non-integer values are
 not permitted at all for counter objects, it is the user's responsibility to
 ensure that a name, on which `reset_counter/1` is to be performed, has the
 appropriate value type.
+
 <a name="select-1"></a>
 
 ### select/1 ###
-
 
 <pre><code>
 select(Continuation::Arg) -&gt; [Match] | {[Match], Continuation} | '$end_of_table'
@@ -1431,20 +1275,13 @@ select(Continuation::Arg) -&gt; [Match] | {[Match], Continuation} | '$end_of_tab
 
 <ul class="definitions"><li><code>Arg = Continuation | <a href="#type-sel_pattern">sel_pattern()</a></code></li><li><code>Match = {Key, Pid, Value}</code></li></ul>
 
-
 Perform a select operation on the process registry
-
-
 
 When Arg = Contination, resume a gproc:select/1 operation
 (see [ets:select/1](http://www.erlang.org/doc/man/ets.html#select-1)
 
-
-
 When Arg = <code><a href="#type-sel_pattern">sel_pattern()</a></code>, this function executes a select operation,
 emulating ets:select/1
-
-
 
 [`select/2`](#select-2) offers the opportunity to narrow the search
 (by limiting to only global or local scope, or a single type of object).
@@ -1452,29 +1289,24 @@ When only a pattern as single argument is given, both global and local scope,
 as well as all types of object can be searched. Note that the pattern may
 still limit the select operation so that scanning the entire table is avoided.
 
-
 The physical representation in the registry may differ from the above,
 but the select patterns are transformed appropriately. The logical
 representation for the gproc select operations is given by
 <code><a href="#type-headpat">headpat()</a></code>.
+
 <a name="select-2"></a>
 
 ### select/2 ###
-
 
 <pre><code>
 select(Context::<a href="#type-sel_context">sel_context()</a>, Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -&gt; [{Key, Pid, Value}]
 </code></pre>
 <br />
 
-
 Perform a select operation with limited context on the process registry
-
-
 
 The physical representation in the registry may differ from the above,
 but the select patterns are transformed appropriately.
-
 
 Note that limiting the context is just a convenience function, allowing you
 to write a simpler select pattern and still avoid searching the entire
@@ -1484,25 +1316,23 @@ in a wider scan, even if the values are restricted through a guard (e.g.
 will count as a wild pattern on the key and result in a full scan).
 In this case, specifying a Context will allow gproc to perform some
 variable substitution and ensure that the scan is limited.
+
 <a name="select-3"></a>
 
 ### select/3 ###
-
 
 <pre><code>
 select(Context::<a href="#type-context">context()</a>, Pat::<a href="#type-sel_patten">sel_patten()</a>, Limit::integer()) -&gt; {[Match], Continuation} | '$end_of_table'
 </code></pre>
 <br />
 
-
 Like [`select/2`](#select-2) but returns Limit objects at a time.
 
-
 See [`http://www.erlang.org/doc/man/ets.html#select-3`](http://www.erlang.org/doc/man/ets.html#select-3).
+
 <a name="select_count-1"></a>
 
 ### select_count/1 ###
-
 
 <pre><code>
 select_count(Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -&gt; [<a href="#type-sel_object">sel_object()</a>]
@@ -1510,91 +1340,77 @@ select_count(Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -&gt; [<a href=
 <br />
 
 Equivalent to [`select_count(all, Pat)`](#select_count-2).
+
 <a name="select_count-2"></a>
 
 ### select_count/2 ###
-
 
 <pre><code>
 select_count(Context::<a href="#type-context">context()</a>, Pat::<a href="#type-sel_pattern">sel_pattern()</a>) -&gt; [{Key, Pid, Value}]
 </code></pre>
 <br />
 
-
 Perform a select_count operation on the process registry.
-
 
 The physical representation in the registry may differ from the above,
 but the select patterns are transformed appropriately.
+
 <a name="send-2"></a>
 
 ### send/2 ###
-
 
 <pre><code>
 send(Key::<a href="#type-process">process()</a> | <a href="#type-key">key()</a>, Msg::any()) -&gt; Msg
 </code></pre>
 <br />
 
-
 Sends a message to the process, or processes, corresponding to Key.
-
-
 
 If Key belongs to a unique object (name or aggregated counter), this
 function will send a message to the corresponding process, or fail if there
 is no such process. If Key is for a non-unique object type (counter or
 property), Msg will be send to all processes that have such an object.
 
-
 Key can also be anything that the erlang:send/2, or '!' operator accepts as a process
 identifier, namely a pid(), an atom(), or `{Name::atom(), Node::atom()}`.
+
 <a name="set_attributes-2"></a>
 
 ### set_attributes/2 ###
-
 
 <pre><code>
 set_attributes(Key::<a href="#type-key">key()</a>, Props::[{atom(), any()}]) -&gt; true
 </code></pre>
 <br />
 
-
 Add/modify `{Key, Value}` attributes associated with a registration.
-
-
 
 Gproc registration objects can have `{Key, Value}` attributes associated with
 them. These are stored in a way that doesn't affect the cost of name lookup.
 
-
 Attributs can be retrieved using `gproc:get_attribute/3` or
 `gproc:get_attributes/2`.
+
 <a name="set_attributes_shared-2"></a>
 
 ### set_attributes_shared/2 ###
-
 
 <pre><code>
 set_attributes_shared(Key::<a href="#type-key">key()</a>, Props::[{K, V}]) -&gt; true
 </code></pre>
 <br />
 
-
 Add/modify `{Key, Value}` attributes associated with a shared registration.
-
-
 
 Gproc registration objects can have `{Key, Value}` attributes associated with
 them. These are stored in a way that doesn't affect the cost of name lookup.
 
-
 Attributes can be retrieved using `gproc:get_attribute/3` or
 `gproc:get_attributes/2`.
+
 <a name="set_env-5"></a>
 
 ### set_env/5 ###
-
 
 <pre><code>
 set_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom(), Value::term(), Strategy) -&gt; Value
@@ -1602,83 +1418,69 @@ set_env(Scope::<a href="#type-scope">scope()</a>, App::atom(), Key::atom(), Valu
 
 <ul class="definitions"><li><code>Strategy = [Alternative]</code></li><li><code>Alternative = app_env | os_env | {os_env, VAR} | {mnesia, ActivityType, Oid, Pos}</code></li></ul>
 
-
 Updates the cached value as well as underlying environment.
-
-
 
 This function should be exercised with caution, as it affects the larger
 environment outside gproc. This function modifies the cached value, and then
 proceeds to update the underlying environment (OS environment variable or
 application environment variable).
 
-
 When the `mnesia` alternative is used, gproc will try to update any existing
 object, changing only the `Pos` position. If no such object exists, it will
 create a new object, setting any other attributes (except `Pos` and the key)
 to `undefined`.
+
 <a name="set_value-2"></a>
 
 ### set_value/2 ###
-
 
 <pre><code>
 set_value(Key::<a href="#type-key">key()</a>, Value) -&gt; true
 </code></pre>
 <br />
 
-
 Sets the value of the registration given by Key
-
-
 
 Key is assumed to exist and belong to the calling process.
 If it doesn't, this function will exit.
 
-
 Value can be any term, unless the object is a counter, in which case
 it must be an integer.
+
 <a name="set_value_shared-2"></a>
 
 ### set_value_shared/2 ###
-
 
 <pre><code>
 set_value_shared(Key::<a href="#type-key">key()</a>, Value) -&gt; true
 </code></pre>
 <br />
 
-
 Sets the value of the shared registration given by Key
-
-
 
 Key is assumed to exist as a shared entity.
 If it doesn't, this function will exit.
 
-
 Value can be any term, unless the object is a counter, in which case
 it must be an integer.
+
 <a name="start_link-0"></a>
 
 ### start_link/0 ###
-
 
 <pre><code>
 start_link() -&gt; {ok, pid()}
 </code></pre>
 <br />
 
-
 Starts the gproc server.
-
 
 This function is intended to be called from gproc_sup, as part of
 starting the gproc application.
+
 <a name="table-0"></a>
 
 ### table/0 ###
-
 
 <pre><code>
 table() -&gt; any()
@@ -1686,10 +1488,10 @@ table() -&gt; any()
 <br />
 
 Equivalent to [`table({all, all})`](#table-1).
+
 <a name="table-1"></a>
 
 ### table/1 ###
-
 
 <pre><code>
 table(Context::<a href="#type-context">context()</a>) -&gt; any()
@@ -1697,21 +1499,19 @@ table(Context::<a href="#type-context">context()</a>) -&gt; any()
 <br />
 
 Equivalent to [`table(Context, [])`](#table-2).
+
 <a name="table-2"></a>
 
 ### table/2 ###
-
 
 <pre><code>
 table(Context::<a href="#type-context">context()</a>, Opts) -&gt; any()
 </code></pre>
 <br />
 
-
 QLC table generator for the gproc registry.
 Context specifies which subset of the registry should be queried.
 See [`http://www.erlang.org/doc/man/qlc.html`](http://www.erlang.org/doc/man/qlc.html).
-
 
 NOTE: By default, the gproc table generator will not filter out entries
 belonging to processes that have just died, but which have yet to be cleared
@@ -1725,17 +1525,16 @@ entries in the list by the time your program processes it.
 
 ### unreg/1 ###
 
-
 <pre><code>
 unreg(Key::<a href="#type-key">key()</a>) -&gt; true
 </code></pre>
 <br />
 
 Unregister a name or property.
+
 <a name="unreg_shared-1"></a>
 
 ### unreg_shared/1 ###
-
 
 <pre><code>
 unreg_shared(Key::<a href="#type-key">key()</a>) -&gt; true
@@ -1743,6 +1542,7 @@ unreg_shared(Key::<a href="#type-key">key()</a>) -&gt; true
 <br />
 
 Unregister a shared resource.
+
 <a name="unregister_name-1"></a>
 
 ### unregister_name/1 ###
@@ -1750,20 +1550,17 @@ Unregister a shared resource.
 `unregister_name(Key) -> any()`
 
 Equivalent to `unreg / 1`.
+
 <a name="update_counter-2"></a>
 
 ### update_counter/2 ###
-
 
 <pre><code>
 update_counter(Key::<a href="#type-key">key()</a>, Incr::<a href="#type-increment">increment()</a>) -&gt; integer()
 </code></pre>
 <br />
 
-
 Updates the counter registered as Key for the current process.
-
-
 
 This function works almost exactly like ets:update_counter/3
 (see [`http://www.erlang.org/doc/man/ets.html#update_counter-3`](http://www.erlang.org/doc/man/ets.html#update_counter-3)), but
@@ -1771,50 +1568,42 @@ will fail if the type of object referred to by Key is not a counter or
 a unique name (update_counter/2 can be performed on names as well, but they
 do not count as counter objects, and do not affect aggregated counters).
 
-
-
 Aggregated counters with the same name will be updated automatically.
 The `UpdateOp` patterns are the same as for `ets:update_counter/3`, except
 that the position is omitted; in gproc, the value position is always `3`.
-
 
 If `Key` refers to a unique name, the operation will depend on the value
 part of the registration being an integer(). While non-integer values are
 not permitted at all for counter objects, it is the user's responsibility to
 ensure that a name, on which `update_counter/2` is to be performed, has the
 appropriate value type.
+
 <a name="update_counter-3"></a>
 
 ### update_counter/3 ###
 
 `update_counter(Key, Pid, Incr) -> any()`
 
-
 <a name="update_counters-2"></a>
 
 ### update_counters/2 ###
-
 
 <pre><code>
 update_counters(X1::<a href="#type-scope">scope()</a>, Cs::[{<a href="#type-key">key()</a>, pid(), <a href="#type-increment">increment()</a>}]) -&gt; [{<a href="#type-key">key()</a>, pid(), integer()}]
 </code></pre>
 <br />
 
-
 Update a list of counters
-
-
 
 This function is not atomic, except (in a sense) for global counters. For local counters,
 it is more of a convenience function. For global counters, it is much more efficient
 than calling `gproc:update_counter/2` for each individual counter.
 
-
 The return value is the corresponding list of `[{Counter, Pid, NewValue}]`.
+
 <a name="update_shared_counter-2"></a>
 
 ### update_shared_counter/2 ###
-
 
 <pre><code>
 update_shared_counter(Key::<a href="#type-key">key()</a>, Incr) -&gt; integer() | [integer()]
@@ -1822,36 +1611,31 @@ update_shared_counter(Key::<a href="#type-key">key()</a>, Incr) -&gt; integer() 
 
 <ul class="definitions"><li><code>Incr = IncrVal | UpdateOp | [UpdateOp]</code></li><li><code>UpdateOp = IncrVal | {IncrVal, Threshold, SetValue}</code></li><li><code>IncrVal = integer()</code></li></ul>
 
-
 Updates the shared counter registered as Key.
-
-
 
 This function works almost exactly like ets:update_counter/3
 (see [`http://www.erlang.org/doc/man/ets.html#update_counter-3`](http://www.erlang.org/doc/man/ets.html#update_counter-3)), but
 will fail if the type of object referred to by Key is not a counter.
 
-
 Aggregated counters with the same name will be updated automatically.
 The `UpdateOp` patterns are the same as for `ets:update_counter/3`, except
 that the position is omitted; in gproc, the value position is always `3`.
+
 <a name="where-1"></a>
 
 ### where/1 ###
-
 
 <pre><code>
 where(Key::<a href="#type-key">key()</a>) -&gt; pid() | undefined
 </code></pre>
 <br />
 
-
 Returns the pid registered as Key
-
 
 The type of registration must be either name or aggregated counter.
 Otherwise this function will raise a `badarg` exception.
 Use [`lookup_pids/1`](#lookup_pids-1) in these cases.
+
 <a name="whereis_name-1"></a>
 
 ### whereis_name/1 ###
@@ -1859,10 +1643,10 @@ Use [`lookup_pids/1`](#lookup_pids-1) in these cases.
 `whereis_name(Key) -> any()`
 
 Equivalent to `where / 1`.
+
 <a name="wide_await-3"></a>
 
 ### wide_await/3 ###
-
 
 <pre><code>
 wide_await(Nodes::[node()], Key::<a href="#type-key">key()</a>, Timeout) -&gt; {pid(), Value}
@@ -1870,13 +1654,12 @@ wide_await(Nodes::[node()], Key::<a href="#type-key">key()</a>, Timeout) -&gt; {
 
 <ul class="definitions"><li><code>Timeout = integer() | infinity</code></li></ul>
 
-
 Wait for a local name to be registered on any of `Nodes`.
 This function works rather like [`await/2`](#await-2), but queries all nodes in
 the `Nodes` list at the same time. The first node to respond with a
 process registered as `Key` will provide the result. Other results are
 ignored. `Key` must be a unique name with local scope, i.e. `{n,l,Name}`.
 
-
 An exception is thrown upon timeout, or if no node can be reached (if gproc is
 not running on a given node, this is treated the same as the node being down).
+

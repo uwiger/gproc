@@ -4,7 +4,6 @@
 * [Function Index](#index)
 * [Function Details](#functions)
 
-
 <a name="index"></a>
 
 ## Function Index ##
@@ -21,21 +20,17 @@
 
 ### hard_reset/0 ###
 
-
 <pre><code>
 hard_reset() -&gt; ok
 </code></pre>
 <br />
 
-
 <a name="soft_reset-0"></a>
 
 ### soft_reset/0 ###
-
 
 <pre><code>
 soft_reset() -&gt; ok
 </code></pre>
 <br />
-
 
