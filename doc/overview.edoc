@@ -4,6 +4,7 @@
 @doc Extended process dictionary
 
 [![Build Status](https://travis-ci.org/uwiger/gproc.png?branch=master)](https://travis-ci.org/uwiger/gproc)
+[![Hex pm](http://img.shields.io/hexpm/v/gproc.svg?style=flat)](https://hex.pm/packages/gproc)
 
 
 <h2>Note</h2>
