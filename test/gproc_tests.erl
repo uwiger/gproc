@@ -74,6 +74,8 @@ reg_test_() ->
      [
       {spawn, ?_test(?debugVal(t_simple_reg()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_simple_reg_other()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_reg_or_locate()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_reg_or_locate2()))}
@@ -157,6 +159,24 @@ t_simple_reg() ->
     ?assert(gproc:where({n,l,name}) =:= self()),
     ?assert(gproc:unreg({n,l,name}) =:= true),
     ?assert(gproc:where({n,l,name}) =:= undefined).
+
+t_simple_reg_other() ->
+    P = self(),
+    P1 = spawn_link(fun() ->
+                            receive
+                                {P, goodbye} -> ok
+                            end
+                    end),
+    Ref = erlang:monitor(process, P1),
+    ?assert(gproc:reg_other({n,l,name}, P1) =:= true),
+    ?assert(gproc:where({n,l,name}) =:= P1),
+    ?assert(gproc:unreg_other({n,l,name}, P1) =:= true),
+    ?assert(gproc:where({n,l,name}) =:= undefined),
+    P1 ! {self(), goodbye},
+    receive
+        {'DOWN', Ref, _, _, _} ->
+            ok
+    end.
 
 t_simple_reg_or_locate() ->
     P = self(),

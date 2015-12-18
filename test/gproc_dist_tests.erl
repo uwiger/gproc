@@ -52,6 +52,9 @@ dist_test_() ->
                                        ?debugVal(t_simple_reg(Ns))
                                end,
                                fun() ->
+                                       ?debugVal(t_simple_reg_other(Ns))
+                               end,
+                               fun() ->
                                        ?debugVal(t_simple_reg_or_locate(Ns))
                                end,
                                fun() ->
@@ -149,6 +152,17 @@ t_simple_reg([H|_] = Ns) ->
     ?assertMatch(true, t_call(P, {apply, gproc, unreg, [Name]})),
     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
     ?assertMatch(ok, t_call(P, die)).
+
+t_simple_reg_other([A, B|_] = Ns) ->
+    Name = ?T_NAME,
+    P1 = t_spawn(A),
+    P2 = t_spawn(B),
+    ?assertMatch(true, t_call(P1, {apply, gproc, reg_other, [Name, P2]})),
+    ?assertMatch(ok, t_lookup_everywhere(Name, Ns, P2)),
+    ?assertMatch(true, t_call(P1, {apply, gproc, unreg_other, [Name, P2]})),
+    ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
+    ?assertMatch(ok, t_call(P1, die)),
+    ?assertMatch(ok, t_call(P2, die)).
 
 t_simple_reg_or_locate([A,B|_] = _Ns) ->
     Name = ?T_NAME,
