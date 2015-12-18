@@ -255,7 +255,7 @@ to forget about the calling process.</td></tr><tr><td valign="top"><a href="#i-0
 about names and properties registered in Gproc, where applicable.</td></tr><tr><td valign="top"><a href="#info-1">info/1</a></td><td>Similar to <code>process_info(Pid)</code> but with additional gproc info.</td></tr><tr><td valign="top"><a href="#info-2">info/2</a></td><td>Similar to process_info(Pid, Item), but with additional gproc info.</td></tr><tr><td valign="top"><a href="#last-1">last/1</a></td><td>Behaves as ets:last(Tab) for a given type of registration.</td></tr><tr><td valign="top"><a href="#lookup_global_aggr_counter-1">lookup_global_aggr_counter/1</a></td><td>Lookup a global (unique) aggregated counter and returns its value.</td></tr><tr><td valign="top"><a href="#lookup_global_counters-1">lookup_global_counters/1</a></td><td>Look up all global (non-unique) instances of a given Counter.</td></tr><tr><td valign="top"><a href="#lookup_global_name-1">lookup_global_name/1</a></td><td>Lookup a global unique name.</td></tr><tr><td valign="top"><a href="#lookup_global_properties-1">lookup_global_properties/1</a></td><td>Look up all global (non-unique) instances of a given Property.</td></tr><tr><td valign="top"><a href="#lookup_local_aggr_counter-1">lookup_local_aggr_counter/1</a></td><td>Lookup a local (unique) aggregated counter and returns its value.</td></tr><tr><td valign="top"><a href="#lookup_local_counters-1">lookup_local_counters/1</a></td><td>Look up all local (non-unique) instances of a given Counter.</td></tr><tr><td valign="top"><a href="#lookup_local_name-1">lookup_local_name/1</a></td><td>Lookup a local unique name.</td></tr><tr><td valign="top"><a href="#lookup_local_properties-1">lookup_local_properties/1</a></td><td>Look up all local (non-unique) instances of a given Property.</td></tr><tr><td valign="top"><a href="#lookup_pid-1">lookup_pid/1</a></td><td>Lookup the Pid stored with a key.</td></tr><tr><td valign="top"><a href="#lookup_pids-1">lookup_pids/1</a></td><td>Returns a list of pids with the published key Key.</td></tr><tr><td valign="top"><a href="#lookup_value-1">lookup_value/1</a></td><td>Lookup the value stored with a key.</td></tr><tr><td valign="top"><a href="#lookup_values-1">lookup_values/1</a></td><td>Retrieve the <code>{Pid,Value}</code> pairs corresponding to Key.</td></tr><tr><td valign="top"><a href="#monitor-1">monitor/1</a></td><td>Equivalent to <a href="#monitor-2"><tt>monitor(Key, info)</tt></a>.</td></tr><tr><td valign="top"><a href="#monitor-2">monitor/2</a></td><td>monitor a registered name
 <code>monitor(Key, info)</code> works much like erlang:monitor(process, Pid), but monitors
 a unique name registered via gproc.</td></tr><tr><td valign="top"><a href="#mreg-3">mreg/3</a></td><td>Register multiple {Key,Value} pairs of a given type and scope.</td></tr><tr><td valign="top"><a href="#munreg-3">munreg/3</a></td><td>Unregister multiple Key items of a given type and scope.</td></tr><tr><td valign="top"><a href="#nb_wait-1">nb_wait/1</a></td><td>Wait for a name or aggregated counter to be registered.</td></tr><tr><td valign="top"><a href="#nb_wait-2">nb_wait/2</a></td><td>Wait for a name or aggregated counter to be registered on <code>Node</code>.</td></tr><tr><td valign="top"><a href="#next-2">next/2</a></td><td>Behaves as ets:next(Tab,Key) for a given type of registration.</td></tr><tr><td valign="top"><a href="#prev-2">prev/2</a></td><td>Behaves as ets:prev(Tab,Key) for a given type of registration.</td></tr><tr><td valign="top"><a href="#reg-1">reg/1</a></td><td>Equivalent to <a href="#reg-3"><tt>reg(Key, default(Key), [])</tt></a>.</td></tr><tr><td valign="top"><a href="#reg-2">reg/2</a></td><td>Register a name or property for the current process.</td></tr><tr><td valign="top"><a href="#reg-3">reg/3</a></td><td>Register a name or property for the current process
-<code>Attrs</code> (default: <code>[]</code>) can be inspected using <a href="#get_attribute-2"><code>get_attribute/2</code></a>.</td></tr><tr><td valign="top"><a href="#reg_or_locate-1">reg_or_locate/1</a></td><td>Equivalent to <a href="#reg_or_locate-2"><tt>reg_or_locate(Key, default(Key))</tt></a>.</td></tr><tr><td valign="top"><a href="#reg_or_locate-2">reg_or_locate/2</a></td><td>Try registering a unique name, or return existing registration.</td></tr><tr><td valign="top"><a href="#reg_or_locate-3">reg_or_locate/3</a></td><td>Spawn a process with a registered name, or return existing registration.</td></tr><tr><td valign="top"><a href="#reg_shared-1">reg_shared/1</a></td><td>Register a resource, but don't tie it to a particular process.</td></tr><tr><td valign="top"><a href="#reg_shared-2">reg_shared/2</a></td><td>Register a resource, but don't tie it to a particular process.</td></tr><tr><td valign="top"><a href="#reg_shared-3">reg_shared/3</a></td><td></td></tr><tr><td valign="top"><a href="#register_name-2">register_name/2</a></td><td>Behaviour support callback.</td></tr><tr><td valign="top"><a href="#reset_counter-1">reset_counter/1</a></td><td>Reads and resets a counter in a "thread-safe" way.</td></tr><tr><td valign="top"><a href="#select-1">select/1</a></td><td>Perform a select operation on the process registry.</td></tr><tr><td valign="top"><a href="#select-2">select/2</a></td><td>Perform a select operation with limited context on the process registry.</td></tr><tr><td valign="top"><a href="#select-3">select/3</a></td><td>Like <a href="#select-2"><code>select/2</code></a> but returns Limit objects at a time.</td></tr><tr><td valign="top"><a href="#select_count-1">select_count/1</a></td><td>Equivalent to <a href="#select_count-2"><tt>select_count(all, Pat)</tt></a>.</td></tr><tr><td valign="top"><a href="#select_count-2">select_count/2</a></td><td>Perform a select_count operation on the process registry.</td></tr><tr><td valign="top"><a href="#send-2">send/2</a></td><td>Sends a message to the process, or processes, corresponding to Key.</td></tr><tr><td valign="top"><a href="#set_attributes-2">set_attributes/2</a></td><td>Add/modify <code>{Key, Value}</code> attributes associated with a registration.</td></tr><tr><td valign="top"><a href="#set_attributes_shared-2">set_attributes_shared/2</a></td><td>Add/modify <code>{Key, Value}</code> attributes associated with a shared registration.</td></tr><tr><td valign="top"><a href="#set_env-5">set_env/5</a></td><td>Updates the cached value as well as underlying environment.</td></tr><tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td>Sets the value of the registration given by Key.</td></tr><tr><td valign="top"><a href="#set_value_shared-2">set_value_shared/2</a></td><td>Sets the value of the shared registration given by Key.</td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the gproc server.</td></tr><tr><td valign="top"><a href="#table-0">table/0</a></td><td>Equivalent to <a href="#table-1"><tt>table({all, all})</tt></a>.</td></tr><tr><td valign="top"><a href="#table-1">table/1</a></td><td>Equivalent to <a href="#table-2"><tt>table(Context, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#table-2">table/2</a></td><td>QLC table generator for the gproc registry.</td></tr><tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td>Unregister a name or property.</td></tr><tr><td valign="top"><a href="#unreg_shared-1">unreg_shared/1</a></td><td>Unregister a shared resource.</td></tr><tr><td valign="top"><a href="#unregister_name-1">unregister_name/1</a></td><td>Equivalent to <tt>unreg / 1</tt>.</td></tr><tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td>Updates the counter registered as Key for the current process.</td></tr><tr><td valign="top"><a href="#update_counter-3">update_counter/3</a></td><td></td></tr><tr><td valign="top"><a href="#update_counters-2">update_counters/2</a></td><td>Update a list of counters.</td></tr><tr><td valign="top"><a href="#update_shared_counter-2">update_shared_counter/2</a></td><td>Updates the shared counter registered as Key.</td></tr><tr><td valign="top"><a href="#where-1">where/1</a></td><td>Returns the pid registered as Key.</td></tr><tr><td valign="top"><a href="#whereis_name-1">whereis_name/1</a></td><td>Equivalent to <tt>where / 1</tt>.</td></tr><tr><td valign="top"><a href="#wide_await-3">wide_await/3</a></td><td>Wait for a local name to be registered on any of <code>Nodes</code>.</td></tr></table>
+<code>Attrs</code> (default: <code>[]</code>) can be inspected using <a href="#get_attribute-2"><code>get_attribute/2</code></a>.</td></tr><tr><td valign="top"><a href="#reg_or_locate-1">reg_or_locate/1</a></td><td>Equivalent to <a href="#reg_or_locate-2"><tt>reg_or_locate(Key, default(Key))</tt></a>.</td></tr><tr><td valign="top"><a href="#reg_or_locate-2">reg_or_locate/2</a></td><td>Try registering a unique name, or return existing registration.</td></tr><tr><td valign="top"><a href="#reg_or_locate-3">reg_or_locate/3</a></td><td>Spawn a process with a registered name, or return existing registration.</td></tr><tr><td valign="top"><a href="#reg_other-2">reg_other/2</a></td><td>Equivalent to <a href="#reg_other-4"><tt>reg_other(Key, Pid, default(Key), [])</tt></a>.</td></tr><tr><td valign="top"><a href="#reg_other-3">reg_other/3</a></td><td>Equivalent to <a href="#reg_other-4"><tt>reg_other(Key, Pid, Value, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#reg_other-4">reg_other/4</a></td><td>Register name or property to another process.</td></tr><tr><td valign="top"><a href="#reg_shared-1">reg_shared/1</a></td><td>Register a resource, but don't tie it to a particular process.</td></tr><tr><td valign="top"><a href="#reg_shared-2">reg_shared/2</a></td><td>Register a resource, but don't tie it to a particular process.</td></tr><tr><td valign="top"><a href="#reg_shared-3">reg_shared/3</a></td><td></td></tr><tr><td valign="top"><a href="#register_name-2">register_name/2</a></td><td>Behaviour support callback.</td></tr><tr><td valign="top"><a href="#reset_counter-1">reset_counter/1</a></td><td>Reads and resets a counter in a "thread-safe" way.</td></tr><tr><td valign="top"><a href="#select-1">select/1</a></td><td>Perform a select operation on the process registry.</td></tr><tr><td valign="top"><a href="#select-2">select/2</a></td><td>Perform a select operation with limited context on the process registry.</td></tr><tr><td valign="top"><a href="#select-3">select/3</a></td><td>Like <a href="#select-2"><code>select/2</code></a> but returns Limit objects at a time.</td></tr><tr><td valign="top"><a href="#select_count-1">select_count/1</a></td><td>Equivalent to <a href="#select_count-2"><tt>select_count(all, Pat)</tt></a>.</td></tr><tr><td valign="top"><a href="#select_count-2">select_count/2</a></td><td>Perform a select_count operation on the process registry.</td></tr><tr><td valign="top"><a href="#send-2">send/2</a></td><td>Sends a message to the process, or processes, corresponding to Key.</td></tr><tr><td valign="top"><a href="#set_attributes-2">set_attributes/2</a></td><td>Add/modify <code>{Key, Value}</code> attributes associated with a registration.</td></tr><tr><td valign="top"><a href="#set_attributes_shared-2">set_attributes_shared/2</a></td><td>Add/modify <code>{Key, Value}</code> attributes associated with a shared registration.</td></tr><tr><td valign="top"><a href="#set_env-5">set_env/5</a></td><td>Updates the cached value as well as underlying environment.</td></tr><tr><td valign="top"><a href="#set_value-2">set_value/2</a></td><td>Sets the value of the registration given by Key.</td></tr><tr><td valign="top"><a href="#set_value_shared-2">set_value_shared/2</a></td><td>Sets the value of the shared registration given by Key.</td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the gproc server.</td></tr><tr><td valign="top"><a href="#table-0">table/0</a></td><td>Equivalent to <a href="#table-1"><tt>table({all, all})</tt></a>.</td></tr><tr><td valign="top"><a href="#table-1">table/1</a></td><td>Equivalent to <a href="#table-2"><tt>table(Context, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#table-2">table/2</a></td><td>QLC table generator for the gproc registry.</td></tr><tr><td valign="top"><a href="#unreg-1">unreg/1</a></td><td>Unregister a name or property.</td></tr><tr><td valign="top"><a href="#unreg_other-2">unreg_other/2</a></td><td>Unregister a name registered to another process.</td></tr><tr><td valign="top"><a href="#unreg_shared-1">unreg_shared/1</a></td><td>Unregister a shared resource.</td></tr><tr><td valign="top"><a href="#unregister_name-1">unregister_name/1</a></td><td>Equivalent to <tt>unreg / 1</tt>.</td></tr><tr><td valign="top"><a href="#update_counter-2">update_counter/2</a></td><td>Updates the counter registered as Key for the current process.</td></tr><tr><td valign="top"><a href="#update_counter-3">update_counter/3</a></td><td></td></tr><tr><td valign="top"><a href="#update_counters-2">update_counters/2</a></td><td>Update a list of counters.</td></tr><tr><td valign="top"><a href="#update_shared_counter-2">update_shared_counter/2</a></td><td>Updates the shared counter registered as Key.</td></tr><tr><td valign="top"><a href="#where-1">where/1</a></td><td>Returns the pid registered as Key.</td></tr><tr><td valign="top"><a href="#whereis_name-1">whereis_name/1</a></td><td>Equivalent to <tt>where / 1</tt>.</td></tr><tr><td valign="top"><a href="#wide_await-3">wide_await/3</a></td><td>Wait for a local name to be registered on any of <code>Nodes</code>.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -1190,6 +1190,47 @@ When a global name is registered in this fashion, the process is
 spawned on the caller's node, and the group_leader of the spawned
 process is set to the group_leader of the calling process.
 
+<a name="reg_other-2"></a>
+
+### reg_other/2 ###
+
+`reg_other(Key, Pid) -> any()`
+
+Equivalent to [`reg_other(Key, Pid, default(Key), [])`](#reg_other-4).
+
+<a name="reg_other-3"></a>
+
+### reg_other/3 ###
+
+`reg_other(Key, Pid, Value) -> any()`
+
+Equivalent to [`reg_other(Key, Pid, Value, [])`](#reg_other-4).
+
+<a name="reg_other-4"></a>
+
+### reg_other/4 ###
+
+<pre><code>
+reg_other(Key, Pid, Value, Attrs) -&gt; true
+</code></pre>
+<br />
+
+Register name or property to another process.
+
+Equivalent to [`reg/3`](#reg-3), but allows for registration of another process
+instead of the current process.
+
+Note that registering other processes introduces the possibility of
+confusing race conditions in user code. Letting each process register
+its own resources is highly recommended.
+
+Only the following resource types can be registered through this function:
+
+* `n`  - unique names
+* `a`  - aggregated counters
+* `r`  - resource properties
+* `rc` - resource counters
+
 <a name="reg_shared-1"></a>
 
 ### reg_shared/1 ###
@@ -1531,6 +1572,21 @@ unreg(Key::<a href="#type-key">key()</a>) -&gt; true
 <br />
 
 Unregister a name or property.
+
+<a name="unreg_other-2"></a>
+
+### unreg_other/2 ###
+
+<pre><code>
+unreg_other(Key::<a href="#type-key">key()</a>, Pid::pid()) -&gt; true
+</code></pre>
+<br />
+
+Unregister a name registered to another process.
+
+This function is equivalent to [`unreg/1`](#unreg-1), but specifies another
+process as the holder of the registration. An exception is raised if the
+name or property is not registered to the given process.
 
 <a name="unreg_shared-1"></a>
 
