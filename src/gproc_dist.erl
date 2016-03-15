@@ -522,22 +522,22 @@ handle_leader_call({Unreg, {T,g,Name} = K, Pid}, _From, S, _E)
                     case ets:lookup(?TAB, {{a,g,Name},a}) of
                         [Aggr] ->
                             %% updated by remove_reg/3
-                            {reply, true, [{delete,[Key, {Pid,K}]},
+                            {reply, true, [{delete,[{K,Pid}, {Pid,K}]},
                                            {insert, [Aggr]}], S};
                         [] ->
-                            {reply, true, [{delete, [Key, {Pid,K}]}], S}
+                            {reply, true, [{delete, [{K,Pid}, {Pid,K}]}], S}
                     end;
                T == r ->
                     case ets:lookup(?TAB, {{rc,g,Name},rc}) of
                         [RC] ->
-                            {reply, true, [{delete,[Key, {Pid,K}]},
+                            {reply, true, [{delete,[{K,Pid}, {Pid,K}]},
                                            {insert, [RC]}], S};
                         [] ->
-                            {reply, true, [{delete, [Key, {Pid, K}]}], S}
+                            {reply, true, [{delete, [{K,Pid}, {Pid, K}]}], S}
                     end;
                true ->
                     {reply, true, [{notify, [{K, Pid, unreg}]},
-                                   {delete, [Key, {Pid,K}]}], S}
+                                   {delete, [{K, Pid}, {Pid,K}]}], S}
             end;
         false ->
             {reply, badarg, S}
@@ -560,14 +560,14 @@ handle_leader_call({give_away, {T,g,_} = K, To, Pid}, _From, S, _E)
                     gproc_lib:notify({migrated, ToPid}, K, Opts),
                     {reply, ToPid, [{insert, [{Key, ToPid, Value}]},
                                     {notify, [{K, Pid, {migrated, ToPid}}]},
-				    {delete, [Rev]}], S};
+				    {delete, [{K, Pid}, Rev]}], S};
                 undefined ->
                     ets:delete(?TAB, Key),
                     Rev = {Pid, K},
                     ets:delete(?TAB, Rev),
                     gproc_lib:notify(unreg, K, Opts),
                     {reply, undefined, [{notify, [{K, Pid, unreg}]},
-                                        {delete, [Key, Rev]}], S}
+                                        {delete, [{K, Pid}, Rev]}], S}
             end;
         _ ->
             {reply, badarg, S}
@@ -771,7 +771,7 @@ filter_standbys([], _) ->
 remove_entry(Key, Pid, Event) ->
     K = ets_key(Key, Pid),
     case ets:lookup(?TAB, K) of
-	[{_, Pid, _}] ->
+	[{_, P, _}] when is_pid(P), P =:= Pid; is_atom(Pid) ->
 	    ets:delete(?TAB, K),
 	    remove_rev_entry(get_opts(Pid, Key), Pid, Key, Event);
 	[{_, _OtherPid, _}] ->
@@ -834,12 +834,11 @@ insert_globals(Globals) ->
 
 delete_globals(Globals) ->
     lists:foreach(
-      fun({{_,g,_},T} = K) when is_atom(T); is_pid(T) ->
-              ets:delete(?TAB, K);
-         ({{{_,g,_} = R, T} = K, P}) when is_pid(P), is_atom(T);
+      fun({{_,g,_} = K, T}) when is_atom(T); is_pid(T) ->
+              remove_entry(K, T, []);
+         ({{{_,g,_} = K, T}, P}) when is_pid(P), is_atom(T);
                                           is_pid(P), is_pid(T) ->
-              ets:delete(?TAB, {P, R}),
-              ets:delete(?TAB, K);
+	      remove_entry(K, T, []);
          ({Pid, Key}) when is_pid(Pid); Pid==shared ->
 	      ets:delete(?TAB, {Pid, Key})
       end, Globals).
