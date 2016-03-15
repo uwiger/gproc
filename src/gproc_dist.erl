@@ -566,17 +566,18 @@ handle_leader_cast({sync_reply, Cand, Ref} = _Msg, S, _E) ->
                     {ok, S#state{sync_requests = SReqs1}}
             end
     end;
-handle_leader_cast({add_globals, Missing}, S, _E) ->
+handle_leader_cast({add_globals, Missing} = _Msg, S, _E) ->
     %% This is an audit message: a peer (non-leader) had info about granted
     %% global resources that we didn't know of when we became leader.
     %% This could happen due to a race condition when the old leader died.
+    io:fwrite("Leader (~p) received ~p~n", [self(), _Msg]),
     Update = insert_globals(Missing),
     {ok, [{insert, Update}], S};
-handle_leader_cast({remove_globals, Globals}, S, _E) ->
+handle_leader_cast({remove_globals, Globals} = _Msg, S, _E) ->
+    io:fwrite("Leader (~p) received ~p~n", [self(), _Msg]),
     delete_globals(Globals, []),
     {ok, S};
 handle_leader_cast({conflicts, From, Conflicts}, S, _E) ->
-    %% TODO: resolve conflicts
     io:fwrite("Leader (~p) received conflict list from ~p:~n"
 	      "  ~p~n", [self(), From, Conflicts]),
     {ok, {resolve, resolve_conflicts(Conflicts)}, S};
@@ -666,13 +667,18 @@ from_leader({sync, Ref}, S, _E) ->
     locks_leader:leader_cast(?MODULE, {sync_reply, self(), Ref}),
     {ok, S};
 from_leader({resolve, {Add, Delete}}, S, _E) ->
-    lists:foreach(fun({Key, Pid}) ->
+    lists:foreach(fun({Key, Pid, Event}) ->
 			  ets:delete(?TAB, ets_key(Key, Pid)),
-			  remove_rev_entry(Pid, Key, resolve)
+			  remove_rev_entry(Pid, Key, Event)
 		  end, Delete),
     lists:foreach(fun({Key, Pid, Val, Attrs}) ->
 			  ets:insert(?TAB, {ets_key(Key, Pid), Pid, Val}),
 			  ets:insert(?TAB, {{Pid, Key}, Attrs}),
+			  _ = gproc_lib:ensure_monitor(Pid,g);
+		     ({Key, Pid, Val, Attrs, Event}) ->
+			  ets:insert(?TAB, {ets_key(Key, Pid), Pid, Val}),
+			  ets:insert(?TAB, {{Pid, Key}, Attrs}),
+			  gproc_lib:notify(Key, {Event, Pid, Val}, Attrs),
 			  _ = gproc_lib:ensure_monitor(Pid,g)
 		  end, Add),
     {ok, S};
@@ -744,6 +750,7 @@ leader_cast(Msg) ->
 init(_Opts) ->
     {ok, #state{}}.
 
+%% I was leader - check for conflicts.
 surrendered_1(Globs) ->
     Conflicts =
 	lists:foldr(
@@ -768,6 +775,7 @@ surrendered_1(Globs) ->
 	  end, [], Globs),
     leader_cast({conflicts, self(), Conflicts}),
     surrendered_2(Globs, Conflicts).
+%% I wasn't leader.
 surrendered_2(Globs, Conflicts) ->
     My_local_globs =
         ets:select(?TAB, [{{{{'_',g,'_'},'_'},'$1', '$2'},
@@ -840,18 +848,22 @@ resolve_conflicts(Conflicts) ->
 		  {_, PidA, ValueA, AttrsA} ->
 		      %% Oh well, if it ain't broken...!
 		      Acc;
-		  {_, PidB, ValueB, AttrsB} ->
+		  {_, PidB, ValueB, AttrsB} when PidA =/= PidB ->
 		      case deconflict_method(AttrsA, AttrsB) of
 			  exit_all ->
 			      exit_pid(PidA, {gproc_conflict, Key}),
 			      exit_pid(PidB, {gproc_conflict, Key}),
-			      {Add, [{Key, PidA}, {Key, PidB} | Del]};
+			      {Add, [{Key, PidA, resolve_exit},
+				     {Key, PidB, resolve_exit} | Del]};
 			  smallest_pid ->
 			      resolve_smallest(Key, PidA, PidB, ValueA, ValueB,
 					       AttrsA, AttrsB, Add, Del);
 			  largest_pid ->
 			      resolve_smallest(Key, PidB, PidA, ValueB, ValueA,
-					       AttrsB, AttrsA, Add, Del)
+					       AttrsB, AttrsA, Add, Del);
+			  unreg ->
+			      {Add, [{Key, PidA, resolve_unreg},
+				     {Key, PidB, resolve_unreg} | Del]}
 		      end;
 		  [] ->
 		      {[{Key, PidA, ValueA, AttrsA} | Add], Del}
@@ -861,12 +873,12 @@ resolve_conflicts(Conflicts) ->
 resolve_smallest(Key, PidA, PidB, ValueA, ValueB, AttrsA, AttrsB, Add, Del) ->
     if PidB < PidA ->
 	    exit_pid(PidA, {gproc_conflict, Key}),
-	    {[{Key, PidB, ValueB, AttrsB} | Add],
-	     [{Key, PidA} | Del]};
+	    {[{Key, PidB, ValueB, AttrsB, resolve_chosen} | Add],
+	     [{Key, PidA, resolve_exit} | Del]};
        true ->
 	    exit_pid(PidB, {gproc_conflict, Key}),
-	    {[{Key, PidA, ValueA, AttrsA} | Add],
-	     [{Key, PidB} | Del]}
+	    {[{Key, PidA, ValueA, AttrsA, resolve_chosen} | Add],
+	     [{Key, PidB, resolve_exit} | Del]}
     end.
 
 deconflict_method(AttrsA, AttrsB) ->
@@ -892,8 +904,8 @@ fetch({T,_,_} = K) when T==a; T==n ->
     case ets:lookup(?TAB, Key = {K,T}) of
 	[{_, Pid, Val}] ->
 	    As = case ets:lookup(?TAB, {Pid,K}) of
-		     [] -> [];
-		     [{_, A}] -> A
+		     [{_, A}] when is_list(A) -> A;
+		     _ -> []
 		 end,
 	    {Key, Pid, Val, As};
 	[] ->
@@ -904,8 +916,8 @@ fetch({_,_,_} = K) ->
 		    1) of
 	{[{Key, Pid, Val}], _} ->
 	    As = case ets:lookup(?TAB, {Pid, K}) of
-		     [] -> [];
-		     [{_, A}] -> A
+		     [{_, A}] when is_list(A) -> A;
+		     _ -> []
 		 end,
 	    {Key, Pid, Val, As};
 	_ ->

@@ -1042,17 +1042,21 @@ reg_shared(Key, Value, Attrs) ->
     ?CATCH_GPROC_ERROR(
        reg_shared1(Key, Value, Attrs), [Key, Value, Attrs]).
 
-reg_shared1({_,g,_} = Key, Value, Attrs) ->
+reg_shared1(Key, Value, Attrs) ->
+    true = valid_attrs(Attrs),
+    reg_shared2(Key, Value, Attrs).
+
+reg_shared2({_,g,_} = Key, Value, Attrs) ->
     %% anything global
     ?CHK_DIST,
     gproc_dist:reg_shared(Key, Value, Attrs);
-reg_shared1({a,l,_} = Key, undefined, Attrs) ->
+reg_shared2({a,l,_} = Key, undefined, Attrs) ->
     call({reg_shared, Key, undefined, Attrs});
-reg_shared1({c,l,_} = Key, Value, Attrs) when is_integer(Value) ->
+reg_shared2({c,l,_} = Key, Value, Attrs) when is_integer(Value) ->
     call({reg_shared, Key, Value, Attrs});
-reg_shared1({p,l,_} = Key, Value, Attrs) ->
+reg_shared2({p,l,_} = Key, Value, Attrs) ->
     call({reg_shared, Key, Value, Attrs});
-reg_shared1(_, _, _) ->
+reg_shared2(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 %% @spec mreg(type(), scope(), [{Key::any(), Value::any()}]) -> true
@@ -1096,11 +1100,13 @@ mreg1(_, _, _) ->
 %%    smallest pid, and remove the corresponding registration.
 %% * `largest_pid' - send an `exit(Pid, {gproc_conflict, Key})' signal to the
 %%    largest pid, and remove the corresponding registration.
+%% * `unreg' - unregister both names.
 %%
 %% @end
 deconflict(exit_all    ) -> {gproc_deconflict, exit_all};
 deconflict(smallest_pid) -> {gproc_deconflict, smallest_pid};
-deconflict(largest_pid ) -> {gproc_deconflict, largest_pid}.
+deconflict(largest_pid ) -> {gproc_deconflict, largest_pid};
+deconflict(unreg       ) -> {gproc_deconflict, unreg}.
 
 %% @spec munreg(type(), scope(), [Key::any()]) -> true
 %%

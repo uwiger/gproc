@@ -520,6 +520,7 @@ involved pids, and remove the registrations
 smallest pid, and remove the corresponding registration.
 * `largest_pid` - send an `exit(Pid, {gproc_conflict, Key})` signal to the
 largest pid, and remove the corresponding registration.
+* `unreg` - unregister both names.
 
 <a name="default-1"></a>
 
