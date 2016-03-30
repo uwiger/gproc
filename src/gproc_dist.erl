@@ -838,7 +838,7 @@ delete_globals(Globals) ->
               remove_entry(K, T, []);
          ({{{_,g,_} = K, T}, P}) when is_pid(P), is_atom(T);
                                           is_pid(P), is_pid(T) ->
-	      remove_entry(K, T, []);
+	      remove_entry(K, P, []);
          ({Pid, Key}) when is_pid(Pid); Pid==shared ->
 	      ets:delete(?TAB, {Pid, Key})
       end, Globals).
