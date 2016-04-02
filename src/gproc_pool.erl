@@ -507,14 +507,49 @@ try_claim(K, Pid, F) ->
     case gproc:update_counter(K, [0, {1, 1, 1}]) of
         [0, 1] ->
             %% have lock
-            try  Res = F(K, Pid),
-                 {true, Res}
-            after
-                gproc:reset_counter(K)
-            end;
+            execute_claim(F, K, Pid);
         [1, 1] ->
             %% no
             false
+    end.
+
+%% Wrapper to handle the case where the claimant gets killed by another
+%% process while executing within the critical section.
+%% This is likely a rare case, but if it happens, the claim would never
+%% get released.
+%% Solution:
+%% - spawn a monitoring process which resets the claim if the parent dies
+%%   (spawn_link() might be more efficient, but we cannot enable trap_exit
+%%    atomically, which introduces a race condition).
+%% - for all return types, kill the monitor and release the claim.
+%% - the one case where the monitor *isn't* killed is when Parent itself
+%%   is killed before executing the `after' clause. In this case, it should
+%%   be safe to release the claim from the monitoring process.
+%%
+%% Overhead in the normal case:
+%% - spawning the monitoring process
+%% - (possibly scheduling the monitoring process to set up the monitor)
+%% - killing the monitoring process (untrappably)
+%% Timing the overhead over 100,000 claims on a Core i7 MBP running OTP 17,
+%% this wrapper increases the cost of a minimal claim from ca 3 us to
+%% ca 7-8 us.
+execute_claim(F, K, Pid) ->
+    Parent = self(),
+    Mon = spawn(
+            fun() ->
+                    Ref = erlang:monitor(process, Parent),
+                    receive
+                        {'DOWN', Ref, _, _, _} ->
+                            gproc:reset_counter(K)
+                    end
+            end),
+    try begin
+            Res = F(K, Pid),
+            {true, Res}
+        end
+    after
+        exit(Mon, kill),
+        gproc:reset_counter(K)
     end.
 
 setup_wait(nowait, _) ->
