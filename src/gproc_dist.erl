@@ -881,7 +881,7 @@ surrendered_1(Globs) ->
     My_local_globs =
         ets:select(?TAB, [{{{{'_',g,'_'},'_'},'$1', '$2'},
                            [{'==', {node,'$1'}, node()}],
-                           [{{ {element,1,{element,1,'$_'}}, '$1', '$2' }}]}]),
+                           [{{ {element,1,'$_'}, '$1', '$2' }}]}]),
     _ = [gproc_lib:ensure_monitor(Pid, g) || {_, Pid, _} <- My_local_globs],
     %% remove all remote globals.
     ets:select_delete(?TAB, [{{{{'_',g,'_'},'_'}, '$1', '_'},
