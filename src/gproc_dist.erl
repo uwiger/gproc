@@ -71,6 +71,7 @@
           is_leader,
           sync_requests = []}).
 
+-include("gproc_trace.hrl").
 %% ==========================================================
 %% Start functions
 
@@ -777,6 +778,9 @@ remove_entry(Key, Pid, Event) ->
 	[{_, _OtherPid, _}] ->
 	    ets:delete(?TAB, {Pid, Key}),
 	    [];
+        [{_, _Waiters}] ->
+            %% Skip
+            [];
 	[] -> []
     end.
 
@@ -883,6 +887,7 @@ surrendered_1(Globs) ->
                            [{'==', {node,'$1'}, node()}],
                            [{{ {element,1,'$_'}, '$1', '$2' }}]}]),
     _ = [gproc_lib:ensure_monitor(Pid, g) || {_, Pid, _} <- My_local_globs],
+    ?event({'My_local_globs', My_local_globs}),
     %% remove all remote globals.
     ets:select_delete(?TAB, [{{{{'_',g,'_'},'_'}, '$1', '_'},
                               [{'=/=', {node,'$1'}, node()}],
@@ -905,6 +910,7 @@ surrendered_1(Globs) ->
              ({_, Pid, _} = Obj, Acc) when node(Pid) == node() ->
                   [Obj|Acc]
           end, [], Globs),
+    ?event({'Ldr_local_globs', Ldr_local_globs}),
     case [{K,P,V} || {K,P,V} <- My_local_globs,
 		     is_pid(P) andalso
 			 not(lists:keymember(K, 1, Ldr_local_globs))] of
@@ -913,14 +919,16 @@ surrendered_1(Globs) ->
             ok;
         [_|_] = Missing ->
             %% This is very unlikely, I think
+            ?event({'Missing', Missing}),
             leader_cast({add_globals, mk_broadcast_insert_vals(Missing)})
     end,
-    case [{K,P} || {K,P,_} <- Ldr_local_globs,
+    case [{K,P} || {{K,_}=R,P,_} <- Ldr_local_globs,
 		   is_pid(P) andalso
-		       not(lists:keymember(K, 1, My_local_globs))] of
+		       not(lists:keymember(R, 1, My_local_globs))] of
         [] ->
             ok;
         [_|_] = Remove ->
+            ?event({'Remove', Remove}),
             leader_cast({remove_globals, Remove})
     end.
 
