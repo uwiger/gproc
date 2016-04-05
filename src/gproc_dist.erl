@@ -71,6 +71,7 @@
           is_leader,
           sync_requests = []}).
 
+-include("gproc_trace.hrl").
 %% ==========================================================
 %% Start functions
 
@@ -522,22 +523,22 @@ handle_leader_call({Unreg, {T,g,Name} = K, Pid}, _From, S, _E)
                     case ets:lookup(?TAB, {{a,g,Name},a}) of
                         [Aggr] ->
                             %% updated by remove_reg/3
-                            {reply, true, [{delete,[Key, {Pid,K}]},
+                            {reply, true, [{delete,[{K,Pid}, {Pid,K}]},
                                            {insert, [Aggr]}], S};
                         [] ->
-                            {reply, true, [{delete, [Key, {Pid,K}]}], S}
+                            {reply, true, [{delete, [{K,Pid}, {Pid,K}]}], S}
                     end;
                T == r ->
                     case ets:lookup(?TAB, {{rc,g,Name},rc}) of
                         [RC] ->
-                            {reply, true, [{delete,[Key, {Pid,K}]},
+                            {reply, true, [{delete,[{K,Pid}, {Pid,K}]},
                                            {insert, [RC]}], S};
                         [] ->
-                            {reply, true, [{delete, [Key, {Pid, K}]}], S}
+                            {reply, true, [{delete, [{K,Pid}, {Pid, K}]}], S}
                     end;
                true ->
                     {reply, true, [{notify, [{K, Pid, unreg}]},
-                                   {delete, [Key, {Pid,K}]}], S}
+                                   {delete, [{K, Pid}, {Pid,K}]}], S}
             end;
         false ->
             {reply, badarg, S}
@@ -560,14 +561,14 @@ handle_leader_call({give_away, {T,g,_} = K, To, Pid}, _From, S, _E)
                     gproc_lib:notify({migrated, ToPid}, K, Opts),
                     {reply, ToPid, [{insert, [{Key, ToPid, Value}]},
                                     {notify, [{K, Pid, {migrated, ToPid}}]},
-				    {delete, [Rev]}], S};
+				    {delete, [{K, Pid}, Rev]}], S};
                 undefined ->
                     ets:delete(?TAB, Key),
                     Rev = {Pid, K},
                     ets:delete(?TAB, Rev),
                     gproc_lib:notify(unreg, K, Opts),
                     {reply, undefined, [{notify, [{K, Pid, unreg}]},
-                                        {delete, [Key, Rev]}], S}
+                                        {delete, [{K, Pid}, Rev]}], S}
             end;
         _ ->
             {reply, badarg, S}
@@ -771,12 +772,15 @@ filter_standbys([], _) ->
 remove_entry(Key, Pid, Event) ->
     K = ets_key(Key, Pid),
     case ets:lookup(?TAB, K) of
-	[{_, Pid, _}] ->
+	[{_, P, _}] when is_pid(P), P =:= Pid; is_atom(Pid) ->
 	    ets:delete(?TAB, K),
 	    remove_rev_entry(get_opts(Pid, Key), Pid, Key, Event);
 	[{_, _OtherPid, _}] ->
 	    ets:delete(?TAB, {Pid, Key}),
 	    [];
+        [{_, _Waiters}] ->
+            %% Skip
+            [];
 	[] -> []
     end.
 
@@ -834,8 +838,11 @@ insert_globals(Globals) ->
 
 delete_globals(Globals) ->
     lists:foreach(
-      fun({{_,g,_},T} = K) when is_atom(T); is_pid(T) ->
-              ets:delete(?TAB, K);
+      fun({{_,g,_} = K, T}) when is_atom(T); is_pid(T) ->
+              remove_entry(K, T, []);
+         ({{{_,g,_} = K, T}, P}) when is_pid(P), is_atom(T);
+                                          is_pid(P), is_pid(T) ->
+	      remove_entry(K, P, []);
          ({Pid, Key}) when is_pid(Pid); Pid==shared ->
 	      ets:delete(?TAB, {Pid, Key})
       end, Globals).
@@ -878,8 +885,9 @@ surrendered_1(Globs) ->
     My_local_globs =
         ets:select(?TAB, [{{{{'_',g,'_'},'_'},'$1', '$2'},
                            [{'==', {node,'$1'}, node()}],
-                           [{{ {element,1,{element,1,'$_'}}, '$1', '$2' }}]}]),
+                           [{{ {element,1,'$_'}, '$1', '$2' }}]}]),
     _ = [gproc_lib:ensure_monitor(Pid, g) || {_, Pid, _} <- My_local_globs],
+    ?event({'My_local_globs', My_local_globs}),
     %% remove all remote globals.
     ets:select_delete(?TAB, [{{{{'_',g,'_'},'_'}, '$1', '_'},
                               [{'=/=', {node,'$1'}, node()}],
@@ -902,6 +910,7 @@ surrendered_1(Globs) ->
              ({_, Pid, _} = Obj, Acc) when node(Pid) == node() ->
                   [Obj|Acc]
           end, [], Globs),
+    ?event({'Ldr_local_globs', Ldr_local_globs}),
     case [{K,P,V} || {K,P,V} <- My_local_globs,
 		     is_pid(P) andalso
 			 not(lists:keymember(K, 1, Ldr_local_globs))] of
@@ -910,14 +919,16 @@ surrendered_1(Globs) ->
             ok;
         [_|_] = Missing ->
             %% This is very unlikely, I think
+            ?event({'Missing', Missing}),
             leader_cast({add_globals, mk_broadcast_insert_vals(Missing)})
     end,
-    case [{K,P} || {K,P,_} <- Ldr_local_globs,
+    case [{K,P} || {{K,_}=R,P,_} <- Ldr_local_globs,
 		   is_pid(P) andalso
-		       not(lists:keymember(K, 1, My_local_globs))] of
+		       not(lists:keymember(R, 1, My_local_globs))] of
         [] ->
             ok;
         [_|_] = Remove ->
+            ?event({'Remove', Remove}),
             leader_cast({remove_globals, Remove})
     end.
 

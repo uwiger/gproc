@@ -22,109 +22,82 @@
 -include_lib("eunit/include/eunit.hrl").
 -export([t_spawn/1, t_spawn_reg/2]).
 
+-define(f(E), fun() -> ?debugVal(E) end).
+
 dist_test_() ->
     {timeout, 120,
-     [{setup,
-       fun() ->
-               case run_dist_tests() of
-                   true ->
-                       Ns = start_slaves([dist_test_n1, dist_test_n2]),
-                       ?assertMatch({[ok,ok],[]},
-                                    rpc:multicall(Ns, application, set_env,
-                                                  [gproc, gproc_dist, Ns])),
-                       ?assertMatch({[ok,ok],[]},
-                                    rpc:multicall(
-                                      Ns, application, start, [gproc])),
-                       Ns;
-                   false ->
-                       skip
-               end
-       end,
-       fun(_Ns) ->
-               ok
-       end,
-       fun(skip) -> [];
-          (Ns) when is_list(Ns) ->
-               {inorder,
-                [
-                 {inorder, [
-                               fun() ->
-                                       ?debugVal(t_simple_reg(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_simple_reg_other(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_simple_reg_or_locate(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_simple_counter(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_aggr_counter(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_awaited_aggr_counter(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_simple_resource_count(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_awaited_resource_count(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_resource_count_on_zero(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_update_counters(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_shared_counter(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_prop(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_mreg(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_await_reg(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_await_self(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_await_reg_exists(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_give_away(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_sync(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_monitor(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_standby_monitor(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_follow_monitor(Ns))
-                               end,
-                               fun() ->
-                                       ?debugVal(t_subscribe(Ns))
-                               end
-                           ]
-                 },
-                 fun() ->
-                         ?debugVal(t_sync_cand_dies(Ns))
-                 end,
-                 {timeout, 90, [fun() ->
-                                        ?debugVal(t_fail_node(Ns))
-                                end]}
-                ]}
-       end
-      }]}.
+     [
+      %% {setup,
+      %%  fun dist_setup/0,
+      %%  fun dist_cleanup/1,
+      %%  fun(skip) -> [];
+      %%     (Ns) when is_list(Ns) ->
+      %%          {inorder, basic_tests(Ns)}
+      %%  end
+      %% },
+      {foreach,
+       fun dist_setup/0,
+       fun dist_cleanup/1,
+       [
+        fun(Ns) ->
+                [{inorder, basic_tests(Ns)}]
+        end,
+        fun(Ns) ->
+                [?f(t_sync_cand_dies(Ns))]
+        end,
+        fun(Ns) ->
+                [?f(t_fail_node(Ns))]
+        end,
+        fun(Ns) ->
+                [?f(t_master_dies(Ns))]
+        end
+       ]}
+     ]}.
+
+basic_tests(Ns) ->
+    [
+     ?f(t_simple_reg(Ns)),
+     ?f(t_simple_reg_other(Ns)),
+     ?f(t_simple_reg_or_locate(Ns)),
+     ?f(t_simple_counter(Ns)),
+     ?f(t_aggr_counter(Ns)),
+     ?f(t_awaited_aggr_counter(Ns)),
+     ?f(t_simple_resource_count(Ns)),
+     ?f(t_awaited_resource_count(Ns)),
+     ?f(t_resource_count_on_zero(Ns)),
+     ?f(t_update_counters(Ns)),
+     ?f(t_shared_counter(Ns)),
+     ?f(t_prop(Ns)),
+     ?f(t_mreg(Ns)),
+     ?f(t_await_reg(Ns)),
+     ?f(t_await_self(Ns)),
+     ?f(t_await_reg_exists(Ns)),
+     ?f(t_give_away(Ns)),
+     ?f(t_sync(Ns)),
+     ?f(t_monitor(Ns)),
+     ?f(t_standby_monitor(Ns)),
+     ?f(t_follow_monitor(Ns)),
+     ?f(t_subscribe(Ns))
+    ].
+
+dist_setup() ->
+    case run_dist_tests() of
+        true ->
+            Ns = start_slaves([dist_test_n1, dist_test_n2, dist_test_n3]),
+            ?assertMatch({[ok,ok,ok],[]},
+                         rpc:multicall(Ns, application, set_env,
+                                       [gproc, gproc_dist, Ns])),
+            ?assertMatch({[ok,ok,ok],[]},
+                         rpc:multicall(
+                           Ns, application, start, [gproc])),
+            Ns;
+        false ->
+            skip
+    end.
+
+dist_cleanup(Ns) ->
+    [slave:stop(N) || N <- Ns],
+    ok.
 
 run_dist_tests() ->
     case os:getenv("GPROC_DIST") of
@@ -529,6 +502,32 @@ t_fail_node([A,B|_] = Ns) ->
     ?assertMatch(ok, t_lookup_everywhere(Nb, Ns, Pb)),
     ?assertMatch(ok, t_call(Pa, die)),
     ?assertMatch(ok, t_call(Pb, die)).
+
+t_master_dies([A,B,C] = Ns) ->
+    Na = ?T_NAME,
+    Nb = ?T_NAME,
+    Nc = ?T_NAME,
+    Pa = t_spawn_reg(A, Na),
+    Pb = t_spawn_reg(B, Nb),
+    Pc = t_spawn_reg(C, Nc),
+    L = rpc:call(A, gproc_dist, get_leader, []),
+    ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pa)),
+    ?assertMatch(ok, t_lookup_everywhere(Nb, Ns, Pb)),
+    ?assertMatch(ok, t_lookup_everywhere(Nc, Ns, Pc)),
+    {Nl, Pl} = case L of
+                   A -> {Na, Pa};
+                   B -> {Nb, Pb};
+                   C -> {Nc, Pc}
+               end,
+    ?assertMatch(true, rpc:call(A, gproc_dist, sync, [])),
+    ?assertMatch(ok, rpc:call(L, application, stop, [gproc])),
+    Names = [{Na,Pa}, {Nb,Pb}, {Nc,Pc}] -- [{Nl, Pl}],
+    RestNs = Ns -- [L],
+    ?assertMatch(true, rpc:call(hd(RestNs), gproc_dist, sync, [])),
+    ?assertMatch(ok, t_lookup_everywhere(Nl, RestNs, undefined)),
+    [?assertMatch(ok, t_lookup_everywhere(Nx, RestNs, Px))
+     || {Nx, Px} <- Names],
+    ok.
 
 t_sleep() ->
     timer:sleep(500).
