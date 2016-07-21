@@ -19,6 +19,12 @@ actively use either, they are no longer fetched by default.
   happens when you call `make doc')</li>
 </ul>
 
+<h2>Installation</h2>
+
+You can get `gproc` from the <a href="https://hex.pm/packages/gproc">Hex package manager</a>
+
+That means declaring dependency on `{gproc, "0.5.0"}` in your `rebar` based applications or `{:gproc, "~> 0.5.0"}` in your `mix` based applications.
+
 <h2>Introduction</h2>
 
 Gproc is a process dictionary for Erlang, which provides a number of useful features beyond what the built-in dictionary has:
