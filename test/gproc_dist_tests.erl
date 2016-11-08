@@ -43,21 +43,30 @@ dist_test_() ->
                 [{inorder, basic_tests(Ns)}]
         end,
         fun(Ns) ->
-                [?f(t_sync_cand_dies(Ns))]
+                tests(Ns, [?f(t_sync_cand_dies(Ns))])
         end,
         fun(Ns) ->
-                [?f(t_fail_node(Ns))]
+                tests(Ns, [?f(t_fail_node(Ns))])
         end,
         fun(Ns) ->
-                [?f(t_master_dies(Ns))]
+                tests(Ns, [?f(t_master_dies(Ns))])
         end
        ]}
      ]}.
 
+tests(skip, _) ->
+    [];
+tests(_, L) ->
+    L.
+
+basic_tests(skip) ->
+    [];
 basic_tests(Ns) ->
     [
      ?f(t_simple_reg(Ns)),
      ?f(t_simple_reg_other(Ns)),
+     ?f(t_simple_ensure(Ns)),
+     ?f(t_simple_ensure_other(Ns)),
      ?f(t_simple_reg_or_locate(Ns)),
      ?f(t_simple_counter(Ns)),
      ?f(t_aggr_counter(Ns)),
@@ -95,6 +104,8 @@ dist_setup() ->
             skip
     end.
 
+dist_cleanup(skip) ->
+    ok;
 dist_cleanup(Ns) ->
     [slave:stop(N) || N <- Ns],
     ok.
@@ -112,7 +123,7 @@ run_dist_tests() ->
 	    end
     end.
 
--define(T_NAME, {n, g, {?MODULE, ?LINE, erlang:now()}}).
+-define(T_NAME, {n, g, {?MODULE, ?LINE, os:timestamp()}}).
 -define(T_KVL, [{foo, "foo"}, {bar, "bar"}]).
 -define(T_COUNTER, {c, g, {?MODULE, ?LINE}}).
 -define(T_RESOURCE, {r, g, {?MODULE, ?LINE}}).
@@ -132,6 +143,36 @@ t_simple_reg_other([A, B|_] = Ns) ->
     P2 = t_spawn(B),
     ?assertMatch(true, t_call(P1, {apply, gproc, reg_other, [Name, P2]})),
     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, P2)),
+    ?assertMatch(true, t_call(P1, {apply, gproc, unreg_other, [Name, P2]})),
+    ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
+    ?assertMatch(ok, t_call(P1, die)),
+    ?assertMatch(ok, t_call(P2, die)).
+
+t_simple_ensure([H|_] = Ns) ->
+    Name = ?T_NAME,
+    P = t_spawn_reg(H, Name),
+    ?assertMatch(ok, t_lookup_everywhere(Name, Ns, P)),
+    ?assertMatch(
+       updated, t_call(
+                  P, {apply, gproc, ensure_reg, [Name, new_val, [{a,1}]]})),
+    ?assertMatch(
+       [{a,1}], t_call(
+                  P, {apply, gproc, get_attributes, [Name]})),
+    ?assertMatch(ok, t_read_everywhere(Name, P, Ns, new_val)),
+    ?assertMatch(true, t_call(P, {apply, gproc, unreg, [Name]})),
+    ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
+    ?assertMatch(ok, t_call(P, die)).
+
+t_simple_ensure_other([A, B|_] = Ns) ->
+    Name = ?T_NAME,
+    P1 = t_spawn(A),
+    P2 = t_spawn(B),
+    ?assertMatch(true, t_call(P1, {apply, gproc, reg_other, [Name, P2]})),
+    ?assertMatch(ok, t_lookup_everywhere(Name, Ns, P2)),
+    ?assertMatch(
+       updated, t_call(
+                  P1, {apply, gproc, ensure_reg_other, [Name, P2, new_val]})),
+    ?assertMatch(ok, t_read_everywhere(Name, P2, Ns, new_val)),
     ?assertMatch(true, t_call(P1, {apply, gproc, unreg_other, [Name, P2]})),
     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
     ?assertMatch(ok, t_call(P1, die)),

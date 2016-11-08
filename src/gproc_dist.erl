@@ -23,8 +23,8 @@
 -behaviour(gen_leader).
 
 -export([start_link/0, start_link/1,
-         reg/1, reg/3, unreg/1,
-         reg_other/4, unreg_other/2,
+         reg/1, reg/4, unreg/1,
+         reg_other/5, unreg_other/2,
 	 reg_or_locate/3,
 	 reg_shared/3, unreg_shared/1,
          monitor/2,
@@ -93,7 +93,7 @@ start_link({Nodes, Opts}) ->
 %% {@see gproc:reg/1}
 %%
 reg(Key) ->
-    reg(Key, gproc:default(Key), []).
+    reg(Key, gproc:default(Key), [], reg).
 
 %% {@see gproc:reg_or_locate/2}
 %%
@@ -120,13 +120,13 @@ reg_or_locate(_, _, _) ->
 %%%          | r  - resource property
 %%%          | rc - resource counter
 %%% @end
-reg({_,g,_} = Key, Value, Attrs) ->
+reg({_,g,_} = Key, Value, Attrs, Op) ->
     %% anything global
-    leader_call({reg, Key, Value, self(), Attrs});
-reg(_, _, _) ->
+    leader_call({reg, Key, Value, self(), Attrs, Op});
+reg(_, _, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
-%% @spec ({Class,g,Key}, pid(), Value, Attrs) -> true
+%% @spec ({Class,g,Key}, pid(), Value, Attrs, Op::reg | unreg) -> true
 %% @doc
 %%    Class = n  - unique name
 %%          | a  - aggregated counter
@@ -135,13 +135,13 @@ reg(_, _, _) ->
 %%    Value = term()
 %%    Attrs = [{Key, Value}]
 %% @end
-reg_other({T,g,_} = Key, Pid, Value, Attrs) when is_pid(Pid) ->
+reg_other({T,g,_} = Key, Pid, Value, Attrs, Op) when is_pid(Pid) ->
     if T==n; T==a; T==r; T==rc ->
-            leader_call({reg_other, Key, Value, Pid, Attrs});
+            leader_call({reg_other, Key, Value, Pid, Attrs, Op});
        true ->
             ?THROW_GPROC_ERROR(badarg)
     end;
-reg_other(_, _, _, _) ->
+reg_other(_, _, _, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 unreg_other({T,g,_} = Key, Pid) when is_pid(Pid) ->
@@ -154,7 +154,7 @@ unreg_other(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 reg_shared({_,g,_} = Key, Value, Attrs) ->
-    leader_call({reg, Key, Value, shared, Attrs});
+    leader_call({reg, Key, Value, shared, Attrs, reg});
 reg_shared(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
@@ -364,11 +364,21 @@ handle_leader_call(sync, From, #state{sync_requests = SReqs} = S, E) ->
             GenLeader:broadcast({from_leader, {sync, From}}, Alive, E),
             {noreply, S#state{sync_requests = [{From, Alive}|SReqs]}}
     end;
-handle_leader_call({Reg, {_C,g,_Name} = K, Value, Pid, As}, _From, S, _E)
+handle_leader_call({Reg, {_C,g,_Name} = K, Value, Pid, As, Op}, _From, S, _E)
   when Reg==reg; Reg==reg_other ->
     case gproc_lib:insert_reg(K, Value, Pid, g) of
-        false ->
+        false when Op == reg ->
             {reply, badarg, S};
+        false when Op == ensure ->
+            case ets:lookup(?TAB, ets_key(K, Pid)) of
+                [{_, Pid, _}] ->
+                    gproc_lib:do_set_value(K, Value, Pid),
+                    gproc_lib:insert_attr(K, As, Pid, g),
+                    Vals = mk_broadcast_insert_vals([{K, Pid, Value}]),
+                    {reply, updated, [{insert, Vals}], S};
+                _ ->
+                    {reply, badarg, [], S}
+            end;
         true ->
             _ = gproc_lib:ensure_monitor(Pid,g),
             _ = if As =/= [] ->
@@ -376,7 +386,7 @@ handle_leader_call({Reg, {_C,g,_Name} = K, Value, Pid, As}, _From, S, _E)
                    true -> []
                 end,
 	    Vals = mk_broadcast_insert_vals([{K, Pid, Value}]),
-            {reply, true, [{insert, Vals}], S}
+            {reply, regged_new(Op), [{insert, Vals}], S}
     end;
 handle_leader_call({monitor, {T,g,_} = K, MPid, Type}, _From, S, _E) when T==n;
                                                                           T==a ->
@@ -1057,3 +1067,6 @@ add_follow_to_waiters(Waiters, {T,_,_} = K, Pid, Ref, S) ->
             {reply, Ref, [{insert, [Obj, Rev]},
                           {notify, [{Pid, Msg}]}], S}
     end.
+
+regged_new(reg   ) -> true;
+regged_new(ensure) -> new.
