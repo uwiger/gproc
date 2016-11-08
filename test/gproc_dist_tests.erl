@@ -574,7 +574,8 @@ t_sleep() ->
     timer:sleep(500).
 
 t_lookup_everywhere(Key, Nodes, Exp) ->
-    t_lookup_everywhere(Key, Nodes, Exp, 10).
+    true = rpc:call(hd(Nodes), gproc_dist, sync, []),
+    t_lookup_everywhere(Key, Nodes, Exp, 3).
 
 t_lookup_everywhere(Key, _, Exp, 0) ->
     {lookup_failed, Key, Exp};
@@ -593,7 +594,8 @@ t_lookup_everywhere(Key, Nodes, Exp, I) ->
     end.
 
 t_read_everywhere(Key, Pid, Nodes, Exp) ->
-    t_read_everywhere(Key, Pid, Nodes, Exp, 10).
+    true = rpc:call(hd(Nodes), gproc_dist, sync, []),
+    t_read_everywhere(Key, Pid, Nodes, Exp, 3).
 
 t_read_everywhere(Key, _, _, Exp, 0) ->
     {read_failed, Key, Exp};
