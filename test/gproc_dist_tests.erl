@@ -477,9 +477,11 @@ t_follow_monitor([A,B|_]) ->
     Na = ?T_NAME,
     Pa = t_spawn(A, _Selective = true),
     Ref = t_call(Pa, {apply, gproc, monitor, [Na, follow]}),
-    {gproc,unreg,Ref,Na} = got_msg(Pa),
+    Msg1 = {gproc,unreg,Ref,Na},
+    {Msg1, Msg1} = {got_msg(Pa), Msg1},
     Pb = t_spawn_reg(B, Na),
-    {gproc,registered,Ref,Na} = got_msg(Pa),
+    Msg2 = {gproc,registered,Ref,Na},
+    {Msg2, Msg2} = {got_msg(Pa), Msg2},
     ok = t_call(Pb, die),
     ok = t_call(Pa, die).
 
