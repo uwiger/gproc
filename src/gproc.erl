@@ -51,6 +51,8 @@
 	 reg_or_locate/1, reg_or_locate/2, reg_or_locate/3,
 	 reg_shared/1, reg_shared/2, reg_shared/3, unreg_shared/1,
 	 set_attributes_shared/2, set_value_shared/2,
+         ensure_reg/1, ensure_reg/2, ensure_reg/3,
+         ensure_reg_other/2, ensure_reg_other/3, ensure_reg_other/4,
          mreg/3,
          munreg/3,
          set_value/2,
@@ -148,7 +150,9 @@
 -type pidpat()  :: pid() | sel_var().
 -type headpat() :: {keypat(), pidpat(), any()}.
 -type key()     :: {type(), scope(), any()}.
-
+-type value()   :: any().
+-type attr()    :: {atom(), any()}.
+-type attrs()   :: [attr()].
 -type sel_pattern() :: [{headpat(), list(), list()}].
 
 -type reg_id() :: {type(), scope(), any()}.
@@ -202,7 +206,7 @@ start_link() ->
 %% @end
 %%
 add_local_name(Name)  ->
-    ?CATCH_GPROC_ERROR(reg1({n,l,Name}, undefined, []), [Name]).
+    ?CATCH_GPROC_ERROR(reg1({n,l,Name}, undefined, [], reg), [Name]).
 
 
 %% spec(Name::any()) -> true
@@ -211,7 +215,7 @@ add_local_name(Name)  ->
 %% @end
 %%
 add_global_name(Name) ->
-    ?CATCH_GPROC_ERROR(reg1({n,g,Name}, undefined, []), [Name]).
+    ?CATCH_GPROC_ERROR(reg1({n,g,Name}, undefined, [], reg), [Name]).
 
 
 %% spec(Name::any(), Value::any()) -> true
@@ -220,7 +224,7 @@ add_global_name(Name) ->
 %% @end
 %%
 add_local_property(Name , Value) ->
-    ?CATCH_GPROC_ERROR(reg1({p,l,Name}, Value, []), [Name, Value]).
+    ?CATCH_GPROC_ERROR(reg1({p,l,Name}, Value, [], reg), [Name, Value]).
 
 %% spec(Name::any(), Value::any()) -> true
 %%
@@ -228,7 +232,7 @@ add_local_property(Name , Value) ->
 %% @end
 %%
 add_global_property(Name, Value) ->
-    ?CATCH_GPROC_ERROR(reg1({p,g,Name}, Value, []), [Name, Value]).
+    ?CATCH_GPROC_ERROR(reg1({p,g,Name}, Value, [], reg), [Name, Value]).
 
 %% spec(Name::any(), Initial::integer()) -> true
 %%
@@ -236,7 +240,7 @@ add_global_property(Name, Value) ->
 %% @end
 %%
 add_local_counter(Name, Initial) when is_integer(Initial) ->
-    ?CATCH_GPROC_ERROR(reg1({c,l,Name}, Initial, []), [Name, Initial]).
+    ?CATCH_GPROC_ERROR(reg1({c,l,Name}, Initial, [], reg), [Name, Initial]).
 
 
 %% spec(Name::any(), Initial::integer()) -> true
@@ -255,7 +259,7 @@ add_shared_local_counter(Name, Initial) when is_integer(Initial) ->
 %% @end
 %%
 add_global_counter(Name, Initial) when is_integer(Initial) ->
-    ?CATCH_GPROC_ERROR(reg1({c,g,Name}, Initial, []), [Name, Initial]).
+    ?CATCH_GPROC_ERROR(reg1({c,g,Name}, Initial, [], reg), [Name, Initial]).
 
 %% spec(Name::any()) -> true
 %%
@@ -271,7 +275,8 @@ add_local_aggr_counter(Name)  -> ?CATCH_GPROC_ERROR(reg1({a,l,Name}), [Name]).
 %% @equiv reg({a,g,Name})
 %% @end
 %%
-add_global_aggr_counter(Name) -> ?CATCH_GPROC_ERROR(reg1({a,g,Name}), [Name]).
+add_global_aggr_counter(Name) ->
+    ?CATCH_GPROC_ERROR(reg1({a,g,Name}), [Name]).
 
 
 %% @spec (Name::any()) -> pid()
@@ -545,7 +550,7 @@ lookup_env(Scope, App, Key, P) ->
 
 cache_env(Scope, App, Key, Value) ->
     ?CATCH_GPROC_ERROR(
-       reg1({p, Scope, {gproc_env, App, Key}}, Value, []),
+       reg1({p, Scope, {gproc_env, App, Key}}, Value, [], reg),
        [Scope,App,Key,Value]).
 
 update_cached_env(Scope, App, Key, Value) ->
@@ -617,7 +622,7 @@ reg(Key) ->
     ?CATCH_GPROC_ERROR(reg1(Key), [Key]).
 
 reg1(Key) ->
-    reg1(Key, default(Key), []).
+    reg1(Key, default(Key), [], reg).
 
 %% @spec reg_or_locate(Key::key()) -> {pid(), NewValue}
 %%
@@ -948,15 +953,15 @@ demonitor1({T,l,_} = Key, Ref) when T==n; T==a ->
 demonitor1(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
-%% @spec reg(Key::key(), Value) -> true
+%% @spec reg(Key::key(), Value::value()) -> true
 %%
 %% @doc Register a name or property for the current process
 %%
 %%
 reg(Key, Value) ->
-    ?CATCH_GPROC_ERROR(reg1(Key, Value, []), [Key, Value]).
+    ?CATCH_GPROC_ERROR(reg1(Key, Value, [], reg), [Key, Value]).
 
-%% @spec reg(Key::key(), Value, Attrs::[{atom(),any()}]) -> true
+%% @spec reg(Key::key(), Value::value(), Attrs::attrs()) -> true
 %%
 %% @doc Register a name or property for the current process
 %% `Attrs' (default: `[]') can be inspected using {@link get_attribute/2}.
@@ -994,34 +999,64 @@ reg(Key, Value) ->
 %%  `{Type, Context, Name}'
 %% @end
 reg(Key, Value, Attrs) ->
-    ?CATCH_GPROC_ERROR(reg1(Key, Value, Attrs), [Key, Value, Attrs]).
+    ?CATCH_GPROC_ERROR(reg1(Key, Value, Attrs, reg), [Key, Value, Attrs]).
 
-reg1({T,g,_} = Key, Value, As) when T==p; T==a; T==c; T==n; T==r; T==rc ->
+%% @equiv ensure_reg(Key, default(Key), [])
+ensure_reg(Key) ->
+    ?CATCH_GPROC_ERROR(reg1(Key, ensure), [Key]).
+
+%% @equiv ensure_reg(Key, Value, [])
+-spec ensure_reg(key(), value()) -> new | updated.
+ensure_reg(Key, Value) ->
+    ?CATCH_GPROC_ERROR(reg1(Key, Value, ensure), [Key, Value]).
+
+%% @spec ensure_reg(Key::key(), Value::value(), Attrs::attrs()) ->
+%%          new | updated
+%%
+%% @doc Registers a new name or property unless such and entry (by key) has
+%% already been registered by the current process. If `Key' already exists,
+%% the entry will be updated with the given `Value' and `Attrs'.
+%%
+%% This function allows the caller to efficiently register an entry without
+%% first checking whether it has already been registered. An exception is
+%% raised if the name or property is already registered by someone else.
+%% @end
+-spec ensure_reg(key(), value(), attrs()) -> new | updated.
+ensure_reg(Key, Value, Attrs) ->
+    ?CATCH_GPROC_ERROR(reg1(Key, Value, Attrs, ensure), [Key, Value, Attrs]).
+
+reg1(Key, Op) ->
+    reg1(Key, default(Key), [], Op).
+
+reg1(Key, Value, Op) ->
+    reg1(Key, Value, [], Op).
+
+reg1({T,g,_} = Key, Value, As, Op) when T==p; T==a; T==c; T==n; T==r; T==rc ->
     %% anything global
     ?CHK_DIST,
-    gproc_dist:reg(Key, Value, As);
-reg1({p,l,_} = Key, Value, As) ->
-    local_reg(Key, Value, As);
-reg1({a,l,_} = Key, undefined, As) ->
-    call({reg, Key, undefined, As});
-reg1({c,l,_} = Key, Value, As) when is_integer(Value) ->
-    call({reg, Key, Value, As});
-reg1({n,l,_} = Key, Value, As) ->
-    call({reg, Key, Value, As});
-reg1({r,l,_} = Key, Value, As) ->
-    call({reg, Key, Value, As});
-reg1({rc,l,_} = Key, Value, As) ->
-    call({reg, Key, Value, As});
-reg1(_, _, _) ->
+    gproc_dist:reg(Key, Value, As, Op);
+reg1({p,l,_} = Key, Value, As, Op) ->
+    local_reg(Key, Value, As, Op);
+reg1({a,l,_} = Key, undefined, As, Op) ->
+    call({reg, Key, undefined, As, Op});
+reg1({c,l,_} = Key, Value, As, Op) when is_integer(Value) ->
+    call({reg, Key, Value, As, Op});
+reg1({n,l,_} = Key, Value, As, Op) ->
+    call({reg, Key, Value, As, Op});
+reg1({r,l,_} = Key, Value, As, Op) ->
+    call({reg, Key, Value, As, Op});
+reg1({rc,l,_} = Key, Value, As, Op) ->
+    call({reg, Key, Value, As, Op});
+reg1(_, _, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 %% @equiv reg_other(Key, Pid, default(Key), [])
 reg_other(Key, Pid) ->
-    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid), [Key, Pid]).
+    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, reg), [Key, Pid]).
 
 %% @equiv reg_other(Key, Pid, Value, [])
 reg_other(Key, Pid, Value) ->
-    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, Value, []), [Key, Pid, Value]).
+    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, Value, [], reg), [Key, Pid, Value]).
 
 %% @spec reg_other(Key, Pid, Value, Attrs) -> true
 %% @doc Register name or property to another process.
@@ -1041,18 +1076,39 @@ reg_other(Key, Pid, Value) ->
 %% * `rc' - resource counters
 %% @end
 reg_other(Key, Pid, Value, Attrs) ->
-    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, Value, Attrs),
+    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, Value, Attrs, reg),
                        [Key, Pid, Value, Attrs]).
 
-reg_other1(Key, Pid) ->
-    reg_other1(Key, Pid, default(Key), []).
+ensure_reg_other(Key, Pid) ->
+    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, ensure), [Key, Pid]).
 
-reg_other1({_,g,_} = Key, Pid, Value, As) when is_pid(Pid) ->
+%% @equiv ensure_reg_other(Key, Pid, Value, [])
+ensure_reg_other(Key, Pid, Value) ->
+    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, Value, [], ensure),
+                       [Key, Pid, Value]).
+
+%% @spec ensure_reg_other(Key::key(), Pid::pid(),
+%%                        Value::value(), Attrs::attrs()) ->
+%%          new | updated
+%%
+%% @doc Register or update name or property to another process.
+%%
+%% Equivalent to {@link reg_other/3}, but allows for registration of another
+%% process instead of the current process. Also see {@link ensure_reg/3}.
+%% @end
+ensure_reg_other(Key, Pid, Value, Attrs) ->
+    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, Value, Attrs, ensure),
+                       [Key, Pid, Value, Attrs]).
+
+reg_other1(Key, Pid, Op) ->
+    reg_other1(Key, Pid, default(Key), [], Op).
+
+reg_other1({_,g,_} = Key, Pid, Value, As, Op) when is_pid(Pid) ->
     ?CHK_DIST,
-    gproc_dist:reg_other(Key, Pid, Value, As);
-reg_other1({T,l,_} = Key, Pid, Value, As) when is_pid(Pid) ->
+    gproc_dist:reg_other(Key, Pid, Value, As, Op);
+reg_other1({T,l,_} = Key, Pid, Value, As, Op) when is_pid(Pid) ->
     if T==n; T==a; T==r; T==rc ->
-            call({reg_other, Key, Pid, Value, As});
+            call({reg_other, Key, Pid, Value, As, Op});
        true ->
             ?THROW_GPROC_ERROR(badarg)
     end.
@@ -1132,13 +1188,13 @@ reg_shared1({_,g,_} = Key, Value, As) ->
     ?CHK_DIST,
     gproc_dist:reg_shared(Key, Value, As);
 reg_shared1({a,l,_} = Key, undefined, As) ->
-    call({reg_shared, Key, undefined, As});
+    call({reg_shared, Key, undefined, As, reg});
 reg_shared1({c,l,_} = Key, Value, As) when is_integer(Value) ->
-    call({reg_shared, Key, Value, As});
+    call({reg_shared, Key, Value, As, reg});
 reg_shared1({p,l,_} = Key, Value, As) ->
-    call({reg_shared, Key, Value, As});
+    call({reg_shared, Key, Value, As, reg});
 reg_shared1({rc,l,_} = Key, undefined, As) ->
-    call({reg_shared, Key, undefined, As});
+    call({reg_shared, Key, undefined, As, reg});
 reg_shared1(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
@@ -1406,16 +1462,29 @@ select_count(Context, Pat) ->
 %%% Local properties can be registered in the local process, since
 %%% no other process can interfere.
 %%%
-local_reg({_,Scope,_} = Key, Value, As) ->
+local_reg({_,Scope,_} = Key, Value, As, Op) ->
     case gproc_lib:insert_reg(Key, Value, self(), l) of
-        false -> ?THROW_GPROC_ERROR(badarg);
+        false ->
+            case ets:member(?TAB, {Key, self()}) of
+                true when Op == ensure ->
+                    gproc_lib:do_set_value(Key, Value, self()),
+                    set_attrs(As, Key, self()),
+                    updated;
+                _ ->
+                    ?THROW_GPROC_ERROR(badarg)
+            end;
         true  ->
             monitor_me(),
             if As =/= [] ->
-                    gproc_lib:insert_attr(Key, As, self(), Scope);
-               true -> true
+                    gproc_lib:insert_attr(Key, As, self(), Scope),
+                    regged_new(Op);
+               true ->
+                    regged_new(Op)
             end
     end.
+
+regged_new(reg   ) -> true;
+regged_new(ensure) -> new.
 
 local_mreg(_, []) -> true;
 local_mreg(T, [_|_] = KVL) ->
@@ -2185,10 +2254,10 @@ handle_cast({cancel_wait_or_monitor, Pid, {T,_,_} = Key}, S) ->
     {noreply, S}.
 
 %% @hidden
-handle_call({reg, {_T,l,_} = Key, Val, Attrs}, {Pid,_}, S) ->
-    handle_reg_call(Key, Pid, Val, Attrs, S);
-handle_call({reg_other, {_T,l,_} = Key, Pid, Val, Attrs}, _, S) ->
-    handle_reg_call(Key, Pid, Val, Attrs, S);
+handle_call({reg, {_T,l,_} = Key, Val, Attrs, Op}, {Pid,_}, S) ->
+    handle_reg_call(Key, Pid, Val, Attrs, Op, S);
+handle_call({reg_other, {_T,l,_} = Key, Pid, Val, Attrs, Op}, _, S) ->
+    handle_reg_call(Key, Pid, Val, Attrs, Op, S);
 handle_call({set_attributes, {_,l,_} = Key, Attrs}, {Pid,_}, S) ->
     case gproc_lib:insert_attr(Key, Attrs, Pid, l) of
 	false -> {reply, badarg, S};
@@ -2275,7 +2344,7 @@ handle_call({demonitor, {T,l,_} = Key, Ref, Pid}, _From, S)
 		end
 	end,
     {reply, ok, S};
-handle_call({reg_shared, {_T,l,_} = Key, Val, Attrs}, _From, S) ->
+handle_call({reg_shared, {_T,l,_} = Key, Val, Attrs, Op}, _From, S) ->
     case try_insert_reg(Key, Val, shared) of
 	true ->
             _ = if Attrs =/= [] ->
@@ -2283,7 +2352,14 @@ handle_call({reg_shared, {_T,l,_} = Key, Val, Attrs}, _From, S) ->
                    true -> true
                 end,
 	    {reply, true, S};
-	false ->
+        already_registered when Op == ensure ->
+            case gproc_lib:do_set_value(Key, Val, shared) of
+                true ->
+                    {reply, updated, S};
+                false ->
+                    {reply, badarg, S}
+            end;
+	_ ->
 	    {reply, badarg, S}
     end;
 handle_call({unreg, {_,l,_} = Key}, {Pid,_}, S) ->
@@ -2375,18 +2451,29 @@ terminate(_Reason, _S) ->
 
 %% handle_call body common to reg and reg_other.
 %%
-handle_reg_call(Key, Pid, Val, Attrs, S) ->
+handle_reg_call(Key, Pid, Val, Attrs, Op, S) ->
     case try_insert_reg(Key, Val, Pid) of
         true ->
             _ = gproc_lib:ensure_monitor(Pid,l),
-            _ = if Attrs =/= [] ->
-                        gproc_lib:insert_attr(Key, Attrs, Pid, l);
-                   true -> true
-                end,
-            {reply, true, S};
+            _ = set_attrs(Attrs, Key, Pid),
+            {reply, regged_new(Op), S};
+        already_registered when Op == ensure ->
+            case gproc_lib:do_set_value(Key, Val, Pid) of
+                true ->
+                    _ = set_attrs(Attrs, Key, Pid),
+                    {reply, updated, S};
+                false ->
+                    %% actually pretty bad, if it ever happens
+                    {reply, badarg, S}
+            end;
         false ->
             {reply, badarg, S}
     end.
+
+set_attrs([], _, _) ->
+    true;
+set_attrs([_|_] = Attrs, Key, Pid) ->
+    gproc_lib:insert_attr(Key, Attrs, Pid, l).
 
 handle_unreg_call(Key, Pid, S) ->
     case ets:lookup(?TAB, {Pid,Key}) of
@@ -2440,6 +2527,8 @@ try_insert_reg({T,l,_} = Key, Val, Pid) ->
                 %% In this particular case, the lookup cannot result in
                 %% [{_, Waiters}], since the insert_reg/4 function would
                 %% have succeeded then.
+                [{_, Pid, _}] ->
+                    already_registered;
                 [{_, OtherPid, _}] ->
                     case is_process_alive(OtherPid) of
                         true ->

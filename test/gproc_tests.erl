@@ -76,6 +76,12 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_reg_other()))}
       , ?_test(t_is_clean())
+      , ?_test(?debugVal(t_simple_ensure()))
+      , ?_test(t_is_clean())
+      , ?_test(?debugVal(t_simple_ensure_other()))
+      , ?_test(t_is_clean())
+      , ?_test(?debugVal(t_simple_ensure_prop()))
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_reg_or_locate()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_reg_or_locate2()))}
@@ -177,6 +183,52 @@ t_simple_reg_other() ->
         {'DOWN', Ref, _, _, _} ->
             ok
     end.
+
+t_simple_ensure() ->
+    P = self(),
+    Key = {n,l,name},
+    ?assert(gproc:reg(Key) =:= true),
+    ?assert(gproc:where(Key) =:= P),
+    ?assert(gproc:ensure_reg(Key, new_val, [{a,1}]) =:= updated),
+    ?assert(gproc:get_attributes(Key) =:= [{a,1}]),
+    ?assert(gproc:unreg(Key) =:= true),
+    ?assert(gproc:where(Key) =:= undefined).
+
+t_simple_ensure_other() ->
+    P = self(),
+    Key = {n,l,name},
+    P1 = spawn_link(fun() ->
+                            receive
+                                {P, goodbye} -> ok
+                            end
+                    end),
+    Ref = erlang:monitor(process, P1),
+    ?assert(gproc:reg_other(Key, P1) =:= true),
+    ?assert(gproc:where(Key) =:= P1),
+    ?assert(gproc:ensure_reg_other(Key, P1, new_val, [{a,1}]) =:= updated),
+    ?assert(gproc:get_value(Key, P1) =:= new_val),
+    ?assert(gproc:get_attributes(Key, P1) =:= [{a,1}]),
+    ?assert(gproc:unreg_other(Key, P1) =:= true),
+    ?assert(gproc:where({n,l,name}) =:= undefined),
+    P1 ! {self(), goodbye},
+    receive
+        {'DOWN', Ref, _, _, _} ->
+            ok
+    end.
+
+t_simple_ensure_prop() ->
+    Key = {p,l,?LINE},
+    P = self(),
+    Select = fun() ->
+                     gproc:select({l,p}, [{ {Key,'_','_'},[],['$_'] }])
+             end,
+    ?assertMatch(new, gproc:ensure_reg(Key, first_val, [])),
+    ?assertMatch([{Key,P,first_val}], Select()),
+    ?assertMatch(updated, gproc:ensure_reg(Key, new_val, [{a,1}])),
+    ?assertMatch([{Key,P,new_val}], Select()),
+    ?assertMatch([{a,1}], gproc:get_attributes(Key)),
+    ?assertMatch(true, gproc:unreg(Key)),
+    ?assertMatch([], Select()).
 
 t_simple_reg_or_locate() ->
     P = self(),
@@ -412,8 +464,10 @@ t_is_clean() ->
     sys:get_status(gproc_monitor),
     T = ets:tab2list(gproc),
     Tm = ets:tab2list(gproc_monitor),
+    ?debugFmt("self() = ~p~n", [self()]),
     ?assertMatch([], Tm),
-    ?assertMatch([], T -- [{{whereis(gproc_monitor), l}}]).
+    ?assertMatch([], T -- [{{whereis(gproc_monitor), l}},
+                           {{self(), l}}]).
 
 t_simple_mreg() ->
     P = self(),
