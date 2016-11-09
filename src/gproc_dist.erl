@@ -272,6 +272,20 @@ get_leader() ->
     GenLeader = gen_leader,
     GenLeader:call(?MODULE, get_leader).
 
+%% @spec multicall(Module::atom(), Func::atom(), Args::list()) ->
+%%           {[Result], [{node(), Error}]}
+%%
+%% @doc Perform a multicall RPC on all live gproc nodes
+%%
+%% This function works like {@link rpc:multicall/3}, except the calls are
+%% routed via the gproc leader and its connected nodes - the same route as
+%% for the data replication. This means that a multicall following a global
+%% registration is guaranteed to follow the update on each gproc node.
+%%
+%% The return value will be of the form `{GoodResults, BadNodes}', where
+%% `BadNodes' is a list of `{Node, Error}' for each node where the call
+%% fails.
+%% @end
 multicall(M, F, A) ->
     case leader_call({multicall, M, F, A}) of
         {ok, Result} ->
@@ -1117,7 +1131,7 @@ regged_new(ensure) -> new.
 multicall_server(M, F, A, Nodes) ->
     MyRes = try {mcall, apply(M, F, A)}
             catch
-                C:E ->
+                _:E ->
                     {E, erlang:get_stacktrace()}
             end,
     [{node(), MyRes}|await_nodes(Nodes)].
