@@ -24,13 +24,13 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#code_change-4">code_change/4</a></td><td></td></tr><tr><td valign="top"><a href="#demonitor-2">demonitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#elected-2">elected/2</a></td><td></td></tr><tr><td valign="top"><a href="#elected-3">elected/3</a></td><td></td></tr><tr><td valign="top"><a href="#from_leader-3">from_leader/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_leader-0">get_leader/0</a></td><td>Returns the node of the current gproc leader.</td></tr><tr><td valign="top"><a href="#give_away-2">give_away/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_DOWN-3">handle_DOWN/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_call-4">handle_call/4</a></td><td></td></tr><tr><td valign="top"><a href="#handle_cast-3">handle_cast/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_info-2">handle_info/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_info-3">handle_info/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_leader_call-4">handle_leader_call/4</a></td><td></td></tr><tr><td valign="top"><a href="#handle_leader_cast-3">handle_leader_cast/3</a></td><td></td></tr><tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr><tr><td valign="top"><a href="#leader_call-1">leader_call/1</a></td><td></td></tr><tr><td valign="top"><a href="#leader_cast-1">leader_cast/1</a></td><td></td></tr><tr><td valign="top"><a href="#monitor-2">monitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#mreg-2">mreg/2</a></td><td></td></tr><tr><td valign="top"><a href="#munreg-2">munreg/2</a></td><td></td></tr><tr><td valign="top"><a href="#reg-1">reg/1</a></td><td></td></tr><tr><td valign="top"><a href="#reg-3">reg/3</a></td><td>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#code_change-4">code_change/4</a></td><td></td></tr><tr><td valign="top"><a href="#demonitor-2">demonitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#elected-2">elected/2</a></td><td></td></tr><tr><td valign="top"><a href="#elected-3">elected/3</a></td><td></td></tr><tr><td valign="top"><a href="#from_leader-3">from_leader/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_leader-0">get_leader/0</a></td><td>Returns the node of the current gproc leader.</td></tr><tr><td valign="top"><a href="#give_away-2">give_away/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_DOWN-3">handle_DOWN/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_call-4">handle_call/4</a></td><td></td></tr><tr><td valign="top"><a href="#handle_cast-3">handle_cast/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_info-2">handle_info/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_info-3">handle_info/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_leader_call-4">handle_leader_call/4</a></td><td></td></tr><tr><td valign="top"><a href="#handle_leader_cast-3">handle_leader_cast/3</a></td><td></td></tr><tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr><tr><td valign="top"><a href="#leader_call-1">leader_call/1</a></td><td></td></tr><tr><td valign="top"><a href="#leader_cast-1">leader_cast/1</a></td><td></td></tr><tr><td valign="top"><a href="#monitor-2">monitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#mreg-2">mreg/2</a></td><td></td></tr><tr><td valign="top"><a href="#munreg-2">munreg/2</a></td><td></td></tr><tr><td valign="top"><a href="#reg-1">reg/1</a></td><td></td></tr><tr><td valign="top"><a href="#reg-4">reg/4</a></td><td>
 Class = n  - unique name
 | p  - non-unique property
 | c  - counter
 | a  - aggregated counter
 | r  - resource property
-| rc - resource counter.</td></tr><tr><td valign="top"><a href="#reg_or_locate-3">reg_or_locate/3</a></td><td></td></tr><tr><td valign="top"><a href="#reg_other-4">reg_other/4</a></td><td>
+| rc - resource counter.</td></tr><tr><td valign="top"><a href="#reg_or_locate-3">reg_or_locate/3</a></td><td></td></tr><tr><td valign="top"><a href="#reg_other-5">reg_other/5</a></td><td>
 Class = n  - unique name
 | a  - aggregated counter
 | r  - resource property
@@ -174,11 +174,11 @@ Returns the node of the current gproc leader.
 
 `reg(Key) -> any()`
 
-<a name="reg-3"></a>
+<a name="reg-4"></a>
 
-### reg/3 ###
+### reg/4 ###
 
-`reg(Key, Value, Attrs) -> any()`
+`reg(Key, Value, Attrs, Op) -> any()`
 
 Class = n  - unique name
 | p  - non-unique property
@@ -193,12 +193,12 @@ Class = n  - unique name
 
 `reg_or_locate(Key, Value, Pid) -> any()`
 
-<a name="reg_other-4"></a>
+<a name="reg_other-5"></a>
 
-### reg_other/4 ###
+### reg_other/5 ###
 
 <pre><code>
-reg_other(Key::{Class, g, Key}, Pid::pid(), Value, Attrs) -&gt; true
+reg_other(Key::{Class, g, Key}, Pid::pid(), Value, Attrs, Op::reg | unreg) -&gt; true
 </code></pre>
 <br />
 

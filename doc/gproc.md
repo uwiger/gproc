@@ -244,13 +244,24 @@ type() = n | p | c | a | r | rc
 unique_id() = {n | a, <a href="#type-scope">scope()</a>, any()}
 </code></pre>
 
+
+
+
+### <a name="type-value">value()</a> ###
+
+
+<pre><code>
+value() = any()
+</code></pre>
+
 <a name="index"></a>
 
 ## Function Index ##
 
 
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_global_aggr_counter-1">add_global_aggr_counter/1</a></td><td>Registers a global (unique) aggregated counter.</td></tr><tr><td valign="top"><a href="#add_global_counter-2">add_global_counter/2</a></td><td>Registers a global (non-unique) counter.</td></tr><tr><td valign="top"><a href="#add_global_name-1">add_global_name/1</a></td><td>Registers a global (unique) name.</td></tr><tr><td valign="top"><a href="#add_global_property-2">add_global_property/2</a></td><td>Registers a global (non-unique) property.</td></tr><tr><td valign="top"><a href="#add_local_aggr_counter-1">add_local_aggr_counter/1</a></td><td>Registers a local (unique) aggregated counter.</td></tr><tr><td valign="top"><a href="#add_local_counter-2">add_local_counter/2</a></td><td>Registers a local (non-unique) counter.</td></tr><tr><td valign="top"><a href="#add_local_name-1">add_local_name/1</a></td><td>Registers a local (unique) name.</td></tr><tr><td valign="top"><a href="#add_local_property-2">add_local_property/2</a></td><td>Registers a local (non-unique) property.</td></tr><tr><td valign="top"><a href="#add_shared_local_counter-2">add_shared_local_counter/2</a></td><td>Registers a local shared (unique) counter.</td></tr><tr><td valign="top"><a href="#audit_process-1">audit_process/1</a></td><td></td></tr><tr><td valign="top"><a href="#await-1">await/1</a></td><td>Equivalent to <a href="#await-2"><tt>await(Key, infinity)</tt></a>.</td></tr><tr><td valign="top"><a href="#await-2">await/2</a></td><td>Wait for a name or aggregated counter to be registered.</td></tr><tr><td valign="top"><a href="#await-3">await/3</a></td><td>Wait for a name or aggregated counter to be registered on <code>Node</code>.</td></tr><tr><td valign="top"><a href="#bcast-2">bcast/2</a></td><td>Equivalent to <a href="#bcast-3"><tt>bcast(nodes(), Key, Msg)</tt></a>.</td></tr><tr><td valign="top"><a href="#bcast-3">bcast/3</a></td><td>Sends a message to processes corresponding to Key on Nodes.</td></tr><tr><td valign="top"><a href="#cancel_wait-2">cancel_wait/2</a></td><td>Cancels a previous call to nb_wait/1.</td></tr><tr><td valign="top"><a href="#cancel_wait-3">cancel_wait/3</a></td><td>Cancels a previous call to nb_wait/2.</td></tr><tr><td valign="top"><a href="#cancel_wait_or_monitor-1">cancel_wait_or_monitor/1</a></td><td></td></tr><tr><td valign="top"><a href="#default-1">default/1</a></td><td></td></tr><tr><td valign="top"><a href="#demonitor-2">demonitor/2</a></td><td>Remove a monitor on a registered name
-This function is the reverse of monitor/1.</td></tr><tr><td valign="top"><a href="#first-1">first/1</a></td><td>Behaves as ets:first(Tab) for a given type of registration.</td></tr><tr><td valign="top"><a href="#get_attribute-2">get_attribute/2</a></td><td>Get attribute value of <code>Attr</code> associated with <code>Key</code> for most likely Pid.</td></tr><tr><td valign="top"><a href="#get_attribute-3">get_attribute/3</a></td><td>Get the attribute value of <code>Attr</code> associated with <code>Key</code> for process Pid.</td></tr><tr><td valign="top"><a href="#get_attribute_shared-2">get_attribute_shared/2</a></td><td>Get the attribute value of <code>Attr</code> associated with the shared <code>Key</code>.</td></tr><tr><td valign="top"><a href="#get_attributes-1">get_attributes/1</a></td><td>Get attributes associated with registration.</td></tr><tr><td valign="top"><a href="#get_attributes-2">get_attributes/2</a></td><td>Returns the list of attributes associated with the registration.</td></tr><tr><td valign="top"><a href="#get_env-3">get_env/3</a></td><td>Equivalent to <a href="#get_env-4"><tt>get_env(Scope, App, Key, [app_env])</tt></a>.</td></tr><tr><td valign="top"><a href="#get_env-4">get_env/4</a></td><td>Read an environment value, potentially cached as a <code>gproc_env</code> property.</td></tr><tr><td valign="top"><a href="#get_set_env-3">get_set_env/3</a></td><td>Equivalent to <a href="#get_set_env-4"><tt>get_set_env(Scope, App, Key, [app_env])</tt></a>.</td></tr><tr><td valign="top"><a href="#get_set_env-4">get_set_env/4</a></td><td>Fetch and cache an environment value, if not already cached.</td></tr><tr><td valign="top"><a href="#get_value-1">get_value/1</a></td><td>Reads the value stored with a key registered to the current process.</td></tr><tr><td valign="top"><a href="#get_value-2">get_value/2</a></td><td>Reads the value stored with a key registered to the process Pid.</td></tr><tr><td valign="top"><a href="#get_value_shared-1">get_value_shared/1</a></td><td>Reads the value stored with a shared key.</td></tr><tr><td valign="top"><a href="#give_away-2">give_away/2</a></td><td>Atomically transfers the key <code>From</code> to the process identified by <code>To</code>.</td></tr><tr><td valign="top"><a href="#goodbye-0">goodbye/0</a></td><td>Unregister all items of the calling process and inform gproc
+This function is the reverse of monitor/1.</td></tr><tr><td valign="top"><a href="#ensure_reg-1">ensure_reg/1</a></td><td>Equivalent to <a href="#ensure_reg-3"><tt>ensure_reg(Key, default(Key), [])</tt></a>.</td></tr><tr><td valign="top"><a href="#ensure_reg-2">ensure_reg/2</a></td><td>Equivalent to <a href="#ensure_reg-3"><tt>ensure_reg(Key, Value, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#ensure_reg-3">ensure_reg/3</a></td><td>Registers a new name or property unless such and entry (by key) has
+already been registered by the current process.</td></tr><tr><td valign="top"><a href="#ensure_reg_other-2">ensure_reg_other/2</a></td><td></td></tr><tr><td valign="top"><a href="#ensure_reg_other-3">ensure_reg_other/3</a></td><td>Equivalent to <a href="#ensure_reg_other-4"><tt>ensure_reg_other(Key, Pid, Value, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#ensure_reg_other-4">ensure_reg_other/4</a></td><td>Register or update name or property to another process.</td></tr><tr><td valign="top"><a href="#first-1">first/1</a></td><td>Behaves as ets:first(Tab) for a given type of registration.</td></tr><tr><td valign="top"><a href="#get_attribute-2">get_attribute/2</a></td><td>Get attribute value of <code>Attr</code> associated with <code>Key</code> for most likely Pid.</td></tr><tr><td valign="top"><a href="#get_attribute-3">get_attribute/3</a></td><td>Get the attribute value of <code>Attr</code> associated with <code>Key</code> for process Pid.</td></tr><tr><td valign="top"><a href="#get_attribute_shared-2">get_attribute_shared/2</a></td><td>Get the attribute value of <code>Attr</code> associated with the shared <code>Key</code>.</td></tr><tr><td valign="top"><a href="#get_attributes-1">get_attributes/1</a></td><td>Get attributes associated with registration.</td></tr><tr><td valign="top"><a href="#get_attributes-2">get_attributes/2</a></td><td>Returns the list of attributes associated with the registration.</td></tr><tr><td valign="top"><a href="#get_env-3">get_env/3</a></td><td>Equivalent to <a href="#get_env-4"><tt>get_env(Scope, App, Key, [app_env])</tt></a>.</td></tr><tr><td valign="top"><a href="#get_env-4">get_env/4</a></td><td>Read an environment value, potentially cached as a <code>gproc_env</code> property.</td></tr><tr><td valign="top"><a href="#get_set_env-3">get_set_env/3</a></td><td>Equivalent to <a href="#get_set_env-4"><tt>get_set_env(Scope, App, Key, [app_env])</tt></a>.</td></tr><tr><td valign="top"><a href="#get_set_env-4">get_set_env/4</a></td><td>Fetch and cache an environment value, if not already cached.</td></tr><tr><td valign="top"><a href="#get_value-1">get_value/1</a></td><td>Reads the value stored with a key registered to the current process.</td></tr><tr><td valign="top"><a href="#get_value-2">get_value/2</a></td><td>Reads the value stored with a key registered to the process Pid.</td></tr><tr><td valign="top"><a href="#get_value_shared-1">get_value_shared/1</a></td><td>Reads the value stored with a shared key.</td></tr><tr><td valign="top"><a href="#give_away-2">give_away/2</a></td><td>Atomically transfers the key <code>From</code> to the process identified by <code>To</code>.</td></tr><tr><td valign="top"><a href="#goodbye-0">goodbye/0</a></td><td>Unregister all items of the calling process and inform gproc
 to forget about the calling process.</td></tr><tr><td valign="top"><a href="#i-0">i/0</a></td><td>Similar to the built-in shell command <code>i()</code> but inserts information
 about names and properties registered in Gproc, where applicable.</td></tr><tr><td valign="top"><a href="#info-1">info/1</a></td><td>Similar to <code>process_info(Pid)</code> but with additional gproc info.</td></tr><tr><td valign="top"><a href="#info-2">info/2</a></td><td>Similar to process_info(Pid, Item), but with additional gproc info.</td></tr><tr><td valign="top"><a href="#last-1">last/1</a></td><td>Behaves as ets:last(Tab) for a given type of registration.</td></tr><tr><td valign="top"><a href="#lookup_global_aggr_counter-1">lookup_global_aggr_counter/1</a></td><td>Lookup a global (unique) aggregated counter and returns its value.</td></tr><tr><td valign="top"><a href="#lookup_global_counters-1">lookup_global_counters/1</a></td><td>Look up all global (non-unique) instances of a given Counter.</td></tr><tr><td valign="top"><a href="#lookup_global_name-1">lookup_global_name/1</a></td><td>Lookup a global unique name.</td></tr><tr><td valign="top"><a href="#lookup_global_properties-1">lookup_global_properties/1</a></td><td>Look up all global (non-unique) instances of a given Property.</td></tr><tr><td valign="top"><a href="#lookup_local_aggr_counter-1">lookup_local_aggr_counter/1</a></td><td>Lookup a local (unique) aggregated counter and returns its value.</td></tr><tr><td valign="top"><a href="#lookup_local_counters-1">lookup_local_counters/1</a></td><td>Look up all local (non-unique) instances of a given Counter.</td></tr><tr><td valign="top"><a href="#lookup_local_name-1">lookup_local_name/1</a></td><td>Lookup a local unique name.</td></tr><tr><td valign="top"><a href="#lookup_local_properties-1">lookup_local_properties/1</a></td><td>Look up all local (non-unique) instances of a given Property.</td></tr><tr><td valign="top"><a href="#lookup_pid-1">lookup_pid/1</a></td><td>Lookup the Pid stored with a key.</td></tr><tr><td valign="top"><a href="#lookup_pids-1">lookup_pids/1</a></td><td>Returns a list of pids with the published key Key.</td></tr><tr><td valign="top"><a href="#lookup_value-1">lookup_value/1</a></td><td>Lookup the value stored with a key.</td></tr><tr><td valign="top"><a href="#lookup_values-1">lookup_values/1</a></td><td>Retrieve the <code>{Pid,Value}</code> pairs corresponding to Key.</td></tr><tr><td valign="top"><a href="#monitor-1">monitor/1</a></td><td>Equivalent to <a href="#monitor-2"><tt>monitor(Key, info)</tt></a>.</td></tr><tr><td valign="top"><a href="#monitor-2">monitor/2</a></td><td>monitor a registered name
 <code>monitor(Key, info)</code> works much like erlang:monitor(process, Pid), but monitors
@@ -478,6 +489,70 @@ demonitor(Key::<a href="#type-key">key()</a>, Ref::reference()) -&gt; ok
 Remove a monitor on a registered name
 This function is the reverse of monitor/1. It removes a monitor previously
 set on a unique name. This function always succeeds given legal input.
+
+<a name="ensure_reg-1"></a>
+
+### ensure_reg/1 ###
+
+`ensure_reg(Key) -> any()`
+
+Equivalent to [`ensure_reg(Key, default(Key), [])`](#ensure_reg-3).
+
+<a name="ensure_reg-2"></a>
+
+### ensure_reg/2 ###
+
+<pre><code>
+ensure_reg(Key::<a href="#type-key">key()</a>, Value::<a href="#type-value">value()</a>) -&gt; new | updated
+</code></pre>
+<br />
+
+Equivalent to [`ensure_reg(Key, Value, [])`](#ensure_reg-3).
+
+<a name="ensure_reg-3"></a>
+
+### ensure_reg/3 ###
+
+<pre><code>
+ensure_reg(Key::<a href="#type-key">key()</a>, Value::<a href="#type-value">value()</a>, Attrs::<a href="#type-attrs">attrs()</a>) -&gt; new | updated
+</code></pre>
+<br />
+
+Registers a new name or property unless such and entry (by key) has
+already been registered by the current process. If `Key` already exists,
+the entry will be updated with the given `Value` and `Attrs`.
+
+This function allows the caller to efficiently register an entry without
+first checking whether it has already been registered. An exception is
+raised if the name or property is already registered by someone else.
+
+<a name="ensure_reg_other-2"></a>
+
+### ensure_reg_other/2 ###
+
+`ensure_reg_other(Key, Pid) -> any()`
+
+<a name="ensure_reg_other-3"></a>
+
+### ensure_reg_other/3 ###
+
+`ensure_reg_other(Key, Pid, Value) -> any()`
+
+Equivalent to [`ensure_reg_other(Key, Pid, Value, [])`](#ensure_reg_other-4).
+
+<a name="ensure_reg_other-4"></a>
+
+### ensure_reg_other/4 ###
+
+<pre><code>
+ensure_reg_other(Key::<a href="#type-key">key()</a>, Pid::pid(), Value::<a href="#type-value">value()</a>, Attrs::<a href="#type-attrs">attrs()</a>) -&gt; new | updated
+</code></pre>
+<br />
+
+Register or update name or property to another process.
+
+Equivalent to [`reg_other/3`](#reg_other-3), but allows for registration of another
+process instead of the current process. Also see [`ensure_reg/3`](#ensure_reg-3).
 
 <a name="first-1"></a>
 
@@ -1095,7 +1170,7 @@ Equivalent to [`reg(Key, default(Key), [])`](#reg-3).
 ### reg/2 ###
 
 <pre><code>
-reg(Key::<a href="#type-key">key()</a>, Value) -&gt; true
+reg(Key::<a href="#type-key">key()</a>, Value::<a href="#type-value">value()</a>) -&gt; true
 </code></pre>
 <br />
 
@@ -1106,7 +1181,7 @@ Register a name or property for the current process
 ### reg/3 ###
 
 <pre><code>
-reg(Key::<a href="#type-key">key()</a>, Value, Attrs::[{atom(), any()}]) -&gt; true
+reg(Key::<a href="#type-key">key()</a>, Value::<a href="#type-value">value()</a>, Attrs::<a href="#type-attrs">attrs()</a>) -&gt; true
 </code></pre>
 <br />
 
