@@ -502,19 +502,35 @@ t_subscribe([A,B|_] = Ns) ->
     ok.
 
 t_multicall(Ns) ->
-    t_multicall_(Ns, 10).
+    t_multicall(Ns, 3).
 
-t_multicall_([A|_] = Ns, I) when I > 0 ->
-    Na = ?T_NAME,
-    Pa = t_spawn_reg(A, Na),
-    Expected = {[Pa || _ <- Ns], []},
+t_multicall(Ns, I) when I > 0 ->
     ?assertMatch(
-       Expected, rpc:call(A, gproc_dist, multicall,
-                          [gproc, where, [Na]])),
-    ok = t_call(Pa, die),
-    t_multicall_(Ns, I-1);
-t_multicall_(_, _) ->
+       true, lists:all(fun t_mcall_/1, Ns)),
+    t_multicall(Ns, I-1);
+t_multicall(_, _) ->
     ok.
+
+t_mcall_(N) ->
+    Na = ?T_NAME,
+    Pa = gproc_test_lib:t_spawn_reg_mcall(N, Na),
+    ?assertMatch(ok, t_call(Pa, die)),
+    true.
+
+%% t_multicall(Ns) ->
+%%     t_multicall_(Ns, 10).
+
+%% t_multicall_([A|_] = Ns, I) when I > 0 ->
+%%     Na = ?T_NAME,
+%%     Pa = t_spawn_reg(A, Na),
+%%     Expected = {[Pa || _ <- Ns], []},
+%%     ?assertMatch(
+%%        Expected,
+%%        t_call(Pa, {apply, gproc_dist, multicall, [gproc, where, [Na]]})),
+%%     ok = t_call(Pa, die),
+%%     t_multicall_(Ns, I-1);
+%% t_multicall_(_, _) ->
+%%     ok.
 
 %% got_msg(Pb, Tag) ->
 %%     t_call(Pb,
