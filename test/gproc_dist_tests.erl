@@ -73,6 +73,7 @@ basic_tests(Ns) ->
      ?f(t_aggr_counter(Ns)),
      ?f(t_awaited_aggr_counter(Ns)),
      ?f(t_simple_resource_count(Ns)),
+     ?f(t_wild_resource_count(Ns)),
      ?f(t_awaited_resource_count(Ns)),
      ?f(t_resource_count_on_zero(Ns)),
      ?f(t_update_counters(Ns)),
@@ -130,6 +131,7 @@ run_dist_tests() ->
 -define(T_KVL, [{foo, "foo"}, {bar, "bar"}]).
 -define(T_COUNTER, {c, g, {?MODULE, ?LINE}}).
 -define(T_RESOURCE, {r, g, {?MODULE, ?LINE}}).
+-define(T_RESOURCE1(N), {r, g, {?MODULE, {?LINE,N}}}).
 -define(T_PROP, {p, g, ?MODULE}).
 
 t_simple_reg([H|_] = Ns) ->
@@ -282,6 +284,28 @@ t_simple_resource_count([H1,H2|_] = Ns) ->
     ?assertMatch(ok, t_read_everywhere(RC, Prc, Ns, 1)),
     ?assertMatch(ok, t_call(Pr2, die)),
     ?assertMatch(ok, t_call(Prc, die)).
+
+t_wild_resource_count([H1,H2|_] = Ns) ->
+    L = ?LINE,
+    R1 = {r, g, {L, 1}},
+    R2 = {r, g, {L, 2}},
+    RC1 = {rc, g, {L,1}},
+    RCw = {rc, g, {L,'\\_'}},
+    Pr1 = t_spawn_reg(H1, R1, 3),
+    Prc1 = t_spawn_reg(H2, RC1),
+    ?assertMatch(ok, t_read_everywhere(R1, Pr1, Ns, 3)),
+    ?assertMatch(ok, t_read_everywhere(RC1, Prc1, Ns, 1)),
+    Pr2 = t_spawn_reg(H2, R2, 4),
+    Prcw = t_spawn_reg(H2, RCw),
+    ?assertMatch(ok, t_read_everywhere(R2, Pr2, Ns, 4)),
+    ?assertMatch(ok, t_read_everywhere(RC1, Prc1, Ns, 1)),
+    ?assertMatch(ok, t_read_everywhere(RCw, Prcw, Ns, 2)),
+    ?assertMatch(ok, t_call(Pr1, die)),
+    ?assertMatch(ok, t_read_everywhere(RC1, Prc1, Ns, 0)),
+    ?assertMatch(ok, t_read_everywhere(RCw, Prcw, Ns, 1)),
+    ?assertMatch(ok, t_call(Pr2, die)),
+    ?assertMatch(ok, t_call(Prc1, die)),
+    ?assertMatch(ok, t_call(Prcw, die)).
 
 t_awaited_resource_count([H1,H2|_] = Ns) ->
     {r,g,Nm} = R = ?T_RESOURCE,

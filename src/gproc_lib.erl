@@ -79,7 +79,12 @@ insert_reg({T,_,Name} = K, Value, Pid, Scope, Event) when T==a; T==n; T==rc ->
               false ->
                   maybe_waiters(K, Pid, Value, T, Event)
           end,
-    maybe_scan(T, Pid, Scope, Name, K),
+    case Res of
+        true ->
+            maybe_scan(T, Pid, Scope, Name, K);
+        false ->
+            false
+    end,
     Res;
 insert_reg({p,Scope,_} = K, Value, shared, Scope, _E)
   when Scope == g; Scope == l ->
@@ -557,6 +562,14 @@ decrement_resource_count(C, N) ->
     update_resource_count(C, N, -1).
 
 update_resource_count(C, N, Val) ->
+    update_resource_count_(C, N, Val),
+    case is_tuple(N) of
+        true -> update_resource_count_(
+                  C, setelement(size(N), N, '\\_'), Val);
+        false -> ok
+    end.
+
+update_resource_count_(C, N, Val) ->
     try ets:update_counter(?TAB, {{rc,C,N},rc}, {3, Val}) of
         0 ->
             resource_count_zero(C, N);
@@ -615,8 +628,17 @@ scan_existing_counters(Ctxt, Name) ->
     lists:sum(Cs).
 
 scan_existing_resources(Ctxt, Name) ->
-    Head = {{{r,Ctxt,Name},'_'},'_','_'},
+    Head = {{{r,Ctxt,adjust_wild(Name)},'_'},'_','_'},
     ets:select_count(?TAB, [{Head, [], [true]}]).
+
+adjust_wild(N) when is_tuple(N) ->
+    Sz = size(N),
+    case element(Sz, N) of
+        '\\_' -> setelement(Sz, N, '_');
+        _     -> N
+    end;
+adjust_wild(N) ->
+    N.
 
 valid_opts(Type, Default) ->
     Opts = get_app_env(Type, Default),

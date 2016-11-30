@@ -988,6 +988,11 @@ reg(Key, Value) ->
 %% * `rc' - 'resource counter', tracks the number of resource properties
 %%    with the same name. When the resource count reaches `0', any triggers
 %%    specified using an `on_zero' attribute may be executed (see below).
+%%    If `Name' is a tuple, the last element of the name can contain a
+%%    wildcard, using the symbol <code>'\\_'</code>. This will make the resource
+%%    counter keep track of any resources where all elements match except
+%%    the last position. For example, <code>{rc,l,{a,b,'\\_'}}</code> would keep
+%%    track of both `{r,l,{a,b,1}}' and `{r,l,{a,b,2}}'.
 %%
 %% On-zero triggers:
 %%

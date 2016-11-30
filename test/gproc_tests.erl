@@ -98,6 +98,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_resource_count()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_wild_resource_count()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_awaited_resource_count()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_resource_count_on_zero_send()))}
@@ -351,6 +353,31 @@ t_simple_resource_count() ->
             gproc:audit_process(P1)
     end,
     ?assert(gproc:get_value({rc,l,r1}) =:= 1).
+
+t_wild_resource_count() ->
+    ?assert(gproc:reg({r,l,{r1,1}}, 1) =:= true),
+    ?assert(gproc:reg({rc,l,{r1,'\\_'}}) =:= true),
+    ?assert(gproc:reg({rc,l,{r1,1}}) =:= true),
+    ?assert(gproc:get_value({rc,l,{r1,'\\_'}}) =:= 1),
+    ?assert(gproc:get_value({rc,l,{r1,1}}) =:= 1),
+    P = self(),
+    P1 = spawn_link(fun() ->
+                            gproc:reg({r,l,{r1,2}}, 1),
+                            P ! {self(), ok},
+                            receive
+                                {P, goodbye} -> ok
+                            end
+                    end),
+    receive {P1, ok} -> ok end,
+    ?assert(gproc:get_value({rc,l,{r1,1}}) =:= 1),
+    ?assert(gproc:get_value({rc,l,{r1,'\\_'}}) =:= 2),
+    P1 ! {self(), goodbye},
+    R = erlang:monitor(process, P1),
+    receive {'DOWN', R, _, _, _} ->
+            gproc:audit_process(P1)
+    end,
+    ?assert(gproc:get_value({rc,l,{r1,1}}) =:= 1),
+    ?assert(gproc:get_value({rc,l,{r1,'\\_'}}) =:= 1).
 
 t_awaited_resource_count() ->
     ?assert(gproc:reg({r,l,r1}, 3) =:= true),
