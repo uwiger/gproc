@@ -1036,7 +1036,10 @@ pid_to_give_away_to({T,g,_} = Key) when T==n; T==a ->
 
 insert_reg([{_, Waiters}], K, Val, Pid, Event) ->
     gproc_lib:insert_reg(K, Val, Pid, g),
-    tell_waiters(Waiters, K, Pid, Val, Event).
+    tell_waiters(Waiters, K, Pid, Val, Event);
+insert_reg([], K, Val, Pid, Event) ->
+    gproc_lib:insert_reg(K, Val, Pid, g),
+    tell_waiters([], K, Val, Pid, Event).
 
 tell_waiters([{P,R}|T], K, Pid, V, Event) ->
     Msg = {gproc, R, registered, {K, Pid, V}},

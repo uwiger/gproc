@@ -85,6 +85,7 @@ basic_tests(Ns) ->
      ?f(t_sync(Ns)),
      ?f(t_monitor(Ns)),
      ?f(t_standby_monitor(Ns)),
+     ?f(t_standby_monitor_unreg(Ns)),
      ?f(t_follow_monitor(Ns)),
      ?f(t_subscribe(Ns))
     ].
@@ -471,6 +472,16 @@ t_standby_monitor([A,B|_] = Ns) ->
     Ref1 = t_call(Pc, {apply, gproc, monitor, [Na, standby]}),
     ?assertMatch(true, t_call(Pb, {apply, gproc, unreg, [Na]})),
     ?assertMatch({gproc,unreg,Ref1,Na}, got_msg(Pc, gproc)),
+    ?assertMatch(ok, t_lookup_everywhere(Na, Ns, undefined)).
+
+t_standby_monitor_unreg([A,B|_] = Ns) ->
+    Na = ?T_NAME,
+    Pa = t_spawn(A, _Selective = true),
+    Ref = t_call(Pa, {apply, gproc, monitor, [Na, standby]}),
+    ?assert(is_reference(Ref)),
+    ?assertMatch({gproc,{failover,Pa},Ref,Na}, got_msg(Pa, gproc)),
+    ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pa)),
+    ?assertMatch(ok, t_call(Pa, die)),
     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, undefined)).
 
 t_follow_monitor([A,B|_]) ->
