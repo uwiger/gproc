@@ -44,6 +44,7 @@
 -export([leader_call/1,
          leader_cast/1,
          sync/0,
+         multicall/3,
          get_leader/0]).
 
 %%% internal exports
@@ -69,7 +70,8 @@
 -record(state, {
           always_broadcast = false,
           is_leader,
-          sync_requests = []}).
+          sync_requests = [],
+          calls = []}).
 
 -include("gproc_trace.hrl").
 %% ==========================================================
@@ -270,6 +272,28 @@ get_leader() ->
     GenLeader = gen_leader,
     GenLeader:call(?MODULE, get_leader).
 
+%% @spec multicall(Module::atom(), Func::atom(), Args::list()) ->
+%%           {[Result], [{node(), Error}]}
+%%
+%% @doc Perform a multicall RPC on all live gproc nodes
+%%
+%% This function works like {@link rpc:multicall/3}, except the calls are
+%% routed via the gproc leader and its connected nodes - the same route as
+%% for the data replication. This means that a multicall following a global
+%% registration is guaranteed to follow the update on each gproc node.
+%%
+%% The return value will be of the form `{GoodResults, BadNodes}', where
+%% `BadNodes' is a list of `{Node, Error}' for each node where the call
+%% fails.
+%% @end
+multicall(M, F, A) ->
+    case leader_call({multicall, M, F, A}) of
+        {ok, Result} ->
+            Result;
+        {error, Error} ->
+            error(Error)
+    end.
+
 %% ==========================================================
 %% Server-side
 
@@ -281,10 +305,25 @@ handle_call(get_leader, _, S, E) ->
 handle_call(_, _, S, _) ->
     {reply, badarg, S}.
 
-handle_info({'DOWN', _MRef, process, Pid, _}, S) ->
-    ets:delete(?TAB, {Pid, g}),
-    leader_cast({pid_is_DOWN, Pid}),
-    {ok, S};
+handle_info({'DOWN', MRef, process, Pid, Msg}, #state{calls = Calls} = S) ->
+    case lists:keyfind(Pid, 1, Calls) of
+        {Pid, MRef, server, From} ->
+            Reply = case Msg of
+                        {mcall, Result} ->
+                            {ok, multicall_result(Result)};
+                        Error ->
+                            {error, Error}
+                    end,
+            gen_leader:reply(From, {leader,reply,Reply}),
+            {ok, S#state{calls = lists:keydelete(Pid, 1, Calls)}};
+        {Pid, MRef, client, Server} ->
+            Server ! {rcall_result, self(), Msg},
+            {ok, S#state{calls = lists:keydelete(Pid, 1, Calls)}};
+        _ ->
+            ets:delete(?TAB, {Pid, g}),
+            leader_cast({pid_is_DOWN, Pid}),
+            {ok, S}
+    end;
 handle_info({gproc_unreg, Objs}, S) ->
     {ok, [{delete, Objs}], S};
 handle_info(_, S) ->
@@ -364,6 +403,19 @@ handle_leader_call(sync, From, #state{sync_requests = SReqs} = S, E) ->
             GenLeader:broadcast({from_leader, {sync, From}}, Alive, E),
             {noreply, S#state{sync_requests = [{From, Alive}|SReqs]}}
     end;
+handle_leader_call({multicall, M, F, A}, From, #state{calls = Calls} = S, E) ->
+    OtherNodes = gen_leader:alive(E) -- [node()],
+    {Pid, MRef} = spawn_monitor(
+                    fun() ->
+                            exit({mcall, multicall_server(M, F, A, OtherNodes)})
+                    end),
+    if OtherNodes =/= [] ->
+            gen_leader:broadcast({from_leader, {multicall, M, F, A, Pid}},
+                                 OtherNodes, E);
+       true ->
+            ok
+    end,
+    {noreply, S#state{calls = [{Pid, MRef, server, From}|Calls]}};
 handle_leader_call({Reg, {_C,g,_Name} = K, Value, Pid, As, Op}, _From, S, _E)
   when Reg==reg; Reg==reg_other ->
     case gproc_lib:insert_reg(K, Value, Pid, g) of
@@ -819,6 +871,11 @@ terminate(_Reason, _S) ->
 from_leader({sync, Ref}, S, _E) ->
     gen_leader:leader_cast(?MODULE, {sync_reply, node(), Ref}),
     {ok, S};
+from_leader({multicall, M, F, A, Pid}, #state{calls = Calls} = S, _E) ->
+    {Pid1, MRef} = spawn_monitor(fun() ->
+                                         exit({mcall, apply(M, F, A)})
+                                 end),
+    {ok, S#state{calls = [{Pid1, MRef, client, Pid}|Calls]}};
 from_leader(Ops, S, _E) ->
     lists:foreach(
       fun({delete, Globals}) ->
@@ -1073,3 +1130,27 @@ add_follow_to_waiters(Waiters, {T,_,_} = K, Pid, Ref, S) ->
 
 regged_new(reg   ) -> true;
 regged_new(ensure) -> new.
+
+multicall_server(M, F, A, Nodes) ->
+    MyRes = try {mcall, apply(M, F, A)}
+            catch
+                _:E ->
+                    {E, erlang:get_stacktrace()}
+            end,
+    [{node(), MyRes}|await_nodes(Nodes)].
+
+await_nodes([H|T]) ->
+    receive
+        {rcall_result, Pid, Res} when node(Pid) =:= H ->
+            [{H, Res}|await_nodes(T)]
+    end;
+await_nodes([]) ->
+    [].
+
+multicall_result(Res) ->
+    lists:foldr(
+      fun({_, {mcall, Good}}, {G, B}) ->
+              {[Good|G], B};
+         ({N, E}, {G, B}) ->
+              {G, [{N,E}|B]}
+      end, {[], []}, Res).

@@ -3,6 +3,7 @@
 -export([t_spawn/1, t_spawn/2,
          t_spawn_reg/2, t_spawn_reg/3, t_spawn_reg/4,
          t_spawn_reg_shared/3,
+         t_spawn_reg_mcall/2,
          t_spawn_mreg/2,
          t_call/2,
          t_loop/0, t_loop/1,
@@ -79,6 +80,43 @@ t_spawn_reg_shared(Node, Name, Value) ->
     after 1000 ->
               erlang:error({timeout, t_spawn_reg_shared, [Node,Name,Value]})
     end.
+
+t_spawn_reg_mcall(Node, {_,g,_} = Name) ->
+    try t_spawn_reg_mcall_(Node, Name)
+    catch
+        error:E ->
+            error({E, erlang:get_stacktrace()})
+    end.
+
+t_spawn_reg_mcall_(Node, Name) ->
+    Me = self(),
+    P = spawn(
+          Node, fun() ->
+                        t_spawn_reg_mcall_p(Name, Me)
+                end),
+    MRef = erlang:monitor(process, P),
+    receive
+        {P, ok} ->
+            P;
+        {'DOWN', MRef, _, _, Reason} ->
+            error(Reason)
+    after 1000 ->
+            erlang:error({timeout, t_spawn_reg_mcall, [Node, Name]})
+    end.
+
+t_spawn_reg_mcall_p(Name, Parent) ->
+    try begin
+            true = gproc:reg(Name),
+            {GoodRes, []} = gproc_dist:multicall(gproc, where, [Name]),
+            true = lists:all(fun(X) -> X =:= self() end, GoodRes),
+            Parent ! {self(), ok}
+        end
+    catch
+        error:E ->
+            error({E, erlang:get_stacktrace()})
+    end,
+    t_loop().
+
 
 default_value({c,_,_}) -> 0;
 default_value(_) -> undefined.
