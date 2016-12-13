@@ -29,3 +29,9 @@
 %% Used to wrap operations that may fail, but we ignore the exception.
 %% Use instead of catch, to avoid building a stacktrace unnecessarily.
 -define(MAY_FAIL(Expr), try (Expr) catch _:_ -> '$caught_exception' end).
+
+-ifdef(GPROC_EXT).
+-define(GPROC_EXT_CB, ?GPROC_EXT).
+-else.
+-define(GPROC_EXT_CB, gproc_ext).
+-endif.
