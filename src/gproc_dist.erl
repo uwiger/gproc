@@ -23,10 +23,10 @@
 -behaviour(gen_leader).
 
 -export([start_link/0, start_link/1,
-         reg/1, reg/4, unreg/1,
-         reg_other/5, unreg_other/2,
-	 reg_or_locate/3,
-	 reg_shared/3, unreg_shared/1,
+         reg/1, reg/5, unreg/1,
+         reg_other/6, unreg_other/2,
+	 reg_or_locate/4,
+	 reg_shared/5, unreg_shared/1,
          monitor/2,
          demonitor/2,
 	 set_attributes/2,
@@ -36,9 +36,8 @@
          set_value/2,
 	 set_value_shared/2,
          give_away/2,
-         update_counter/3,
+         update_counter/4,
 	 update_counters/1,
-	 update_shared_counter/2,
 	 reset_counter/1]).
 
 -export([leader_call/1,
@@ -93,21 +92,25 @@ start_link({Nodes, Opts}) ->
 %% {@see gproc:reg/1}
 %%
 reg(Key) ->
-    reg(Key, gproc:default(Key), [], reg).
+    R = reg_type(Key),
+    reg(Key, R, gproc:default(R), [], reg).
+
+reg_type({T,_,N}) ->
+    gproc_lib:reg_type(T, N).
 
 %% {@see gproc:reg_or_locate/2}
 %%
-reg_or_locate({n,g,_} = Key, Value, Pid) when is_pid(Pid) ->
-    leader_call({reg_or_locate, Key, Value, Pid});
-reg_or_locate({n,g,_} = Key, Value, F) when is_function(F, 0) ->
+reg_or_locate({n,g,_} = Key, R, Value, Pid) when is_pid(Pid) ->
+    leader_call({reg_or_locate, Key, R, Value, Pid});
+reg_or_locate({n,g,_} = Key, R, Value, F) when is_function(F, 0) ->
     MyGroupLeader = group_leader(),
-    leader_call({reg_or_locate, Key, Value,
+    leader_call({reg_or_locate, Key, R, Value,
 		 fun() ->
 			 %% leader will spawn on caller's node
 			 group_leader(MyGroupLeader, self()),
 			 F()
 		 end});
-reg_or_locate(_, _, _) ->
+reg_or_locate(_, _, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 
@@ -120,10 +123,10 @@ reg_or_locate(_, _, _) ->
 %%%          | r  - resource property
 %%%          | rc - resource counter
 %%% @end
-reg({_,g,_} = Key, Value, Attrs, Op) ->
+reg({_,g,_} = Key, R, Value, Attrs, Op) ->
     %% anything global
-    leader_call({reg, Key, Value, self(), Attrs, Op});
-reg(_, _, _, _) ->
+    leader_call({reg, Key, R, Value, self(), Attrs, Op});
+reg(_, _, _, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 %% @spec ({Class,g,Key}, pid(), Value, Attrs, Op::reg | unreg) -> true
@@ -135,13 +138,15 @@ reg(_, _, _, _) ->
 %%    Value = term()
 %%    Attrs = [{Key, Value}]
 %% @end
-reg_other({T,g,_} = Key, Pid, Value, Attrs, Op) when is_pid(Pid) ->
+reg_other({_,g,_} = Key, #{type := T} = R, Pid, Value, Attrs, Op)
+  when is_pid(Pid);
+       Pid =:= shared ->
     if T==n; T==a; T==r; T==rc ->
-            leader_call({reg_other, Key, Value, Pid, Attrs, Op});
+            leader_call({reg, Key, R, Value, Pid, Attrs, Op});
        true ->
             ?THROW_GPROC_ERROR(badarg)
     end;
-reg_other(_, _, _, _, _) ->
+reg_other(_, _, _, _, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 unreg_other({T,g,_} = Key, Pid) when is_pid(Pid) ->
@@ -153,9 +158,9 @@ unreg_other({T,g,_} = Key, Pid) when is_pid(Pid) ->
 unreg_other(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
-reg_shared({_,g,_} = Key, Value, Attrs) ->
-    leader_call({reg, Key, Value, shared, Attrs, reg});
-reg_shared(_, _, _) ->
+reg_shared({_,g,_} = Key, R, Value, Attrs, Op) ->
+    leader_call({reg, Key, R, Value, shared, Attrs, Op});
+reg_shared(_, _, _, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 monitor({_,g,_} = Key, Type) when Type==info;
@@ -224,22 +229,19 @@ give_away({_,g,_} = Key, To) ->
     leader_call({give_away, Key, To, self()}).
 
 
-update_counter({T,g,_} = Key, Pid, Incr) when is_integer(Incr), T==c;
-					      is_integer(Incr), T==n ->
-    leader_call({update_counter, Key, Incr, Pid});
-update_counter(_, _, _) ->
+update_counter({_,g,_} = Key, #{type := T} = R, Pid, Incr)
+  when is_integer(Incr), T =:= c;
+       is_integer(Incr), T =:= p;
+       is_integer(Incr), T =:= r;
+       is_integer(Incr), T =:= n ->
+    leader_call({update_counter, Key, R, Incr, Pid});
+update_counter(_, _, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 update_counters(List) when is_list(List) ->
     leader_call({update_counters, List});
 update_counters(_) ->
     ?THROW_GPROC_ERROR(badarg).
-
-update_shared_counter({c,g,_} = Key, Incr) when is_integer(Incr) ->
-    leader_call({update_counter, Key, Incr, shared});
-update_shared_counter(_, _) ->
-    ?THROW_GPROC_ERROR(badarg).
-
 
 reset_counter({c,g,_} = Key) ->
     leader_call({reset_counter, Key, self()});
@@ -364,9 +366,9 @@ handle_leader_call(sync, From, #state{sync_requests = SReqs} = S, E) ->
             GenLeader:broadcast({from_leader, {sync, From}}, Alive, E),
             {noreply, S#state{sync_requests = [{From, Alive}|SReqs]}}
     end;
-handle_leader_call({Reg, {_C,g,_Name} = K, Value, Pid, As, Op}, _From, S, _E)
+handle_leader_call({Reg, {_C,g,_Name} = K, R, Value, Pid, As, Op}, _From, S, _E)
   when Reg==reg; Reg==reg_other ->
-    case gproc_lib:insert_reg(K, Value, Pid, g) of
+    case gproc_lib:insert_reg(K, R, Value, Pid, As, g, registered) of
         false when Op == reg ->
             {reply, badarg, S};
         false when Op == ensure ->
@@ -381,10 +383,6 @@ handle_leader_call({Reg, {_C,g,_Name} = K, Value, Pid, As, Op}, _From, S, _E)
             end;
         true ->
             _ = gproc_lib:ensure_monitor(Pid,g),
-            _ = if As =/= [] ->
-                        gproc_lib:insert_attr(K, As, Pid, g);
-                   true -> []
-                end,
 	    Vals = mk_broadcast_insert_vals([{K, Pid, Value}]),
             {reply, regged_new(Op), [{insert, Vals}], S}
     end;
@@ -456,8 +454,9 @@ handle_leader_call({set_attributes, {_,g,_} = K, Attrs, Pid}, _From, S, _E) ->
 	NewAttrs when is_list(NewAttrs) ->
 	    {reply, true, [{insert, [{{Pid,K}, NewAttrs}]}], S}
     end;
-handle_leader_call({reg_or_locate, {n,g,_} = K, Value, P},
-		   {FromPid, _}, S, _E) ->
+handle_leader_call({reg_or_locate, {Tg,g,_} = K, #{type := T}, Value, P},
+		   {FromPid, _}, S, _E)
+  when T =:= n; T =:= a; T =:= rc ->
     FromNode = node(FromPid),
     Reg = fun() ->
 		  Pid = if is_function(P, 0) ->
@@ -468,13 +467,13 @@ handle_leader_call({reg_or_locate, {n,g,_} = K, Value, P},
 		  case gproc_lib:insert_reg(K, Value, Pid, g) of
 		      true ->
 			  _ = gproc_lib:ensure_monitor(Pid,g),
-			  Vals = [{{K,n},Pid,Value}],
+			  Vals = [{{K,Tg},Pid,Value}],
 			  {reply, {Pid, Value}, [{insert, Vals}], S};
 		      false ->
 			  {reply, badarg, S}
 		  end
 	  end,
-    case ets:lookup(?TAB, {K, n}) of
+    case ets:lookup(?TAB, {K, Tg}) of
 	[] ->
 	    Reg();
 	[{_, _Waiters}] ->
@@ -482,9 +481,11 @@ handle_leader_call({reg_or_locate, {n,g,_} = K, Value, P},
 	[{_, OtherPid, OtherVal}] ->
 	    {reply, {OtherPid, OtherVal}, S}
     end;
-handle_leader_call({update_counter, {T,g,_Ctr} = Key, Incr, Pid}, _From, S, _E)
-  when is_integer(Incr), T==c;
-       is_integer(Incr), T==n ->
+handle_leader_call({update_counter, {_,g,_Ctr} = Key,
+                    #{type := T}, Incr, Pid}, _From, S, _E)
+  when is_number(Incr), T==c;
+       is_number(Incr), T==r;
+       is_number(Incr), T==n ->
     try New = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
 	 RealPid = case Pid of
 		       n -> ets:lookup_element(?TAB, {Key,Pid}, 2);

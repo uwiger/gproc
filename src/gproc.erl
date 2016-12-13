@@ -206,7 +206,7 @@ start_link() ->
 %% @end
 %%
 add_local_name(Name)  ->
-    ?CATCH_GPROC_ERROR(reg1({n,l,Name}, undefined, [], reg), [Name]).
+    ?CATCH_GPROC_ERROR(reg1({n,l,Name}, reg), [Name]).
 
 
 %% spec(Name::any()) -> true
@@ -215,7 +215,7 @@ add_local_name(Name)  ->
 %% @end
 %%
 add_global_name(Name) ->
-    ?CATCH_GPROC_ERROR(reg1({n,g,Name}, undefined, [], reg), [Name]).
+    ?CATCH_GPROC_ERROR(reg1({n,g,Name}, reg), [Name]).
 
 
 %% spec(Name::any(), Value::any()) -> true
@@ -223,8 +223,8 @@ add_global_name(Name) ->
 %% @doc Registers a local (non-unique) property. @equiv reg({p,l,Name},Value)
 %% @end
 %%
-add_local_property(Name , Value) ->
-    ?CATCH_GPROC_ERROR(reg1({p,l,Name}, Value, [], reg), [Name, Value]).
+add_local_property(Name, Value) ->
+    ?CATCH_GPROC_ERROR(reg1({p,l,Name}, Value, reg), [Name, Value]).
 
 %% spec(Name::any(), Value::any()) -> true
 %%
@@ -232,7 +232,7 @@ add_local_property(Name , Value) ->
 %% @end
 %%
 add_global_property(Name, Value) ->
-    ?CATCH_GPROC_ERROR(reg1({p,g,Name}, Value, [], reg), [Name, Value]).
+    ?CATCH_GPROC_ERROR(reg1({p,g,Name}, Value, reg), [Name, Value]).
 
 %% spec(Name::any(), Initial::integer()) -> true
 %%
@@ -240,7 +240,7 @@ add_global_property(Name, Value) ->
 %% @end
 %%
 add_local_counter(Name, Initial) when is_integer(Initial) ->
-    ?CATCH_GPROC_ERROR(reg1({c,l,Name}, Initial, [], reg), [Name, Initial]).
+    ?CATCH_GPROC_ERROR(reg1({c,l,Name}, Initial, reg), [Name, Initial]).
 
 
 %% spec(Name::any(), Initial::integer()) -> true
@@ -259,7 +259,7 @@ add_shared_local_counter(Name, Initial) when is_integer(Initial) ->
 %% @end
 %%
 add_global_counter(Name, Initial) when is_integer(Initial) ->
-    ?CATCH_GPROC_ERROR(reg1({c,g,Name}, Initial, [], reg), [Name, Initial]).
+    ?CATCH_GPROC_ERROR(reg1({c,g,Name}, Initial, reg), [Name, Initial]).
 
 %% spec(Name::any()) -> true
 %%
@@ -267,7 +267,8 @@ add_global_counter(Name, Initial) when is_integer(Initial) ->
 %% @equiv reg({a,l,Name})
 %% @end
 %%
-add_local_aggr_counter(Name)  -> ?CATCH_GPROC_ERROR(reg1({a,l,Name}), [Name]).
+add_local_aggr_counter(Name) ->
+    ?CATCH_GPROC_ERROR(reg1({a,l,Name}, reg), [Name]).
 
 %% spec(Name::any()) -> true
 %%
@@ -276,7 +277,7 @@ add_local_aggr_counter(Name)  -> ?CATCH_GPROC_ERROR(reg1({a,l,Name}), [Name]).
 %% @end
 %%
 add_global_aggr_counter(Name) ->
-    ?CATCH_GPROC_ERROR(reg1({a,g,Name}), [Name]).
+    ?CATCH_GPROC_ERROR(reg1({a,g,Name}, reg), [Name]).
 
 
 %% @spec (Name::any()) -> pid()
@@ -541,7 +542,7 @@ os_env_key(Key) ->
     string:to_upper(atom_to_list(Key)).
 
 lookup_env(Scope, App, Key, P) ->
-    case ets:lookup(?TAB, {{p, Scope, {gproc_env, App, Key}}, P}) of
+    case ets_lookup({{p, Scope, {gproc_env, App, Key}}, P}) of
         [] ->
             undefined;
         [{_, _, Value}] ->
@@ -550,7 +551,7 @@ lookup_env(Scope, App, Key, P) ->
 
 cache_env(Scope, App, Key, Value) ->
     ?CATCH_GPROC_ERROR(
-       reg1({p, Scope, {gproc_env, App, Key}}, Value, [], reg),
+       reg1({p, Scope, {gproc_env, App, Key}}, Value, reg),
        [Scope,App,Key,Value]).
 
 update_cached_env(Scope, App, Key, Value) ->
@@ -619,10 +620,7 @@ is_string(S) ->
 %% @equiv reg(Key, default(Key), [])
 %% @end
 reg(Key) ->
-    ?CATCH_GPROC_ERROR(reg1(Key), [Key]).
-
-reg1(Key) ->
-    reg1(Key, default(Key), [], reg).
+    ?CATCH_GPROC_ERROR(reg1(Key, reg), [Key]).
 
 %% @spec reg_or_locate(Key::key()) -> {pid(), NewValue}
 %%
@@ -633,10 +631,20 @@ reg_or_locate(Key) ->
     ?CATCH_GPROC_ERROR(reg_or_locate1(Key), [Key]).
 
 reg_or_locate1(Key) ->
-    reg_or_locate1(Key, default(Key), self()).
+    Type = reg_type(Key),
+    reg_or_locate1(Key, Type, default(Type), self()).
 
-default({T,_,_}) when T==c -> 0;
-default(_) -> undefined.
+default({c,_,_}) ->
+    0;
+default(#{default := Default}) ->
+    Default;
+default(#{type := c}) ->
+    0;
+default({T,_,N}) ->
+    default(gproc_lib:reg_type(T, N));
+default(_) ->
+    undefined.
+
 
 %% @spec await(Key::key()) -> {pid(),Value}
 %% @equiv await(Key,infinity)
@@ -678,7 +686,7 @@ await1({T,g,_} = Key, Timeout) when T=:=n; T=:=a; T=:=rc ->
     ?CHK_DIST,
     request_wait(Key, Timeout);
 await1({T,l,_} = Key, Timeout) when T=:=n; T=:=a; T=:=rc ->
-    case ets:lookup(?TAB, {Key, T}) of
+    case ets_lookup({Key, T}) of
         [{_, Pid, Value}] ->
 	    case is_process_alive(Pid) of
 		true ->
@@ -782,7 +790,7 @@ wide_request_wait(Nodes, {Tk,l,_} = Key, Timeout) when Tk=:=n; Tk=:=a ->
     Refs = lists:map(
 	     fun(Node) ->
 		     S = {?MODULE, Node},
-		     Ref = erlang:monitor(process, S),
+		     Ref = monitor_process(S),
 		     ?MAY_FAIL(erlang:send(S, {'$gen_call', {self(), Ref}, Req},
                                            [noconnect])),
 		     {Node, Ref}
@@ -959,7 +967,7 @@ demonitor1(_, _) ->
 %%
 %%
 reg(Key, Value) ->
-    ?CATCH_GPROC_ERROR(reg1(Key, Value, [], reg), [Key, Value]).
+    ?CATCH_GPROC_ERROR(reg1(Key, Value, reg), [Key, Value]).
 
 %% @spec reg(Key::key(), Value::value(), Attrs::attrs()) -> true
 %%
@@ -1026,29 +1034,40 @@ ensure_reg(Key, Value, Attrs) ->
     ?CATCH_GPROC_ERROR(reg1(Key, Value, Attrs, ensure), [Key, Value, Attrs]).
 
 reg1(Key, Op) ->
-    reg1(Key, default(Key), [], Op).
+    Type = reg_type(Key),
+    reg1(Key, Type, default(Type), [], Op).
 
 reg1(Key, Value, Op) ->
-    reg1(Key, Value, [], Op).
+    reg1(Key, reg_type(Key), Value, [], Op).
 
-reg1({T,g,_} = Key, Value, As, Op) when T==p; T==a; T==c; T==n; T==r; T==rc ->
+reg1(Key, Value, As, Op) ->
+    reg1(Key, reg_type(Key), Value, As, Op).
+
+reg1({_,g,_} = Key, #{type := T} = R, Value, As, Op)
+  when T=:=p; T=:=a; T=:=c; T=:=n; T=:=r; T=:=rc ->
     %% anything global
     ?CHK_DIST,
-    gproc_dist:reg(Key, Value, As, Op);
-reg1({p,l,_} = Key, Value, As, Op) ->
-    local_reg(Key, Value, As, Op);
-reg1({a,l,_} = Key, undefined, As, Op) ->
-    call({reg, Key, undefined, As, Op});
-reg1({c,l,_} = Key, Value, As, Op) when is_integer(Value) ->
-    call({reg, Key, Value, As, Op});
-reg1({n,l,_} = Key, Value, As, Op) ->
-    call({reg, Key, Value, As, Op});
-reg1({r,l,_} = Key, Value, As, Op) ->
-    call({reg, Key, Value, As, Op});
-reg1({rc,l,_} = Key, Value, As, Op) ->
-    call({reg, Key, Value, As, Op});
-reg1(_, _, _, _) ->
+    gproc_dist:reg(Key, R, Value, As, Op);
+reg1({a,l,_} = Key, R, undefined, As, Op) ->
+    call({reg, Key, R, undefined, As, Op});
+reg1({c,l,_} = Key, R, Value, As, Op) when is_integer(Value) ->
+    call({reg, Key, R, Value, As, Op});
+reg1({_,l,_} = Key, #{type := T} = R, Value, As, Op)
+  when T=:=p; T=:=n; T=:=c; T=:=a; T=:=r; T=:=rc ->
+    case reg_locally(T) of
+        true ->
+            local_reg(Key, R, Value, As, Op);
+        false ->
+            call({reg, Key, R, Value, As, Op})
+    end;
+reg1(_, _, _, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
+
+reg_type({T,_,N}) ->
+    gproc_lib:reg_type(T, N).
+
+reg_locally(p) -> true;
+reg_locally(_) -> false.
 
 %% @equiv reg_other(Key, Pid, default(Key), [])
 reg_other(Key, Pid) ->
@@ -1101,14 +1120,19 @@ ensure_reg_other(Key, Pid, Value, Attrs) ->
                        [Key, Pid, Value, Attrs]).
 
 reg_other1(Key, Pid, Op) ->
-    reg_other1(Key, Pid, default(Key), [], Op).
+    R = reg_type(Key),
+    reg_other1(Key, R, Pid, default(R), [], Op).
 
-reg_other1({_,g,_} = Key, Pid, Value, As, Op) when is_pid(Pid) ->
+reg_other1({_,_,_} = Key, Pid, Value, As, Op) ->
+    reg_other1(Key, reg_type(Key), Pid, Value, As, Op).
+
+reg_other1({_,g,_} = Key, R, Pid, Value, As, Op) when is_pid(Pid) ->
     ?CHK_DIST,
-    gproc_dist:reg_other(Key, Pid, Value, As, Op);
-reg_other1({T,l,_} = Key, Pid, Value, As, Op) when is_pid(Pid) ->
+    gproc_dist:reg_other(Key, R, Pid, Value, As, Op);
+reg_other1({_,l,_} = Key, #{type := T} = R, Pid, Value, As, Op)
+  when is_pid(Pid) ->
     if T==n; T==a; T==r; T==rc ->
-            call({reg_other, Key, Pid, Value, As, Op});
+            call({reg_other, Key, R, Pid, Value, As, Op});
        true ->
             ?THROW_GPROC_ERROR(badarg)
     end.
@@ -1139,12 +1163,15 @@ reg_or_locate(Key, Value) ->
 reg_or_locate({n,_,_} = Key, Value, F) when is_function(F, 0) ->
     ?CATCH_GPROC_ERROR(reg_or_locate1(Key, Value, F), [Key, Value, F]).
 
-reg_or_locate1({_,g,_} = Key, Value, P) ->
+reg_or_locate1({_,_,_} = Key, Value, P) ->
+    reg_or_locate1(Key, reg_type(Key), Value, P).
+
+reg_or_locate1({_,g,_} = Key, R, Value, P) ->
     ?CHK_DIST,
-    gproc_dist:reg_or_locate(Key, Value, P);
-reg_or_locate1({T,l,_} = Key, Value, P) when T==n; T==a; T==rc ->
-    call({reg_or_locate, Key, Value, P});
-reg_or_locate1(_, _, _) ->
+    gproc_dist:reg_or_locate(Key, R, Value, P);
+reg_or_locate1({T,l,_} = Key, R, Value, P) when T==n; T==a; T==rc ->
+    call({reg_or_locate, Key, R, Value, P});
+reg_or_locate1(_, _, _,_) ->
     ?THROW_GPROC_ERROR(badarg).
 
 %% @spec reg_shared(Key::key()) -> true
@@ -1158,8 +1185,10 @@ reg_shared(Key) ->
     ?CATCH_GPROC_ERROR(reg_shared1(Key), [Key]).
 
 %% @private
-reg_shared1({T,_,_} = Key) when T==a; T==p; T==c ->
-    reg_shared(Key, default(Key)).
+reg_shared1({_,_,_} = Key) ->
+    R = reg_type(Key),
+    reg_shared1(Key, R, default(R), []).
+    %% reg_shared(Key, default(Key)).
 
 %% @spec reg_shared(Key::key(), Value) -> true
 %%
@@ -1177,25 +1206,28 @@ reg_shared1({T,_,_} = Key) when T==a; T==p; T==c ->
 %% @end
 %%
 reg_shared(Key, Value) ->
-    ?CATCH_GPROC_ERROR(reg_shared1(Key, Value, []), [Key, Value]).
+    ?CATCH_GPROC_ERROR(
+       reg_shared1(Key, reg_type(Key), Value, []), [Key, Value]).
 
 reg_shared(Key, Value, Attrs) when is_list(Attrs) ->
-    ?CATCH_GPROC_ERROR(reg_shared1(Key, Value, Attrs), [Key, Value, Attrs]).
+    ?CATCH_GPROC_ERROR(
+       reg_shared1(Key, reg_type(Key), Value, Attrs), [Key, Value, Attrs]).
 
 %% @private
-reg_shared1({_,g,_} = Key, Value, As) ->
+reg_shared1({_,g,_} = Key, R, Value, As) ->
     %% anything global
     ?CHK_DIST,
-    gproc_dist:reg_shared(Key, Value, As);
-reg_shared1({a,l,_} = Key, undefined, As) ->
-    call({reg_shared, Key, undefined, As, reg});
-reg_shared1({c,l,_} = Key, Value, As) when is_integer(Value) ->
-    call({reg_shared, Key, Value, As, reg});
-reg_shared1({p,l,_} = Key, Value, As) ->
-    call({reg_shared, Key, Value, As, reg});
-reg_shared1({rc,l,_} = Key, undefined, As) ->
-    call({reg_shared, Key, undefined, As, reg});
-reg_shared1(_, _, _) ->
+    gproc_dist:reg_shared(Key, R, Value, As, reg);
+    %% gproc_dist:reg_shared(Key, Value, As);
+reg_shared1({a,l,_} = Key, R, undefined, As) ->
+    call({reg_shared, Key, R, undefined, As, reg});
+reg_shared1({c,l,_} = Key, R, Value, As) when is_integer(Value) ->
+    call({reg_shared, Key, R, Value, As, reg});
+reg_shared1({rc,l,_} = Key, R, undefined, As) ->
+    call({reg_shared, Key, R, undefined, As, reg});
+reg_shared1({_,_,_} = Key, R, Value, As) ->
+    call({reg_shared, Key, R, Value, As, reg});
+reg_shared1(_, _, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 %% @spec mreg(type(), scope(), [{Key::any(), Value::any()}]) -> true
@@ -1253,7 +1285,7 @@ existing(T,Scope,L) ->
               T==a; T==n ->
                    [{{T,Scope,K}, T} || K <- L]
            end,
-    _ = [case ets:member(?TAB, K) of
+    _ = [case ets_member(K) of
              false -> erlang:error(badarg);
              true  -> true
          end || K <- Keys],
@@ -1275,7 +1307,7 @@ unreg1(Key) ->
         {T, l, _} when T == n; T == a; T == r; T == rc ->
             call({unreg, Key});
         {_, l, _} ->
-            case ets:member(?TAB, {Key,self()}) of
+            case ets_member({Key,self()}) of
                 true ->
                     _ = gproc_lib:remove_reg(Key, self(), unreg),
                     true;
@@ -1408,7 +1440,7 @@ unregister_name(Key) ->
 %% {@type headpat()}.
 %% @end
 select({?TAB, _, _, _, _, _, _, _} = Continuation) ->
-    ets:select(Continuation);
+    ets_select_cont(Continuation);
 select(Pat) ->
     select(all, Pat).
 
@@ -1429,7 +1461,7 @@ select(Pat) ->
 %% variable substitution and ensure that the scan is limited.
 %% @end
 select(Context, Pat) ->
-    ets:select(?TAB, pattern(Pat, Context)).
+    ets_select(pattern(Pat, Context)).
 
 %% @spec (Context::context(), Pat::sel_patten(), Limit::integer()) ->
 %%          {[Match],Continuation} | '$end_of_table'
@@ -1438,7 +1470,7 @@ select(Context, Pat) ->
 %% See [http://www.erlang.org/doc/man/ets.html#select-3].
 %% @end
 select(Context, Pat, Limit) ->
-    ets:select(?TAB, pattern(Pat, Context), Limit).
+    ets_select(pattern(Pat, Context), Limit).
 
 
 %% @spec (sel_pattern()) -> list(sel_object())
@@ -1462,12 +1494,14 @@ select_count(Context, Pat) ->
 %%% Local properties can be registered in the local process, since
 %%% no other process can interfere.
 %%%
-local_reg({_,Scope,_} = Key, Value, As, Op) ->
-    case gproc_lib:insert_reg(Key, Value, self(), l) of
+
+local_reg(Key, R, Value, As, Op) ->
+    case gproc_lib:insert_reg(Key, R, Value, self(), As, l, registered) of
         false ->
-            case ets:member(?TAB, {Key, self()}) of
+            TKey = {Key, self()},
+            case ets_member(TKey) of
                 true when Op == ensure ->
-                    gproc_lib:do_set_value(Key, Value, self()),
+                    ets_update_element(TKey, {3, Value}),
                     set_attrs(As, Key, self()),
                     updated;
                 _ ->
@@ -1476,7 +1510,7 @@ local_reg({_,Scope,_} = Key, Value, As, Op) ->
         true  ->
             monitor_me(),
             if As =/= [] ->
-                    gproc_lib:insert_attr(Key, As, self(), Scope),
+                    gproc_lib:insert_attr(Key, As, self(), l),
                     regged_new(Op);
                true ->
                     regged_new(Op)
@@ -1581,24 +1615,27 @@ get_value_shared(Key) ->
 get_value(Key, Pid) ->
     ?CATCH_GPROC_ERROR(get_value1(Key, Pid), [Key, Pid]).
 
-get_value1({T,_,_} = Key, Pid) when is_pid(Pid) ->
+get_value1({_,_,_} = Key, Pid) when is_pid(Pid) ->
+    #{type := T} = reg_type(Key),
     if T==n; T==a; T==rc ->
-            case ets:lookup(?TAB, {Key, T}) of
+            case ets_lookup({Key, T}) of
                 [{_, P, Value}] when P == Pid -> Value;
                 _ -> ?THROW_GPROC_ERROR(badarg)
             end;
        true ->
             ets:lookup_element(?TAB, {Key, Pid}, 3)
     end;
-get_value1({T,_,_} = K, shared) when T==c; T==a; T==p; T==r ->
+get_value1({_,_,_} = K, shared) ->
+    #{type := T} = reg_type(K),
     Key = case T of
 	      c  -> {K, shared};
 	      p  -> {K, shared};
               r  -> {K, shared};
+              n  -> {K, n};
 	      a  -> {K, a};
               rc -> {K, rc}
 	  end,
-    case ets:lookup(?TAB, Key) of
+    case ets_lookup(Key) of
 	[{_, shared, Value}] -> Value;
 	_ -> ?THROW_GPROC_ERROR(badarg)
     end;
@@ -1614,13 +1651,7 @@ get_value1(_, _) ->
 %% An exception is raised if `Key' is not registered for the given process.
 %% @end
 get_attribute(Key, A) ->
-    Pid = case Key of
-	      {T,_,_} when T==n; T==a; T==rc ->
-		  where(Key);
-	      {T,_,_} when T==p; T==c; T==r ->
-		  self()
-	  end,
-    ?CATCH_GPROC_ERROR(get_attribute1(Key, Pid, A), [Key, A]).
+    ?CATCH_GPROC_ERROR(get_attribute1(Key, A), [Key, A]).
 
 %% @spec (Key, Pid::pid() | shared, Attr::atom()) -> Value
 %% @doc Get the attribute value of `Attr' associated with `Key' for process Pid.
@@ -1641,9 +1672,18 @@ get_attribute(Key, Pid, A) ->
 get_attribute_shared(Key, Attr) ->
     ?CATCH_GPROC_ERROR(get_attribute1(Key, shared, Attr), [Key, Attr]).
 
+get_attribute1(Key, A) ->
+    #{type := T} = reg_type(Key),
+    Pid = if T==n; T==a; T==rc ->
+		  where(Key);
+             T==p; T==c; T==r ->
+		  self()
+	  end,
+    get_attribute1(Key, Pid, A).
+
 %% @private
 get_attribute1({_,_,_} = Key, Pid, A) when is_pid(Pid); Pid==shared ->
-    case ets:lookup(?TAB, {Pid, Key}) of
+    case ets_lookup({Pid, Key}) of
 	[{_, Attrs}] ->
 	    case lists:keyfind(attrs, 1, Attrs) of
 		false -> undefined;
@@ -1676,7 +1716,7 @@ get_attributes(Key, Pid) ->
     ?CATCH_GPROC_ERROR(get_attributes1(Key, Pid), [Key, Pid]).
 
 get_attributes1({_,_,_} = Key, Pid) when is_pid(Pid); Pid==shared ->
-    case ets:lookup(?TAB, {Pid, Key}) of
+    case ets_lookup({Pid, Key}) of
 	[{_, Attrs}] ->
 	    case lists:keyfind(attrs, 1, Attrs) of
 		false   -> [];
@@ -1725,7 +1765,7 @@ where(Key) ->
 
 where1({T,_,_}=Key) ->
     if T==n orelse T==a orelse T==rc ->
-            case ets:lookup(?TAB, {Key,T}) of
+            case ets_lookup({Key,T}) of
                 [{_, P, _Value}] ->
                     case my_is_process_alive(P) of
                         true -> P;
@@ -1757,10 +1797,10 @@ whereis_name(Key) ->
 %%
 lookup_pids({T,_,_} = Key) ->
     L = if T==n orelse T==a orelse T==rc ->
-                ets:select(?TAB, [{{{Key,T}, '$1', '_'},
+                ets_select([{{{Key,T}, '$1', '_'},
 				   [{is_pid, '$1'}], ['$1']}]);
            true ->
-                ets:select(?TAB, [{{{Key,'_'}, '$1', '_'},
+                ets_select([{{{Key,'_'}, '$1', '_'},
 				   [{is_pid, '$1'}], ['$1']}])
         end,
     [P || P <- L, my_is_process_alive(P)].
@@ -1785,9 +1825,9 @@ my_is_process_alive(_) ->
 %%
 lookup_values({T,_,_} = Key) ->
     L = if T==n orelse T==a orelse T==rc ->
-                ets:select(?TAB, [{{{Key,T}, '$1', '$2'},[],[{{'$1','$2'}}]}]);
+                ets_select([{{{Key,T}, '$1', '$2'},[],[{{'$1','$2'}}]}]);
            true ->
-                ets:select(?TAB, [{{{Key,'_'}, '$1', '$2'},[],[{{'$1','$2'}}]}])
+                ets_select([{{{Key,'_'}, '$1', '$2'},[],[{{'$1','$2'}}]}])
         end,
     [Pair || {P,_} = Pair <- L, my_is_process_alive(P)].
 
@@ -1815,24 +1855,33 @@ lookup_values({T,_,_} = Key) ->
 %% appropriate value type.
 %% @end
 %%
--spec update_counter(key(), increment()) -> integer().
+-spec update_counter(key(), increment()) -> integer() | [integer()].
 update_counter(Key, Incr) ->
-    Pid = case Key of
-	      {n,_,_} -> n;
-	      {c,_,_} -> self()
-	  end,
-    ?CATCH_GPROC_ERROR(update_counter1(Key, Pid, Incr), [Key, Incr]).
+    ?CATCH_GPROC_ERROR(update_counter1(Key, Incr), [Key, Incr]).
 
-update_counter(Key, Pid, Incr) when is_pid(Pid);
-				    Pid == shared; Pid == n ->
+update_counter(Key, Pid, Incr) when is_pid(Pid); Pid == shared; Pid == n ->
     ?CATCH_GPROC_ERROR(update_counter1(Key, Pid, Incr), [Key, Pid, Incr]).
 
-update_counter1({T,l,_} = Key, Pid, Incr) when T==c; T==n ->
-    gproc_lib:update_counter(Key, Incr, Pid);
-update_counter1({T,g,_} = Key, Pid, Incr) when T==c; T==n ->
+update_counter1(Key, Incr) ->
+    #{type := T} = R = reg_type(Key),
+    Pid = if T =:= n ->
+                  n;
+             T =:= c; T =:= r; T =:= p ->
+                  self()
+          end,
+    update_counter1(Key, R, Pid, Incr).
+
+update_counter1({_,_,_} = Key, Pid, Incr) ->
+    update_counter1(Key, reg_type(Key), Pid, Incr).
+
+update_counter1({T,l,_} = Key, #{type := T} = R, Pid, Incr)
+  when T =:= n; T =:= c; T =:= r; T =:= p ->
+    gproc_lib:update_counter(Key, R, Incr, Pid);
+update_counter1({_,g,_} = Key, #{type := T} = R, Pid, Incr)
+  when T =:= n; T =:= c; T =:= r; T =:= p ->
     ?CHK_DIST,
-    gproc_dist:update_counter(Key, Pid, Incr);
-update_counter1(_, _, _) ->
+    gproc_dist:update_counter(Key, R, Pid, Incr);
+update_counter1(_, _, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 %% @doc Update a list of counters
@@ -1854,8 +1903,16 @@ update_counters(g, [_|_] = Cs) ->
     gproc_dist:update_counters(Cs).
 
 
-update_counters1([{{c,l,_} = Key, Pid, Incr}|T]) ->
-    [{Key, Pid, gproc_lib:update_counter(Key, Incr, Pid)}|update_counters1(T)];
+update_counters1([{{_,l,_} = Key, Pid, Incr}|Cs]) when is_pid(Pid);
+                                                       Pid =:= shared;
+                                                       Pid =:= n ->
+    case reg_type(Key) of
+        #{type := T} = R when T =:= c; T =:= p; T =:= r ->
+            [{Key, Pid, gproc_lib:update_counter(Key, R, Incr, Pid)}
+             |update_counters1(Cs)];
+        _ ->
+            ?THROW_GPROC_ERROR(badarg)
+    end;
 update_counters1([]) ->
     [];
 update_counters1(_) ->
@@ -1891,14 +1948,14 @@ reset_counter1({T,g,_} = Key) when T==c; T==n ->
     ?CHK_DIST,
     gproc_dist:reset_counter(Key);
 reset_counter1({n,l,_} = Key) ->
-    [{_, Pid, Current}] = ets:lookup(?TAB, {Key, n}),
+    [{_, Pid, Current}] = ets_lookup({Key, n}),
     {Current, update_counter(Key, get_initial(Pid, Key) - Current)};
 reset_counter1({c,l,_} = Key) ->
     Current = ets:lookup_element(?TAB, {Key, self()}, 3),
     {Current, update_counter(Key, get_initial(self(), Key) - Current)}.
 
 get_initial(Pid, Key) ->
-    case ets:lookup(?TAB, {Pid, Key}) of
+    case ets_lookup({Pid, Key}) of
 	[{_, r}] -> 0;
 	[{_, Opts}] ->
 	    proplists:get_value(initial, Opts, 0)
@@ -1922,13 +1979,7 @@ get_initial(Pid, Key) ->
 %% @end
 %%
 update_shared_counter(Key, Incr) ->
-    ?CATCH_GPROC_ERROR(update_shared_counter1(Key, Incr), [Key, Incr]).
-
-update_shared_counter1({c,g,_} = Key, Incr) ->
-    ?CHK_DIST,
-    gproc_dist:update_shared_counter(Key, Incr);
-update_shared_counter1({c,l,_} = Key, Incr) ->
-    gproc_lib:update_counter(Key, Incr, shared).
+    ?CATCH_GPROC_ERROR(update_counter1(Key, shared, Incr), [Key, Incr]).
 
 %% @spec (From::key(), To::pid() | key()) -> undefined | pid()
 %%
@@ -1992,7 +2043,7 @@ send(Key, Msg) ->
 
 send1({T,C,_} = Key, Msg) when C==l; C==g ->
     if T == n orelse T == a orelse T == rc ->
-            case ets:lookup(?TAB, {Key, T}) of
+            case ets_lookup({Key, T}) of
                 [{_, Pid, _}] ->
                     Pid ! Msg;
                 _ ->
@@ -2050,7 +2101,7 @@ bcast1(Ns, {T,l,_} = Key, Msg) when T==p; T==a; T==c; T==n; T==r; T==rc ->
 first(Context) ->
     {S, T} = get_s_t(Context),
     {HeadPat,_} = headpat({S, T}, '_', '_', '_'),
-    case ets:select(?TAB, [{HeadPat,[],[{element,1,'$_'}]}], 1) of
+    case ets_select([{HeadPat,[],[{element,1,'$_'}]}], 1) of
         {[First], _} ->
             First;
         _ ->
@@ -2200,7 +2251,7 @@ to_atom(S) ->
     end.
 
 gproc_info(Pid, Pat) ->
-    Keys = ets:select(?TAB, [{ {{Pid,Pat}, '_'}, [], [{element,2,
+    Keys = ets_select([{ {{Pid,Pat}, '_'}, [], [{element,2,
 						       {element,1,'$_'}}] }]),
     {?MODULE, lists:zf(
                 fun(K) ->
@@ -2224,7 +2275,7 @@ i() ->
 
 %% @hidden
 handle_cast({monitor_me, Pid}, S) ->
-    erlang:monitor(process, Pid),
+    monitor_process(Pid),
     {noreply, S};
 handle_cast({audit_process, Pid}, S) ->
     case is_process_alive(Pid) of
@@ -2235,7 +2286,7 @@ handle_cast({audit_process, Pid}, S) ->
     end,
     {noreply, S};
 handle_cast({cancel_wait, Pid, {T,_,_} = Key, Ref}, S) ->
-     _ = case ets:lookup(?TAB, {Key,T}) of
+     _ = case ets_lookup({Key,T}) of
 	     [{_, Waiters}] ->
 		 gproc_lib:remove_wait(Key, Pid, Ref, Waiters);
 	     _ ->
@@ -2243,7 +2294,7 @@ handle_cast({cancel_wait, Pid, {T,_,_} = Key, Ref}, S) ->
 	 end,
     {noreply, S};
 handle_cast({cancel_wait_or_monitor, Pid, {T,_,_} = Key}, S) ->
-    _ = case ets:lookup(?TAB, {Key, T}) of
+    _ = case ets_lookup({Key, T}) of
 	    [{_, Waiters}] ->
 		gproc_lib:remove_wait(Key, Pid, all, Waiters);
 	    [{_, OtherPid, _}] ->
@@ -2254,10 +2305,12 @@ handle_cast({cancel_wait_or_monitor, Pid, {T,_,_} = Key}, S) ->
     {noreply, S}.
 
 %% @hidden
-handle_call({reg, {_T,l,_} = Key, Val, Attrs, Op}, {Pid,_}, S) ->
-    handle_reg_call(Key, Pid, Val, Attrs, Op, S);
-handle_call({reg_other, {_T,l,_} = Key, Pid, Val, Attrs, Op}, _, S) ->
-    handle_reg_call(Key, Pid, Val, Attrs, Op, S);
+handle_call({reg, {_T,l,_} = Key, #{} = R, Val, Attrs, Op}, {Pid,_}, S) ->
+    handle_reg_call(Key, R, Pid, Val, Attrs, Op, S);
+handle_call({reg_other, Key, #{} = R, Pid, Val, Attrs, Op}, _, S) ->
+    handle_reg_call(Key, R, Pid, Val, Attrs, Op, S);
+handle_call({reg_other, {_T,l,_} = Key, #{} = R, Pid, Val, Attrs, Op}, _, S) ->
+    handle_reg_call(Key, R, Pid, Val, Attrs, Op, S);
 handle_call({set_attributes, {_,l,_} = Key, Attrs}, {Pid,_}, S) ->
     case gproc_lib:insert_attr(Key, Attrs, Pid, l) of
 	false -> {reply, badarg, S};
@@ -2271,18 +2324,19 @@ handle_call({set_attributes_shared, {_,l,_} = Key, Attrs}, _, S) ->
 	L when is_list(L) ->
 	    {reply, true, S}
     end;
-handle_call({reg_or_locate, {T,l,_} = Key, Val, P}, _, S) ->
+handle_call({reg_or_locate, {T,l,_} = Key, R, Val, P}, _, S) ->
     Reg = fun() ->
 		  Pid = if is_function(P, 0) ->
 				spawn(P);
 			   is_pid(P) ->
 				P
 			end,
-		  true = gproc_lib:insert_reg(Key, Val, Pid, l),
+		  true = gproc_lib:insert_reg(
+                           Key, R, Val, Pid, [], l, registered),
 		  _ = gproc_lib:ensure_monitor(Pid, l),
 		  {reply, {Pid, Val}, S}
 	  end,
-    case ets:lookup(?TAB, {Key, T}) of
+    case ets_lookup({Key, T}) of
 	[] ->
 	    Reg();
 	[{_, _Waiters}] ->
@@ -2293,7 +2347,7 @@ handle_call({reg_or_locate, {T,l,_} = Key, Val, P}, _, S) ->
 handle_call({monitor, {T,l,_} = Key, Pid, Type}, _From, S)
   when T==n; T==a ->
     Ref = make_ref(),
-    Lookup = ets:lookup(?TAB, {Key, T}),
+    Lookup = ets_lookup({Key, T}),
     IsRegged = is_regged(Lookup),
     _ = case {IsRegged, Type} of
 	    {false, info} ->
@@ -2305,10 +2359,10 @@ handle_call({monitor, {T,l,_} = Key, Pid, Type}, _From, S)
                     [{K, Waiters}] ->
                         NewWaiters = [{Pid,Ref,follow}|Waiters],
                         ets:insert(?TAB, {K, NewWaiters}),
-                        ets:insert_new(?TAB, {{Pid,Key}, []});
+                        ets_insert_new({{Pid,Key}, []});
                     [] ->
                         ets:insert(?TAB, {{Key,T}, [{Pid,Ref,follow}]}),
-                        ets:insert_new(?TAB, {{Pid,Key}, []})
+                        ets_insert_new({{Pid,Key}, []})
                 end;
             {false, standby} ->
                 Evt = {failover, Pid},
@@ -2318,14 +2372,14 @@ handle_call({monitor, {T,l,_} = Key, Pid, Type}, _From, S)
 	    {true, _} ->
                 [{_, RegPid, _}] = Lookup,
                 _ = gproc_lib:ensure_monitor(Pid, l),
-		case ets:lookup(?TAB, {RegPid, Key}) of
+		case ets_lookup({RegPid, Key}) of
 		    [{K,r}] ->
 			ets:insert(?TAB, {K, [{monitor, [{Pid,Ref,Type}]}]}),
-                        ets:insert_new(?TAB, {{Pid,Key}, []});
+                        ets_insert_new({{Pid,Key}, []});
 		    [{K, Opts}] ->
 			ets:insert(?TAB, {K, gproc_lib:add_monitor(
                                                Opts, Pid, Ref, Type)}),
-                        ets:insert_new(?TAB, {{Pid,Key}, []})
+                        ets_insert_new({{Pid,Key}, []})
 		end
 	end,
     {reply, Ref, S};
@@ -2335,7 +2389,7 @@ handle_call({demonitor, {T,l,_} = Key, Ref, Pid}, _From, S)
 	    undefined ->
 		ok;  % be nice
 	    RegPid ->
-		case ets:lookup(?TAB, {RegPid, Key}) of
+		case ets_lookup({RegPid, Key}) of
 		    [{_K,r}] ->
 			ok;   % be nice
 		    [{K, Opts}] ->
@@ -2344,30 +2398,14 @@ handle_call({demonitor, {T,l,_} = Key, Ref, Pid}, _From, S)
 		end
 	end,
     {reply, ok, S};
-handle_call({reg_shared, {_T,l,_} = Key, Val, Attrs, Op}, _From, S) ->
-    case try_insert_reg(Key, Val, shared) of
-	true ->
-            _ = if Attrs =/= [] ->
-                        gproc_lib:insert_attr(Key, Attrs, shared, l);
-                   true -> true
-                end,
-	    {reply, true, S};
-        already_registered when Op == ensure ->
-            case gproc_lib:do_set_value(Key, Val, shared) of
-                true ->
-                    {reply, updated, S};
-                false ->
-                    {reply, badarg, S}
-            end;
-	_ ->
-	    {reply, badarg, S}
-    end;
+handle_call({reg_shared, {_T,l,_} = Key, R, Val, Attrs, Op}, _From, S) ->
+    handle_reg_call(Key, R, shared, Val, Attrs, Op, S);
 handle_call({unreg, {_,l,_} = Key}, {Pid,_}, S) ->
     handle_unreg_call(Key, Pid, S);
 handle_call({unreg_other, {_,l,_} = Key, Pid}, _, S) ->
     handle_unreg_call(Key, Pid, S);
 handle_call({unreg_shared, {_,l,_} = Key}, _, S) ->
-    _ = case ets:lookup(?TAB, {shared, Key}) of
+    _ = case ets_lookup({shared, Key}) of
 	    [{_, r}] ->
 		_ = gproc_lib:remove_reg(Key, shared, unreg, []);
 	    [{_, Opts}] ->
@@ -2436,7 +2474,7 @@ handle_info(_, S) ->
 %% @hidden
 code_change(_FromVsn, S, _Extra) ->
     %% We have changed local monitor markers from {Pid} to {Pid,l}.
-    _ = case ets:select(?TAB, [{{'$1'},[],['$1']}]) of
+    _ = case ets_select([{{'$1'},[],['$1']}]) of
             [] ->
                 ok;
             Pids ->
@@ -2451,11 +2489,10 @@ terminate(_Reason, _S) ->
 
 %% handle_call body common to reg and reg_other.
 %%
-handle_reg_call(Key, Pid, Val, Attrs, Op, S) ->
-    case try_insert_reg(Key, Val, Pid) of
+handle_reg_call(Key, R, Pid, Val, Attrs, Op, S) ->
+    case try_insert_reg(Key, R, Val, Attrs, Pid) of
         true ->
             _ = gproc_lib:ensure_monitor(Pid,l),
-            _ = set_attrs(Attrs, Key, Pid),
             {reply, regged_new(Op), S};
         already_registered when Op == ensure ->
             case gproc_lib:do_set_value(Key, Val, Pid) of
@@ -2476,7 +2513,7 @@ set_attrs([_|_] = Attrs, Key, Pid) ->
     gproc_lib:insert_attr(Key, Attrs, Pid, l).
 
 handle_unreg_call(Key, Pid, S) ->
-    case ets:lookup(?TAB, {Pid,Key}) of
+    case ets_lookup({Pid,Key}) of
         [{_, r}] ->
             _ = gproc_lib:remove_reg(Key, Pid, unreg, []),
             {reply, true, S};
@@ -2520,10 +2557,11 @@ cast(Msg, g) ->
 cast(N, Msg, l) ->
     gen_server:cast({?MODULE, N}, Msg).
 
-try_insert_reg({T,l,_} = Key, Val, Pid) ->
-    case gproc_lib:insert_reg(Key, Val, Pid, l) of
+try_insert_reg(Key, R, Val, Attrs, Pid) ->
+    T = element(1, Key),
+    case gproc_lib:insert_reg(Key, R, Val, Pid, Attrs, l, registered) of
         false ->
-            case ets:lookup(?TAB, {Key,T}) of
+            case ets_lookup({Key,T}) of
                 %% In this particular case, the lookup cannot result in
                 %% [{_, Waiters}], since the insert_reg/4 function would
                 %% have succeeded then.
@@ -2535,7 +2573,7 @@ try_insert_reg({T,l,_} = Key, Val, Pid) ->
                             false;
                         false ->
                             process_is_down(OtherPid), % may result in failover
-                            try_insert_reg(Key, Val, Pid)
+                            try_insert_reg(Key, R, Val, Attrs, Pid)
                     end;
                 [] ->
                     false
@@ -2545,9 +2583,9 @@ try_insert_reg({T,l,_} = Key, Val, Pid) ->
     end.
 
 %% try_insert_shared({c,l,_} = Key, Val) ->
-%%     ets:insert_new(?TAB, [{{Key,shared}, shared, Val}, {{shared, Key}, []}]);
+%%     ets_insert_new([{{Key,shared}, shared, Val}, {{shared, Key}, []}]);
 %% try_insert_shared({a,l,_} = Key, Val) ->
-%%     ets:insert_new(?TAB, [{{Key, a}, shared, Val}, {{shared, Key}, []}]).
+%%     ets_insert_new([{{Key, a}, shared, Val}, {{shared, Key}, []}]).
 
 -spec audit_process(pid()) -> ok.
 
@@ -2563,17 +2601,17 @@ process_is_down(Pid) when is_pid(Pid) ->
     %% delete the monitor marker
     %% io:fwrite(user, "process_is_down(~p) - ~p~n", [Pid,ets:tab2list(?TAB)]),
     Marker = {Pid,l},
-    case ets:member(?TAB, Marker) of
+    case ets_member(Marker) of
         false ->
             ok;
         true ->
-            Revs = ets:select(?TAB, [{{{Pid,'$1'}, '$2'},
+            Revs = ets_select([{{{Pid,'$1'}, '$2'},
                                       [{'==',{element,2,'$1'},l}],
 				      [{{'$1','$2'}}]}]),
             lists:foreach(
               fun({{n,l,_}=K, R}) ->
                       Key = {K,n},
-                      case ets:lookup(?TAB, Key) of
+                      case ets_lookup(Key) of
                           [{_, Pid, V}] ->
                               ets:delete(?TAB, Key),
 			      opt_notify(R, K, Pid, V);
@@ -2586,7 +2624,7 @@ process_is_down(Pid) when is_pid(Pid) ->
                                       ets:insert(?TAB, {Key, Waiters1})
                               end;
                           [{_, OtherPid, _}] when Pid =/= OtherPid ->
-                              case ets:lookup(?TAB, {OtherPid, K}) of
+                              case ets_lookup({OtherPid, K}) of
                                   [{RK, Opts}] when is_list(Opts) ->
                                       Opts1 = gproc_lib:remove_monitor_pid(
                                                 Opts, Pid),
@@ -2599,7 +2637,7 @@ process_is_down(Pid) when is_pid(Pid) ->
                       end;
                  ({{c,l,C} = K, _}) ->
                       Key = {K, Pid},
-                      [{_, _, Value}] = ets:lookup(?TAB, Key),
+                      [{_, _, Value}] = ets_lookup(Key),
                       ets:delete(?TAB, Key),
                       gproc_lib:update_aggr_counter(l, C, -Value);
                  ({{r,l,Rsrc} = K, _}) ->
@@ -2611,20 +2649,51 @@ process_is_down(Pid) when is_pid(Pid) ->
                  ({{a,l,_} = K, R}) ->
                       remove_aggregate(a, K, R, Pid);
                  ({{p,_,_} = K, _}) ->
-                      ets:delete(?TAB, {K, Pid})
+                      ets:delete(?TAB, {K, Pid});
+                 ({K, R}) ->
+                      case lists:keyfind(type, 1, R) of
+                          {_, c}  -> remove_counter(K, Pid, R);
+                          {_, r}  -> remove_resource(K, Pid, R);
+                          {_, rc} -> remove_aggregate(element(1,K), K, R, Pid);
+                          {_, a}  -> remove_aggregate(element(1,K), K, R, Pid);
+                          {_, p}  -> ets:delete(?TAB, {K, Pid})
+                      end
               end, Revs),
             ets:select_delete(?TAB, [{{{Pid,{'_',l,'_'}},'_'}, [], [true]}]),
             ets:delete(?TAB, Marker),
             ok
     end.
 
+remove_counter(K, Pid, R) ->
+    Key = {K, Pid},
+    [{_, _, Value}] = ets_lookup(Key),
+    Aggr = keyfind(aggr, 1, R, []),
+    ets:delete(?TAB, Key),
+    [gproc_lib:update_aggr_counter(l, T, A, -Value) || {T,A} <- Aggr],
+    ok.
+
+remove_resource(K, Pid, R) ->
+    Key = {K, Pid},
+    Rc = keyfind(rc, 1, R, []),
+    ets:delete(?TAB, Key),
+    [gproc_lib:decrement_resource_count(l, T, Rsrc) || {T, Rsrc} <- Rc],
+    ok.
+
+keyfind(K, Pos, L, Default) ->
+    case lists:keyfind(K, Pos, L) of
+        false ->
+            Default;
+        {_, V} ->
+            V
+    end.
+
 remove_aggregate(T, K, R, Pid) ->
-    case ets:lookup(?TAB, {K,T}) of
+    case ets_lookup({K,T}) of
         [{_, Pid, V}] ->
             ets:delete(?TAB, {K,T}),
             opt_notify(R, K, Pid, V);
         [{_, OtherPid, _}] when Pid =/= OtherPid ->
-            case ets:lookup(?TAB, {OtherPid, K}) of
+            case ets_lookup({OtherPid, K}) of
                 [{RK, Opts}] when is_list(Opts) ->
                     Opts1 = gproc_lib:remove_monitor_pid(
                               Opts, Pid),
@@ -2686,7 +2755,7 @@ pick_standby([]) ->
 
 do_give_away({T,l,_} = K, To, Pid) when T==n; T==a; T==rc ->
     Key = {K, T},
-    case ets:lookup(?TAB, Key) of
+    case ets_lookup(Key) of
         [{_, Pid, Value}] ->
             %% Pid owns the reg; allowed to give_away
             case pid_to_give_away_to(To) of
@@ -2709,12 +2778,12 @@ do_give_away({T,l,_} = K, To, Pid) when T==n; T==a; T==rc ->
     end;
 do_give_away({T,l,_} = K, To, Pid) when T==c; T==p; T==r ->
     Key = {K, Pid},
-    case ets:lookup(?TAB, Key) of
+    case ets_lookup(Key) of
         [{_, Pid, Value}] ->
             case pid_to_give_away_to(To) of
                 ToPid when is_pid(ToPid) ->
                     ToKey = {K, ToPid},
-                    case ets:member(?TAB, ToKey) of
+                    case ets_member(ToKey) of
                         true ->
                             badarg;
                         false ->
@@ -2737,7 +2806,7 @@ do_give_away({T,l,_} = K, To, Pid) when T==c; T==p; T==r ->
 pid_to_give_away_to(P) when is_pid(P), node(P) == node() ->
     P;
 pid_to_give_away_to({T,l,_} = Key) when T==n; T==a; T==rc ->
-    case ets:lookup(?TAB, {Key, T}) of
+    case ets_lookup({Key, T}) of
         [{_, Pid, _}] ->
             Pid;
         _ ->
@@ -2761,17 +2830,17 @@ init([]) ->
 
 
 set_monitors() ->
-    set_monitors(ets:select(?TAB, [{{{'$1',l}},[],['$1']}], 100)).
+    set_monitors(ets_select([{{{'$1',l}},[],['$1']}], 100)).
 
 
 set_monitors('$end_of_table') ->
     ok;
 set_monitors({Pids, Cont}) ->
-    _ = [erlang:monitor(process,Pid) || Pid <- Pids],
-    set_monitors(ets:select(Cont)).
+    _ = [monitor_process(Pid) || Pid <- Pids],
+    set_monitors(ets_select_cont(Cont)).
 
 monitor_me() ->
-    case ets:insert_new(?TAB, {{self(),l}}) of
+    case ets_insert_new({{self(),l}}) of
         false -> true;
         true  ->
             cast({monitor_me,self()}),
@@ -3025,7 +3094,7 @@ qlc_lookup(_Scope, 1, Keys, Check) ->
       fun(Key) ->
               remove_dead(
 		Check,
-		ets:select(?TAB, [{ {{Key,'_'},'_','_'}, [],
+		ets_select([{ {{Key,'_'},'_','_'}, [],
 				    [{{ {element,1,{element,1,'$_'}},
 					{element,2,'$_'},
 					{element,3,'$_'} }}] }]))
@@ -3050,14 +3119,14 @@ qlc_lookup_pid(Pid, Scope, Check) ->
 	    [];
 	false ->
 	    Found =
-		ets:select(?TAB, [{{{Pid, rev_keypat(Scope)}, '_'},
+		ets_select([{{{Pid, rev_keypat(Scope)}, '_'},
 				   [], ['$_']}]),
 	    lists:flatmap(
 	      fun({{_,{T,_,_}=K}, _}) ->
 		      K2 = if T==n orelse T==a -> T;
 			      true -> Pid
 			   end,
-		      case ets:lookup(?TAB, {K,K2}) of
+		      case ets_lookup({K,K2}) of
 			  [{{Key,_},_,Value}] ->
 			      [{Key, Pid, Value}];
 			  [] ->
@@ -3069,7 +3138,7 @@ qlc_lookup_pid(Pid, Scope, Check) ->
 
 qlc_next(_, '$end_of_table', _) -> [];
 qlc_next(Scope, K, Check) ->
-    case ets:lookup(?TAB, K) of
+    case ets_lookup(K) of
         [{{Key,_}, Pid, V}] ->
 	    case Check andalso ?PID_IS_DEAD(Pid) of
 		true ->
@@ -3086,7 +3155,7 @@ qlc_next(Scope, K, Check) ->
 
 qlc_prev(_, '$end_of_table', _) -> [];
 qlc_prev(Scope, K, Check) ->
-    case ets:lookup(?TAB, K) of
+    case ets_lookup(K) of
         [{{Key,_},Pid,V}] ->
 	    case Check andalso ?PID_IS_DEAD(Pid) of
 		true ->
@@ -3108,12 +3177,12 @@ qlc_select(true, {Objects, Cont}) ->
 	       not ?PID_IS_DEAD(Pid)] of
 	[] ->
 	    %% re-run search
-	    qlc_select(true, ets:select(Cont));
+	    qlc_select(true, ets_select_cont(Cont));
 	Found ->
-	    Found ++ fun() -> qlc_select(true, ets:select(Cont)) end
+	    Found ++ fun() -> qlc_select(true, ets_select_cont(Cont)) end
     end;
 qlc_select(false, {Objects, Cont}) ->
-    Objects ++ fun() -> qlc_select(false, ets:select(Cont)) end.
+    Objects ++ fun() -> qlc_select(false, ets_select_cont(Cont)) end.
 
 
 is_unique(n) -> true;
@@ -3124,3 +3193,15 @@ is_regged([{_, _, _}]) ->
     true;
 is_regged(_) ->
     false.
+
+%% function wrappers for easier tracing
+ets_lookup(K)           -> ets:lookup(?TAB, K).
+ets_member(K)           -> ets:member(?TAB, K).
+ets_select(Pat)         -> ets:select(?TAB, Pat).
+ets_select(P,L)         -> ets:select(?TAB, P, L).
+ets_select_cont(Cont)   -> ets:select(Cont).
+ets_insert_new(X)       -> ets:insert_new(?TAB, X).
+ets_update_element(K,V) -> ets:update_element(?TAB, K, V).
+
+monitor_process(Pid) ->
+    erlang:monitor(process, Pid).

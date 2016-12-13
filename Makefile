@@ -21,7 +21,7 @@
 ## DEALINGS IN THE SOFTWARE.
 REBAR=$(shell which rebar || echo ./rebar)
 
-.PHONY: all compile clean eunit test eqc doc check dialyzer
+.PHONY: all compile clean eunit test eqc doc check dialyzer di
 
 DIRS=src
 
@@ -46,5 +46,7 @@ test: eunit
 doc:
 	$(REBAR) get-deps compile doc
 
-dialyzer:
+dialyzer: compile
 	$(REBAR) skip_deps=true dialyze
+
+di: dialyzer
