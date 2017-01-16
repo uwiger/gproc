@@ -78,6 +78,7 @@
          give_away/2,
          goodbye/0,
          send/2,
+         send_to_key/2,
 	 bcast/2, bcast/3,
          info/1, info/2,
 	 i/0,
@@ -2009,6 +2010,43 @@ send1({T,C,_} = Key, Msg) when C==l; C==g ->
             erlang:error(badarg)
     end;
 send1(_, _) ->
+    ?THROW_GPROC_ERROR(badarg).
+
+%% @spec (Key::key(), Msg::any()) -> pid() | [pid()].
+%%
+%% @doc Sends a message to the process, or processes, corresponding to Key.
+%%
+%% If Key belongs to a unique object (name or aggregated counter), this
+%% function will send a message to the corresponding process, or fail if there
+%% is no such process. If Key is for a non-unique object type (counter or
+%% property), Msg will be send to all processes that have such an object.
+%% It returns the pid or list of pids the Msg was sent to.
+%% @end
+%%
+send_to_key(Key, Msg) ->
+    ?CATCH_GPROC_ERROR(send_to_key1(Key, Msg), [Key, Msg]).
+
+send_to_key1({T,C,_} = Key, Msg) when C==l; C==g ->
+    if T == n orelse T == a ->
+            case ets:lookup(?TAB, {Key, T}) of
+                [{_, Pid, _}] ->
+                    Pid ! Msg,
+                    Pid;
+                _ ->
+                    ?THROW_GPROC_ERROR(badarg)
+            end;
+       T==p orelse T==c ->
+            %% BUG - if the key part contains select wildcards, we may end up
+            %% sending multiple messages to the same pid
+            Pids = lists:foldl(fun(Pid, Acc) ->
+                                       Pid ! Msg,
+                                       [Pid | Acc]
+                               end, [], lookup_pids(Key)),
+            lists:reverse(Pids);
+       true ->
+            erlang:error(badarg)
+    end;
+send_to_key1(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 %% @spec (Key::key(), Msg::any()) -> Msg
