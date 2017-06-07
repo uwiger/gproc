@@ -1,5 +1,4 @@
 
-
 # The gproc application #
 
 __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)), Joseph Wayne Norton ([`norton@geminimobile.com`](mailto:norton@geminimobile.com)).
