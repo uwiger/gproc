@@ -152,6 +152,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_monitor_follow()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_monitor_demonitor()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_subscribe()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_gproc_info()))}
@@ -914,6 +916,21 @@ t_monitor_follow() ->
     {gproc,{failover,P3},Ref,Name} = got_msg(P1),
     {gproc,{failover,P3},Ref3,Name} = got_msg(P3),
     [exit(P,kill) || P <- [P1,P3]],
+    ok.
+
+t_monitor_demonitor() ->
+    Name = ?T_NAME,
+    P1 = t_spawn(Selective = true),
+    Ref = t_call(P1, {apply, gproc, monitor, [Name, follow]}),
+    {gproc, unreg, Ref, Name} = got_msg(P1),
+    ok = t_call(P1, {apply, gproc, demonitor, [Name, Ref]}),
+    P2 = t_spawn(Selective),
+    Ref2 = t_call(P2, {apply, gproc, monitor, [Name, follow]}),
+    {gproc, unreg, Ref2, Name} = got_msg(P2),
+    P3 = t_spawn_reg(Name),
+    {gproc, registered, Ref2, Name} = got_msg(P2),
+    ok = gproc_test_lib:no_msg(P1, 300),
+    [exit(P, kill) || P <- [P1, P2, P3]],
     ok.
 
 t_subscribe() ->

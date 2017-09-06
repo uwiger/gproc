@@ -2331,18 +2331,40 @@ handle_call({monitor, {T,l,_} = Key, Pid, Type}, _From, S)
     {reply, Ref, S};
 handle_call({demonitor, {T,l,_} = Key, Ref, Pid}, _From, S)
   when T==n; T==a; T==rc ->
-    _ = case where(Key) of
-	    undefined ->
-		ok;  % be nice
-	    RegPid ->
-		case ets:lookup(?TAB, {RegPid, Key}) of
-		    [{_K,r}] ->
-			ok;   % be nice
-		    [{K, Opts}] ->
-			ets:insert(?TAB, {K, gproc_lib:remove_monitor(
-					       Opts, Pid, Ref)})
-		end
-	end,
+    _ = case ets:lookup(?TAB, {Key, T}) of
+            [] ->
+                ok;  % be nice
+            [{_, Waiters}] ->
+                case lists:filter(fun({P, R, _}) ->
+                                          P =/= Pid orelse R =/= Ref
+                                  end, Waiters) of
+                    [] ->
+                        ets:delete(?TAB, {Pid, Key}),
+                        ets:delete(?TAB, {Key, T});
+                    NewWaiters ->
+                        case lists:keymember(Pid, 1, NewWaiters) of
+                            true ->
+                                ok;
+                            false ->
+                                ets:delete(?TAB, {Pid, Key})
+                        end,
+                        ets:insert(?TAB, {{Key, T}, Waiters})
+                end;
+            [{_, RegPid, _}] ->
+                case ets:lookup(?TAB, {RegPid, Key}) of
+                    [{_K,r}] ->
+                        ok;   % be nice
+                    [{K, Opts}] ->
+                        Opts1 = gproc_lib:remove_monitor(Opts, Pid, Ref),
+                        ets:insert(?TAB, {K, Opts1}),
+                        case gproc_lib:does_pid_monitor(Pid, Opts) of
+                            true ->
+                                ok;
+                            false ->
+                                ets:delete(?TAB, {Pid, Key})
+                        end
+                end
+        end,
     {reply, ok, S};
 handle_call({reg_shared, {_T,l,_} = Key, Val, Attrs, Op}, _From, S) ->
     case try_insert_reg(Key, Val, shared) of
