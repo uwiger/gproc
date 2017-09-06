@@ -87,6 +87,7 @@ basic_tests(Ns) ->
      ?f(t_standby_monitor(Ns)),
      ?f(t_standby_monitor_unreg(Ns)),
      ?f(t_follow_monitor(Ns)),
+     ?f(t_monitor_demonitor(Ns)),
      ?f(t_subscribe(Ns))
     ].
 
@@ -496,6 +497,36 @@ t_follow_monitor([A,B|_]) ->
     ok = t_call(Pb, die),
     ok = t_call(Pa, die).
 
+t_monitor_demonitor([A,B|_]) ->
+    Na = ?T_NAME,
+    Pa = t_spawn(A, Selective = true),
+    Pa2 = t_spawn(A, Selective),
+    Pb = t_spawn(B, Selective),
+    Pb2 = t_spawn(B, Selective),
+    RefA = t_call(Pa, {apply, gproc, monitor, [Na, follow]}),
+    RefA2 = t_call(Pa2, {apply, gproc, monitor, [Na, follow]}),
+    RefB = t_call(Pb, {apply, gproc, monitor, [Na, follow]}),
+    RefB2 = t_call(Pb2, {apply, gproc, monitor, [Na, follow]}),
+    Msg1 = {gproc, unreg, RefA, Na},
+    {Msg1, Msg1} = {got_msg(Pa), Msg1},
+    Msg2 = {gproc, unreg, RefA2, Na},
+    {Msg2, Msg2} = {got_msg(Pa2), Msg2},
+    Msg3 = {gproc, unreg, RefB, Na},
+    {Msg3, Msg3} = {got_msg(Pb), Msg3},
+    Msg4 = {gproc, unreg, RefB2, Na},
+    {Msg4, Msg4} = {got_msg(Pb2), Msg4},
+    ok = t_call(Pa, {apply, gproc, demonitor, [Na, RefA]}),
+    ok = t_call(Pb, {apply, gproc, demonitor, [Na, RefB]}),
+    Pr = t_spawn_reg(B, Na),
+    Msg5 = {gproc, registered, RefA2, Na},
+    {Msg5, Msg5} = {got_msg(Pa2), Msg5},
+    Msg6 = {gproc, registered, RefB2, Na},
+    {Msg6, Msg6} = {got_msg(Pb2), Msg6},
+    ok = no_msg(Pa, 500),
+    ok = no_msg(Pb, 500),
+    [ ok = t_call(P, die) || P <- [Pa, Pa2, Pb, Pb2, Pr]],
+    ok.
+
 t_subscribe([A,B|_] = Ns) ->
     Na = ?T_NAME,
     Pb = t_spawn(B, _Selective = true),
@@ -639,6 +670,7 @@ t_spawn_reg(Node, N, V, As) -> gproc_test_lib:t_spawn_reg(Node, N, V, As).
 t_spawn_reg_shared(Node, N, V) -> gproc_test_lib:t_spawn_reg_shared(Node, N, V).
 got_msg(P) -> gproc_test_lib:got_msg(P).
 got_msg(P, Tag) -> gproc_test_lib:got_msg(P, Tag).
+no_msg(P, Timeout) -> gproc_test_lib:no_msg(P, Timeout).
 
 t_call(P, Req) ->
     gproc_test_lib:t_call(P, Req).

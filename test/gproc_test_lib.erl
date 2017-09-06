@@ -7,7 +7,8 @@
          t_call/2,
          t_loop/0, t_loop/1,
 	 t_pool_contains_atleast/2,
-         got_msg/1, got_msg/2]).
+         got_msg/1, got_msg/2,
+         no_msg/2]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -138,6 +139,18 @@ got_msg(Pb, Tag) ->
 			    erlang:error({timeout, got_msg, [Pb, Tag]})
 		    end
 	    end}).
+
+no_msg(Pb, Timeout) ->
+    t_call(Pb,
+           {apply_fun,
+            fun() ->
+                    receive
+                        M ->
+                            erlang:error({unexpected_msg, M})
+                    after Timeout ->
+                            ok
+                    end
+            end}).
 
 t_pool_contains_atleast(Pool,N)->
     Existing = lists:foldl(fun({_X,_Y},Acc)->

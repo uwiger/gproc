@@ -439,13 +439,32 @@ handle_leader_call({demonitor, {T,g,_} = K, MPid, Ref}, _From, S, _E) ->
             Opts1 = gproc_lib:remove_monitors(Opts, MPid, Ref),
             Obj = {{Pid,K}, Opts1},
             ets:insert(?TAB, Obj),
-            ets:delete(?TAB, {MPid, K}),
-            {reply, ok, [{delete, [{MPid,K}]},
-                         {insert, [Obj]}], S};
+            Del = case gproc_lib:does_pid_monitor(MPid, Opts1) of
+                      true -> [];
+                      false ->
+                          ets:delete(?TAB, {MPid, K}),
+                          [{delete, [{MPid, K}]}]
+                  end,
+            {reply, ok, Del ++ [{insert, [Obj]}], S};
         [{Key, Waiters}] ->
-            NewWaiters = [W || W <- Waiters,
-                               W =/= {MPid, Ref, follow}],
-            {reply, ok, [{insert, [{Key, NewWaiters}]}], S};
+            case lists:filter(fun({P, R, _}) ->
+                                      P =/= MPid orelse R =/= Ref
+                              end, Waiters) of
+                [] ->
+                    ets:delete(?TAB, {MPid, K}),
+                    ets:delete(?TAB, Key),
+                    {reply, ok, [{delete, [{MPid, K}, Key]}], S};
+                NewWaiters ->
+                    ets:insert(?TAB, {Key, NewWaiters}),
+                    Del = case lists:keymember(MPid, 1, NewWaiters) of
+                              false ->
+                                  ets:delete(?TAB, {MPid, K}),
+                                  [{delete, [{MPid, K}]}];
+                              true ->
+                                  []
+                          end,
+                    {reply, ok, Del ++ [{insert, [{Key, NewWaiters}]}], S}
+            end;
         _ ->
             {reply, ok, S}
     end;
@@ -789,7 +808,7 @@ remove_entry(Key, Pid, Event) ->
 	    ets:delete(?TAB, {Pid, Key}),
 	    [];
         [{_, _Waiters}] ->
-            %% Skip
+            ets:delete(?TAB, K),
             [];
 	[] -> []
     end.
@@ -837,7 +856,10 @@ insert_globals(Globals) ->
 	      ets:insert_new(?TAB, {{Pid,Key}, []}),
 	      gproc_lib:ensure_monitor(Pid,g),
 	      A;
-	 ({{P,_K}, Opts} = Obj, A) when is_pid(P), is_list(Opts),Opts =/= [] ->
+         ({{{_,_,_},_}, _} = Obj, A) ->
+              ets:insert(?TAB, Obj),
+              A;
+         ({{P,_K}, Opts} = Obj, A) when is_pid(P), is_list(Opts) ->
 	      ets:insert(?TAB, Obj),
 	      gproc_lib:ensure_monitor(P,g),
 	      [Obj] ++ A;
@@ -857,8 +879,10 @@ delete_globals(Globals) ->
 	      ets:delete(?TAB, {Pid, Key})
       end, Globals).
 
-do_notify([{P, Msg}|T]) when is_pid(P) ->
+do_notify([{P, Msg}|T]) when is_pid(P), node(P) =:= node() ->
     P ! Msg,
+    do_notify(T);
+do_notify([{P, Msg}|T]) when is_pid(P) ->
     do_notify(T);
 do_notify([{K, P, E}|T]) ->
     case ets:lookup(?TAB, {P,K}) of
@@ -1060,15 +1084,25 @@ tell_waiters([], _, _, _, _) ->
 
 add_follow_to_waiters(Waiters, {T,_,_} = K, Pid, Ref, S) ->
     Obj = {{K,T}, [{Pid, Ref, follow}|Waiters]},
-    Rev = {{Pid,K}, []},
-    ets:insert(?TAB, [Obj, Rev]),
+    ets:insert(?TAB, Obj),
+    Rev = ensure_rev({Pid, K}),
     Msg = {gproc, unreg, Ref, K},
-    if node(Pid) == node() ->
+    if node(Pid) =:= node() ->
             Pid ! Msg,
             {reply, Ref, [{insert, [Obj, Rev]}], S};
        true ->
             {reply, Ref, [{insert, [Obj, Rev]},
                           {notify, [{Pid, Msg}]}], S}
+    end.
+
+ensure_rev(K) ->
+    case ets:lookup(?TAB, K) of
+        [Rev] ->
+            Rev;
+        [] ->
+            Rev = {K, []},
+            ets:insert(?TAB, Rev),
+            Rev
     end.
 
 regged_new(reg   ) -> true;

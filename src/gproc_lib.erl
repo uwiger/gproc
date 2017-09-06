@@ -34,6 +34,7 @@
          standbys/1,
          followers/1,
          remove_monitor_pid/2,
+         does_pid_monitor/2,
 	 add_monitor/4,
 	 remove_monitor/3,
 	 remove_monitors/3,
@@ -302,6 +303,13 @@ remove_monitors(Key, Pid, MPid) ->
 	    []
     end.
 
+does_pid_monitor(Pid, Opts) ->
+    case lists:keyfind(monitors, 1, Opts) of
+        false ->
+            false;
+        {_, Ms} ->
+            lists:keymember(Pid, 1, Ms)
+    end.
 
 mk_reg_objs(T, Scope, Pid, L) when T==n; T==a; T==rc ->
     lists:map(fun({K,V}) ->
