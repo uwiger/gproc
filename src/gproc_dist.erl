@@ -79,7 +79,11 @@ start_link() ->
     start_link({[node()|nodes()], []}).
 
 start_link(all) ->
-    start_link({[node()|nodes()], [{bcast_type, all}]});
+    Workers = case application:get_env(gproc_dist_workers) of
+        {ok, [_|_] = WorkersList} -> WorkersList;
+        _ -> []
+    end,
+    start_link({[node()|nodes()], [{bcast_type, all}, {workers, Workers}]});
 start_link(Nodes) when is_list(Nodes) ->
     start_link({Nodes, []});
 start_link({Nodes, Opts}) ->
