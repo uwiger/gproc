@@ -65,7 +65,7 @@ good_number_of_tests() ->
 %% I recommend running at least 3000 to get to interesting stuff.
 %%
 gproc_test_() ->
-    {timeout, 60, [fun() -> run(100) end]}.
+    {timeout, 60, [fun() -> ?assert(run(100)) end]}.
 
 %% When run from eunit, we need to set the group leader so that EQC
 %% reporting (the dots) are made visible - that is, if that's what we want.
