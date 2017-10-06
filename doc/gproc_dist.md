@@ -100,7 +100,7 @@ Returns the node of the current gproc leader.
 
 ### handle_call/4 ###
 
-`handle_call(X1, X2, S, E) -> any()`
+`handle_call(X1, From, S, E) -> any()`
 
 <a name="handle_cast-3"></a>
 
@@ -124,7 +124,7 @@ Returns the node of the current gproc leader.
 
 ### handle_leader_call/4 ###
 
-`handle_leader_call(X1, From, State, E) -> any()`
+`handle_leader_call(X1, From, S, E) -> any()`
 
 <a name="handle_leader_cast-3"></a>
 
