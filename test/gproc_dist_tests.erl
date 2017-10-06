@@ -25,7 +25,7 @@
 -define(f(E), fun() -> ?debugVal(E) end).
 
 dist_test_() ->
-    {timeout, 180,
+    {timeout, 120,
      [
       %% {setup,
       %%  fun dist_setup/0,
@@ -49,7 +49,7 @@ dist_test_() ->
                 tests(Ns, [?f(t_fail_node(Ns))])
         end,
         fun(Ns) ->
-                tests(Ns, [{timeout, 15, ?f(t_master_dies(Ns))}])
+                tests(Ns, [{timeout, 10, ?f(t_master_dies(Ns))}])
         end
        ]}
      ]}.
@@ -575,6 +575,7 @@ t_sync_cand_dies([A,B,C]) ->
     %% immediately. Therefore, we should have our answer well within 1 sec.
     ?assertMatch({value, true}, rpc:nb_yield(Key, 1000)).
 
+
 %% Verify that the registry updates consistently if a non-leader node
 %% dies.
 t_fail_node(Ns) ->
@@ -628,7 +629,7 @@ try_sync(N, Ns) ->
                "  ~p~n"
                "Status = ~p~n",
                [Err, N,
-                {Ns, rpc:multicall(Ns, sys, get_status, [gproc_dist])}]),
+                {Ns, rpc:multicall([N|Ns], sys, get_status, [gproc_dist])}]),
             Err;
         true ->
             true
