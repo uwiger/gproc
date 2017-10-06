@@ -265,7 +265,8 @@ reset_counter(_) ->
 %% @end
 %%
 sync() ->
-    leader_call(sync).
+    %% Increase timeout since gen_leader can take some time ...
+    leader_call(sync, 10000).
 
 %% @spec get_leader() -> node()
 %% @doc Returns the node of the current gproc leader.
@@ -906,6 +907,12 @@ ets_key(K, Pid) ->
 
 leader_call(Req) ->
     case gen_leader:leader_call(?MODULE, Req) of
+        badarg -> ?THROW_GPROC_ERROR(badarg);
+        Reply  -> Reply
+    end.
+
+leader_call(Req, Timeout) ->
+    case gen_leader:leader_call(?MODULE, Req, Timeout) of
         badarg -> ?THROW_GPROC_ERROR(badarg);
         Reply  -> Reply
     end.

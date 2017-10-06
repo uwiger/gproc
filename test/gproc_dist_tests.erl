@@ -25,7 +25,7 @@
 -define(f(E), fun() -> ?debugVal(E) end).
 
 dist_test_() ->
-    {timeout, 120,
+    {timeout, 180,
      [
       %% {setup,
       %%  fun dist_setup/0,
@@ -49,7 +49,7 @@ dist_test_() ->
                 tests(Ns, [?f(t_fail_node(Ns))])
         end,
         fun(Ns) ->
-                tests(Ns, [?f(t_master_dies(Ns))])
+                tests(Ns, [{timeout, 15, ?f(t_master_dies(Ns))}])
         end
        ]}
      ]}.
@@ -557,11 +557,12 @@ t_subscribe([A,B|_] = Ns) ->
 %% Verify that the gproc_dist:sync() call returns true even if a candidate dies
 %% while the sync is underway. This test makes use of sys:suspend() to ensure that
 %% the other candidate doesn't respond too quickly.
-t_sync_cand_dies([A,B|_]) ->
+t_sync_cand_dies([A,B,C]) ->
     Leader = rpc:call(A, gproc_dist, get_leader, []),
     Other = case Leader of
 		A -> B;
-		B -> A
+		B -> A;
+                C -> A
 	    end,
     ?assertMatch(ok, rpc:call(Other, sys, suspend, [gproc_dist])),
     P = rpc:call(Other, erlang, whereis, [gproc_dist]),
@@ -574,7 +575,11 @@ t_sync_cand_dies([A,B|_]) ->
     %% immediately. Therefore, we should have our answer well within 1 sec.
     ?assertMatch({value, true}, rpc:nb_yield(Key, 1000)).
 
-t_fail_node([A,B|_] = Ns) ->
+%% Verify that the registry updates consistently if a non-leader node
+%% dies.
+t_fail_node(Ns) ->
+    Leader = rpc:call(hd(Ns), gproc_dist, get_leader, []),
+    [A,B] = Ns -- [Leader],
     Na = ?T_NAME,
     Nb = ?T_NAME,
     Pa = t_spawn_reg(A, Na),
