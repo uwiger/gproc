@@ -575,7 +575,11 @@ t_sync_cand_dies([A,B,C]) ->
     %% immediately. Therefore, we should have our answer well within 1 sec.
     ?assertMatch({value, true}, rpc:nb_yield(Key, 1000)).
 
-t_fail_node([A,B|_] = Ns) ->
+%% Verify that the registry updates consistently if a non-leader node
+%% dies.
+t_fail_node(Ns) ->
+    Leader = rpc:call(hd(Ns), gproc_dist, get_leader, []),
+    [A,B] = Ns -- [Leader],
     Na = ?T_NAME,
     Nb = ?T_NAME,
     Pa = t_spawn_reg(A, Na),
