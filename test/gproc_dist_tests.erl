@@ -613,11 +613,26 @@ t_master_dies([A,B,C] = Ns) ->
     ?assertMatch(ok, rpc:call(L, application, stop, [gproc])),
     Names = [{Na,Pa}, {Nb,Pb}, {Nc,Pc}] -- [{Nl, Pl}],
     RestNs = Ns -- [L],
-    ?assertMatch(true, rpc:call(hd(RestNs), gproc_dist, sync, [])),
+    %% ?assertMatch(true, rpc:call(hd(RestNs), gproc_dist, sync, [])),
+    ?assertMatch(true, try_sync(hd(RestNs), RestNs)),
     ?assertMatch(ok, t_lookup_everywhere(Nl, RestNs, undefined)),
     [?assertMatch(ok, t_lookup_everywhere(Nx, RestNs, Px))
      || {Nx, Px} <- Names],
     ok.
+
+try_sync(N, Ns) ->
+    case rpc:call(N, gproc_dist, sync, []) of
+        {badrpc, _} = Err ->
+            ?debugFmt(
+               "Error in gproc_dist:sync() (~p):~n"
+               "  ~p~n"
+               "Status = ~p~n",
+               [Err, N,
+                {Ns, rpc:multicall(Ns, sys, get_status, [gproc_dist])}]),
+            Err;
+        true ->
+            true
+    end.
 
 t_sleep() ->
     timer:sleep(500).
