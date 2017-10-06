@@ -50,7 +50,7 @@ dist_test_() ->
                 tests(Ns, [?f(t_fail_node(Ns))])
         end,
         fun(Ns) ->
-                tests(Ns, [{timeout, 10, ?f(t_master_dies(Ns))}])
+                tests(Ns, [{timeout, 15, ?f(t_master_dies(Ns))}])
         end
        ]}
      ]}.
@@ -568,7 +568,7 @@ t_sync_cand_dies([A,B,C]) ->
     ?assertMatch(ok, rpc:call(Other, sys, suspend, [gproc_dist])),
     P = rpc:call(Other, erlang, whereis, [gproc_dist]),
     Key = rpc:async_call(Leader, gproc_dist, sync, []),
-    %% The overall timeout for gproc_dist:sync() is 5 seconds. Here, we should
+    %% The overall timeout for gproc_dist:sync() is 10 seconds. Here, we should
     %% still be waiting.
     ?assertMatch(timeout, rpc:nb_yield(Key, 1000)),
     exit(P, kill),

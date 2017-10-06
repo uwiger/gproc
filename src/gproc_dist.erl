@@ -269,7 +269,7 @@ reset_counter(_) ->
 %%
 sync() ->
     %% Increase timeout since gen_leader can take some time ...
-    gen_server:call(?MODULE, sync, 5000).
+    gen_server:call(?MODULE, sync, 10000).
 
 %% @spec get_leader() -> node()
 %% @doc Returns the node of the current gproc leader.
