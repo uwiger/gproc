@@ -22,7 +22,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("stdlib/include/qlc.hrl").
 
--define(T_NAME, {n, l, {?MODULE, ?LINE, erlang:now()}}).
+-define(T_NAME, {n, l, {?MODULE, ?LINE, erlang:timestamp()}}).
 
 conf_test_() ->
     {foreach,
