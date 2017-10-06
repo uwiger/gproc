@@ -49,7 +49,7 @@ dist_test_() ->
                 tests(Ns, [?f(t_fail_node(Ns))])
         end,
         fun(Ns) ->
-                tests(Ns, [{timeout, 10, ?f(t_master_dies(Ns))}])
+                tests(Ns, [{timeout, 15, ?f(t_master_dies(Ns))}])
         end
        ]}
      ]}.
