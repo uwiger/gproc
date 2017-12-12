@@ -269,7 +269,7 @@ reset_counter(_) ->
 %%
 sync() ->
     %% Increase timeout since gen_leader can take some time ...
-    gen_server:call(?MODULE, sync, 5000).
+    gen_server:call(?MODULE, sync, 10000).
 
 %% @spec get_leader() -> node()
 %% @doc Returns the node of the current gproc leader.
@@ -307,19 +307,20 @@ handle_info(Msg, S, _E) ->
 elected(S, _E) ->
     {ok, {globals,globs()}, S#state{is_leader = true}}.
 
-elected(S, _E, undefined) ->
+elected(S, E, undefined) ->
     %% I have become leader; full synch
-    {ok, {globals, globs()}, S#state{is_leader = true}};
-elected(S, _E, _Node) ->
+    {ok, {globals, globs()},
+     maybe_reinitiate_sync(S#state{is_leader = true}, E)};
+elected(S, E, _Node) ->
     Synch = {globals, globs()},
     if not S#state.always_broadcast ->
             %% Another node recognized us as the leader.
             %% Don't broadcast all data to everyone else
-            {reply, Synch, S};
+            {reply, Synch, maybe_reinitiate_sync(S, E)};
        true ->
             %% Main reason for doing this is if we are using a gen_leader
             %% that doesn't support the 'reply' return value
-            {ok, Synch, S}
+            {ok, Synch, maybe_reinitiate_sync(S, E)}
     end.
 
 globs() ->
@@ -328,15 +329,15 @@ globs() ->
     _ = [gproc_lib:ensure_monitor(Pid, g) || {_, Pid, _} <- Gs],
     Gs ++ As.
 
-surrendered(#state{is_leader = true} = S, {globals, Globs}, _E) ->
+surrendered(#state{is_leader = true} = S, {globals, Globs}, E) ->
     %% Leader conflict!
     surrendered_1(Globs),
-    {ok, maybe_reinitiate_sync(S#state{is_leader = false})};
-surrendered(S, {globals, Globs}, _E) ->
+    {ok, maybe_reinitiate_sync(S#state{is_leader = false}, E)};
+surrendered(S, {globals, Globs}, E) ->
     %% globals from this node should be more correct in our table than
     %% in the leader's
     surrendered_1(Globs),
-    {ok, maybe_reinitiate_sync(S#state{is_leader = false})}.
+    {ok, maybe_reinitiate_sync(S#state{is_leader = false}, E)}.
 
 
 handle_DOWN(Node, S, E) ->
@@ -1164,11 +1165,13 @@ initiate_sync(From, S, _E) ->
     leader_cast({initiate_sync, From}),
     S.
 
-maybe_reinitiate_sync(#state{sync_clients = []} = S) ->
+maybe_reinitiate_sync(#state{sync_clients = []} = S, _E) ->
     S;
-maybe_reinitiate_sync(#state{sync_clients = Cs} = S) ->
-    _ = [leader_cast({initiate_sync, From}) || From <- Cs],
-    S.
+maybe_reinitiate_sync(#state{sync_clients = Cs} = S, E) ->
+    lists:foldl(
+      fun(From, Sx) ->
+              initiate_sync(From, Sx, E)
+      end, S, Cs).
 
 send_sync_complete({From, _} = Ref, S, _E) when node(From) == node() ->
     reply_to_sync_client(Ref, S);
