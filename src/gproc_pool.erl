@@ -378,7 +378,7 @@ pick(Pool, Sz, round_robin, Ret) ->
             end
     end;
 pick(Pool, Sz, random, Ret) ->
-    pick_near(Pool, crypto:rand_uniform(1, Sz + 1), Ret).
+    pick_near(Pool, rand:uniform(Sz + 1), Ret).
 
 pick(Pool, Sz, hash, Val, Ret) ->
     pick_near(Pool, erlang:phash2(Val, Sz) + 1, Ret);
@@ -604,7 +604,7 @@ randomize(Pool) ->
         0 -> 0;
         1 -> 1;
         Sz ->
-            incr(Pool, crypto:rand_uniform(0, Sz), Sz)
+            incr(Pool, rand:uniform(Sz + 1) - 1, Sz)
     end.
 
 %% @spec pool_size(Pool::any()) -> integer()
@@ -1075,7 +1075,7 @@ test_run(N, P, S, M) when N > 0 ->
     {T, Worker} = timer:tc(?MODULE, pick, [P]),
     true = (Worker =/= false),
     log(Worker),
-    timer:sleep(crypto:rand_uniform(1,50)),
+    timer:sleep(rand:uniform(50)),
     test_run(N-1, P, S+T, M+1);
 test_run(_, _, S, M) ->
     S/M.
@@ -1087,7 +1087,7 @@ test_run1(N, P, S, M) when N > 0 ->
     {T, Worker} = timer:tc(?MODULE, pick, [P, N]),
     true = (Worker =/= false),
     log(Worker),
-    timer:sleep(crypto:rand_uniform(1,50)),
+    timer:sleep(rand:uniform(50)),
     test_run1(N-1, P, S+T, M+1);
 test_run1(_, _, S, M) ->
     S/M.
@@ -1096,7 +1096,7 @@ test_run1(_, _, S, M) ->
 test_run2(N, P) ->
     test_run2(N, P, fun(K,_) ->
 			    R = log(K),
-			    timer:sleep(crypto:rand_uniform(1,50)),
+			    timer:sleep(rand:uniform(50)),
 			    R
 		    end, 0, 0).
 
