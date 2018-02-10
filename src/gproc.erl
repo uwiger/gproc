@@ -1597,8 +1597,7 @@ get_value1({T,_,_} = K, shared) when T==c; T==a; T==p; T==r ->
 	      c  -> {K, shared};
 	      p  -> {K, shared};
               r  -> {K, shared};
-	      a  -> {K, a};
-              rc -> {K, rc}
+	      a  -> {K, a}
 	  end,
     case ets:lookup(?TAB, Key) of
 	[{_, shared, Value}] -> Value;
