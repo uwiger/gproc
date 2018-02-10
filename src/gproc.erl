@@ -1816,7 +1816,7 @@ lookup_values({T,_,_} = Key) ->
 %% appropriate value type.
 %% @end
 %%
--spec update_counter(key(), increment()) -> integer().
+-spec update_counter(key(), increment()) -> integer() | [integer()].
 update_counter(Key, Incr) ->
     Pid = case Key of
 	      {n,_,_} -> n;
