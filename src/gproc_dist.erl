@@ -74,6 +74,14 @@
           sync_clients = [],
           sync_requests = []}).
 
+-ifdef(OTP_RELEASE). %% this implies 21 or higher
+-define(EXCEPTION(Class, Reason, Stacktrace), Class:Reason:Stacktrace).
+-define(GET_STACK(Stacktrace), Stacktrace).
+-else.
+-define(EXCEPTION(Class, Reason, _), Class:Reason).
+-define(GET_STACK(_), erlang:get_stacktrace()).
+-endif.
+
 -include("gproc_trace.hrl").
 %% ==========================================================
 %% Start functions
@@ -549,8 +557,8 @@ handle_leader_call({reset_counter, {c,g,_Ctr} = Key, Pid}, _From, S, _E) ->
 	 Vals = [{{Key,Pid},Pid,New} | update_aggr_counter(Key, Incr)],
 	 {reply, {Current, New}, [{insert, Vals}], S}
     catch
-	error:_R ->
-	    io:fwrite("reset_counter failed: ~p~n~p~n", [_R, erlang:get_stacktrace()]),
+    ?EXCEPTION(error, _R, Stacktrace) ->
+	    io:fwrite("reset_counter failed: ~p~n~p~n", [_R, ?GET_STACK(Stacktrace)]),
 	    {reply, badarg, S}
     end;
 handle_leader_call({Unreg, {T,g,Name} = K, Pid}, _From, S, _E)
