@@ -46,6 +46,7 @@
          update_aggr_counter/3,
          update_counter/3,
          decrement_resource_count/2,
+         update_resource_count/3,
 	 valid_opts/2]).
 
 -export([dbg/1]).
@@ -319,7 +320,7 @@ mk_reg_objs(T, Scope, Pid, L) when T==n; T==a; T==rc ->
                  (_) ->
                       erlang:error(badarg)
               end, L);
-mk_reg_objs(p = T, Scope, Pid, L) ->
+mk_reg_objs(T, Scope, Pid, L) when T==p; T==r ->
     lists:map(fun({K,V}) ->
                       {{{T,Scope,K},Pid}, Pid, V};
                  (_) ->
