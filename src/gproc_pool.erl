@@ -91,6 +91,8 @@
          test_run0/2, setup_test_pool/3, setup_test_pool/4,
 	 remove_test_pool/1]).
 
+-include("gproc_int.hrl").
+
 -define(POOL(Pool), {p,l,{?MODULE,Pool}}).
 -define(POOL_CUR(Pool), {c,l,{?MODULE,Pool,cur}}).
 -define(POOL_WRK(Pool,Name), {c,l,{?MODULE,Pool,w,Name}}).
@@ -551,7 +553,8 @@ execute_claim(F, K, Pid) ->
         end
     after
         exit(Mon, kill),
-        gproc:reset_counter(K)
+        %% Can crash when Pid dies and dissociates from K.
+        ?MAY_FAIL(gproc:reset_counter(K))
     end.
 
 setup_wait(nowait, _) ->
