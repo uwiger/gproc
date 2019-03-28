@@ -833,8 +833,13 @@ do_remove_worker_(Pool, Name) ->
     case (NewLen = length(Ws1)) - length(Ws0) of
         0 -> ok;
         Diff when Diff < 0 ->
-            {_, Type} = gproc:get_value(K, shared),
-            gproc:set_value_shared(K, {NewLen, Type})
+            case gproc:get_attribute(K, shared, auto_size) of
+                true ->
+                    {_, Type} = gproc:get_value(K, shared),
+                    gproc:set_value_shared(K, {NewLen, Type});
+                false ->
+                    ok
+            end
     end,
     gproc:set_attributes_shared(K, [{workers, Ws1}]),
     ok.
