@@ -827,29 +827,29 @@ remove_worker_(Pool, Name) ->
 
 do_remove_worker_(Pool, Name) ->
     K = ?POOL(Pool),
+    AutoSize = gproc:get_attribute(K, shared, auto_size),
     Ws0 = get_workers_(K),
-    Ws1 = del_slot(Name, Ws0),
+    Ws1 = del_slot(Name, Ws0, AutoSize),
     gproc:unreg_shared(?POOL_WRK(Pool, Name)),
-    case (NewLen = length(Ws1)) - length(Ws0) of
-        0 -> ok;
-        Diff when Diff < 0 ->
-            case gproc:get_attribute(K, shared, auto_size) of
-                true ->
+    case AutoSize of
+        false -> ok;
+        true ->
+            case (NewLen = length(Ws1)) - length(Ws0) of
+                0 -> ok;
+                Diff when Diff < 0 ->
                     {_, Type} = gproc:get_value(K, shared),
-                    gproc:set_value_shared(K, {NewLen, Type});
-                false ->
-                    ok
+                    gproc:set_value_shared(K, {NewLen, Type})
             end
     end,
     gproc:set_attributes_shared(K, [{workers, Ws1}]),
     ok.
 
-del_slot(Name, [{Name,_}]) ->
+del_slot(Name, [{Name,_}], true) ->
     [];
-del_slot(Name, [{Name, Pos}|T]) ->
+del_slot(Name, [{Name, Pos}|T], _AutoSize) ->
     [Pos|T];
-del_slot(Name, [H|T]) ->
-    [H|del_slot(Name, T)].
+del_slot(Name, [H|T], AutoSize) ->
+    [H|del_slot(Name, T, AutoSize)].
 
 find_slot(Name, _, [], Sz, _, Auto) ->
     case {Sz, Auto} of
