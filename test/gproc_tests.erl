@@ -162,6 +162,10 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_pool()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_pool_add_worker_size_1_no_auto_size()))}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_pool_add_worker_size_2_no_auto_size()))}
+      , ?_test(t_is_clean())
      ]}.
 
 t_simple_reg() ->
@@ -1002,6 +1006,31 @@ t_simple_pool()->
 
     %% should be able to delete the pool now
     ?assertEqual( gproc_pool:delete(p1), ok).
+
+%% verifying #167 - Removing a worker from a pool does not make room
+%% for a new worker (size was erroneously adjusted down, though auto_size = false)
+t_pool_add_worker_size_1_no_auto_size() ->
+    ok = gproc_pool:new(p2, direct, [{size, 1}, {auto_size, false}]),
+    [] = gproc_pool:defined_workers(p2),
+    Pos1 = gproc_pool:add_worker(p2, worker1),
+    [{worker1, Pos1, 0}] = gproc_pool:defined_workers(p2),
+    io:fwrite("G = ~p~n", [ets:tab2list(gproc)]),
+    true = gproc_pool:remove_worker(p2, worker1),
+    [] = gproc_pool:defined_workers(p2), %% the pool seems to be empty
+    Pos2 = gproc_pool:add_worker(p2, worker2), %% throws error:pool_full
+    true = is_integer(Pos2),
+    true = gproc_pool:force_delete(p2).
+
+t_pool_add_worker_size_2_no_auto_size() ->
+    gproc_pool:new(p3, direct, [{size, 2}, {auto_size, false}]),
+    gproc_pool:add_worker(p3, worker1),
+    gproc_pool:add_worker(p3, worker2),
+    gproc_pool:remove_worker(p3, worker2),
+    gproc_pool:add_worker(p3, worker3),
+    gproc_pool:force_delete(p3).
+
+
+
 
 get_msg() ->
     receive M ->

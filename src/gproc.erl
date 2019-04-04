@@ -2489,6 +2489,8 @@ handle_reg_call(Key, Pid, Val, Attrs, Op, S) ->
                     %% actually pretty bad, if it ever happens
                     {reply, badarg, S}
             end;
+        already_registered ->
+            {reply, badarg, S};
         false ->
             {reply, badarg, S}
     end.
