@@ -166,6 +166,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_pool_add_worker_size_2_no_auto_size()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_pool_round_robin_disconnect_worker()))}
+      , ?_test(t_is_clean())
      ]}.
 
 t_simple_reg() ->
@@ -1029,8 +1031,52 @@ t_pool_add_worker_size_2_no_auto_size() ->
     gproc_pool:add_worker(p3, worker3),
     gproc_pool:force_delete(p3).
 
+t_pool_round_robin_disconnect_worker() ->
+    gproc_pool:new(p),
+    gproc_pool:add_worker(p, w1),
+    gproc_pool:add_worker(p, w2),
+    gproc_pool:add_worker(p, w3),
+    Work = fun(W) -> spawn(fun() -> gproc_pool:connect_worker(p, W), fun F() -> F() end() end) end,
 
+    %% disc first
+    W1 = Work(w1),
+    W2 = Work(w2),
+    W3 = Work(w3),
+    timer:sleep(10),
+    ?assertEqual([W1, W2, W3], [ P || {_, P} <- gproc_pool:active_workers(p)]),
+    ?assertEqual([W1, W2, W3, W1, W2, W3, W1, W2, W3], [gproc_pool:pick_worker(p) || _ <- lists:seq(1, 9)]),
+    exit(W1, die),
+    timer:sleep(10),
+    ?assertEqual([W2, W3], [ P || {_, P} <- gproc_pool:active_workers(p)]),
+    ?assertEqual([W2, W3, W2, W3, W2, W3, W2, W3, W2], [gproc_pool:pick_worker(p) || _ <- lists:seq(1, 9)]),
 
+    %% disc middle
+    W11 = Work(w1),
+    timer:sleep(10),
+    ?assertEqual([W11, W2, W3], [ P || {_, P} <- gproc_pool:active_workers(p)]),
+    ?assertEqual([W3, W11, W2, W3, W11, W2, W3, W11, W2], [gproc_pool:pick_worker(p) || _ <- lists:seq(1, 9)]),
+    exit(W2, die),
+    timer:sleep(10),
+    ?assertEqual([W11, W3], [ P || {_, P} <- gproc_pool:active_workers(p)]),
+    ?assertEqual([W3, W11, W3, W11, W3, W11, W3, W11, W3], [gproc_pool:pick_worker(p) || _ <- lists:seq(1, 9)]),
+
+    %% disc last
+    W22 = Work(w2),
+    timer:sleep(10),
+    ?assertEqual([W11, W22, W3], [ P || {_, P} <- gproc_pool:active_workers(p)]),
+    ?assertEqual([W11, W22, W3, W11, W22, W3, W11, W22, W3], [gproc_pool:pick_worker(p) || _ <- lists:seq(1, 9)]),
+    exit(W3, die),
+    timer:sleep(10),
+    ?assertEqual([W11, W22], [ P || {_, P} <- gproc_pool:active_workers(p)]),
+    ?assertEqual([W11, W22, W11, W22, W11, W22, W11, W22, W11], [gproc_pool:pick_worker(p) || _ <- lists:seq(1, 9)]),
+
+    %% restore
+    W33 = Work(w3),
+    timer:sleep(10),
+    ?assertEqual([W11, W22, W33], [ P || {_, P} <- gproc_pool:active_workers(p)]),
+    ?assertEqual([W22, W33, W11, W22, W33, W11, W22, W33, W11], [gproc_pool:pick_worker(p) || _ <- lists:seq(1, 9)]),
+
+    gproc_pool:force_delete(p).
 
 get_msg() ->
     receive M ->

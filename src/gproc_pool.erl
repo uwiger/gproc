@@ -359,9 +359,8 @@ pick(Pool, Sz, round_robin, Ret) ->
     case ets:next(gproc, {{n,l,[?MODULE,Pool,Next]},n}) of
         {{n,l,[?MODULE,Pool,Actual,_Name]} = Pick, _} ->
             case Actual - Next of
-                Diff when Diff > 1 ->
-                    gproc:update_counter(
-                      ?POOL_CUR(Pool), shared, {Diff, Sz, 1}),
+                Diff when Diff > 0 ->
+                    incr(Pool, Diff, Sz),
                     ret(Pick, Ret);
                 _ ->
                     ret(Pick, Ret)
@@ -370,8 +369,6 @@ pick(Pool, Sz, round_robin, Ret) ->
             case ets:next(gproc, {{n,l,[?MODULE,Pool,0]}, n}) of
                 {{n,l,[?MODULE,Pool,Actual1,_Name1]} = Pick, _} ->
                     incr(Pool, Sz-Next+Actual1, Sz),
-                    %% gproc:update_counter(
-                    %%   ?POOL_CUR(Pool), shared, {Sz-Next+Actual1, Sz, 1}),
                     ret(Pick, Ret);
                 _ ->
                     false
