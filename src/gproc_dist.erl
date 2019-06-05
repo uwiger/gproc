@@ -557,7 +557,7 @@ handle_leader_call({reset_counter, {c,g,_Ctr} = Key, Pid}, _From, S, _E) ->
 	 Vals = [{{Key,Pid},Pid,New} | update_aggr_counter(Key, Incr)],
 	 {reply, {Current, New}, [{insert, Vals}], S}
     catch
-    ?EXCEPTION(error, _R, Stacktrace) ->
+      ?EXCEPTION(error, _R, Stacktrace) ->
 	    io:fwrite("reset_counter failed: ~p~n~p~n", [_R, ?GET_STACK(Stacktrace)]),
 	    {reply, badarg, S}
     end;
