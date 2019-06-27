@@ -549,8 +549,8 @@ handle_leader_call({reset_counter, {c,g,_Ctr} = Key, Pid}, _From, S, _E) ->
 	 Vals = [{{Key,Pid},Pid,New} | update_aggr_counter(Key, Incr)],
 	 {reply, {Current, New}, [{insert, Vals}], S}
     catch
-	error:_R ->
-	    io:fwrite("reset_counter failed: ~p~n~p~n", [_R, erlang:get_stacktrace()]),
+	error:_R:ST ->
+	    io:fwrite("reset_counter failed: ~p~n~p~n", [_R, ST]),
 	    {reply, badarg, S}
     end;
 handle_leader_call({Unreg, {T,g,Name} = K, Pid}, _From, S, _E)
