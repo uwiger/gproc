@@ -204,7 +204,7 @@ maybe_waiters(K, Pid, Value, T, Info) ->
             ets:insert(?TAB, Info),
             notify_waiters(Waiters, K, Pid, Value),
             true;
-        [_] ->
+        _ ->
             false
     end.
 
