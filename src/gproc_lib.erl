@@ -291,13 +291,13 @@ remove_monitors(Key, Pid, MPid) ->
 	[{_, r}] ->
 	    [];
 	[{K, Opts}] when is_list(Opts) ->
-	    case lists:keyfind(monitors, 1, Opts) of
+	    case lists:keyfind(monitor, 1, Opts) of
 		false ->
 		    [];
 		{_, Ms} ->
-		    Ms1 = [{P,R} || {P,R} <- Ms,
+		    Ms1 = [{P,R,T} || {P,R,T} <- Ms,
 				    P =/= MPid],
-		    NewMs = lists:keyreplace(monitors, 1, Opts, {monitors,Ms1}),
+		    NewMs = lists:keyreplace(monitor, 1, Opts, {monitor,Ms1}),
 		    ets:insert(?TAB, {K, NewMs}),
 		    [{insert, [{{Pid,Key}, NewMs}]}]
 	    end;
@@ -306,7 +306,7 @@ remove_monitors(Key, Pid, MPid) ->
     end.
 
 does_pid_monitor(Pid, Opts) ->
-    case lists:keyfind(monitors, 1, Opts) of
+    case lists:keyfind(monitor, 1, Opts) of
         false ->
             false;
         {_, Ms} ->
@@ -393,7 +393,7 @@ select_monitors([], _, Acc) ->
     Acc.
 
 remove_monitor_pid([{monitor, Mons}|T], Pid) ->
-    [{monitors, [M || M <- Mons,
+    [{monitor, [M || M <- Mons,
                       element(1, M) =/= Pid]}|T];
 remove_monitor_pid([H|T], Pid) ->
     [H | remove_monitor_pid(T, Pid)];

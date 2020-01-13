@@ -154,6 +154,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_monitor_follow()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_two_monitoring_processes_one_dies()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_monitor_demonitor()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_subscribe()))}
@@ -925,6 +927,23 @@ t_monitor_follow() ->
     {gproc,{failover,P3},Ref3,Name} = got_msg(P3),
     [exit(P,kill) || P <- [P1,P3]],
     ok.
+
+t_two_monitoring_processes_one_dies() ->
+  Name = ?T_NAME,
+  P = t_spawn_reg(Name),
+  Ref = gproc:monitor(Name),
+  {P2, R2} = spawn_monitor(fun() -> gproc:monitor(Name) end),
+  receive
+    {'DOWN', R2, process, P2, normal} -> ok
+  end,
+  exit(P, kill),
+  receive
+    M ->
+      ?assertEqual({gproc, unreg, Ref, Name}, M)
+  after 1000 ->
+    error(timeout)
+  end
+.
 
 t_monitor_demonitor() ->
     Name = ?T_NAME,

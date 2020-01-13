@@ -2358,7 +2358,7 @@ handle_call({demonitor, {T,l,_} = Key, Ref, Pid}, _From, S)
                     [{K, Opts}] ->
                         Opts1 = gproc_lib:remove_monitor(Opts, Pid, Ref),
                         ets:insert(?TAB, {K, Opts1}),
-                        case gproc_lib:does_pid_monitor(Pid, Opts) of
+                        case gproc_lib:does_pid_monitor(Pid, Opts1) of
                             true ->
                                 ok;
                             false ->
