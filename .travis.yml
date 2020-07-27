@@ -1,6 +1,7 @@
 language: erlang
 script: "GPROC_DIST=true rebar get-deps compile eunit"
 otp_release:
+    - 23.0.2
     - 22.0.2
     - 21.0.1
     - 20.3
