@@ -476,7 +476,6 @@ t_is_clean() ->
     sys:get_status(gproc_monitor),
     T = ets:tab2list(gproc),
     Tm = ets:tab2list(gproc_monitor),
-    ?debugFmt("self() = ~p~n", [self()]),
     ?assertMatch([], Tm),
     ?assertMatch([], T -- [{{whereis(gproc_monitor), l}},
                            {{self(), l}}]).
