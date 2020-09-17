@@ -930,10 +930,10 @@ monitor(Key, Type) when Type==info;
                         Type==standby ->
     ?CATCH_GPROC_ERROR(monitor1(Key, Type), [Key, Type]).
 
-monitor1({T,g,_} = Key, Type) when T==n; T==a ->
+monitor1({T,g,_} = Key, Type) when T==n; T==a; T==rc ->
     ?CHK_DIST,
     gproc_dist:monitor(Key, Type);
-monitor1({T,l,_} = Key, Type) when T==n; T==a ->
+monitor1({T,l,_} = Key, Type) when T==n; T==a; T==rc ->
     call({monitor, Key, self(), Type}, l);
 monitor1(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
@@ -947,10 +947,10 @@ monitor1(_, _) ->
 demonitor(Key, Ref) ->
     ?CATCH_GPROC_ERROR(demonitor1(Key, Ref), [Key, Ref]).
 
-demonitor1({T,g,_} = Key, Ref) when T==n; T==a ->
+demonitor1({T,g,_} = Key, Ref) when T==n; T==a; T==rc->
     ?CHK_DIST,
     gproc_dist:demonitor(Key, Ref);
-demonitor1({T,l,_} = Key, Ref) when T==n; T==a ->
+demonitor1({T,l,_} = Key, Ref) when T==n; T==a; T==rc ->
     call({demonitor, Key, Ref, self()}, l);
 demonitor1(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
@@ -1160,7 +1160,7 @@ reg_shared(Key) ->
     ?CATCH_GPROC_ERROR(reg_shared1(Key), [Key]).
 
 %% @private
-reg_shared1({T,_,_} = Key) when T==a; T==p; T==c ->
+reg_shared1({T,_,_} = Key) when T==a; T==p; T==c; T==r ->
     reg_shared(Key, default(Key)).
 
 %% @spec reg_shared(Key::key(), Value) -> true
@@ -1211,17 +1211,16 @@ reg_shared1(_, _, _) ->
 mreg(T, C, KVL) ->
     ?CATCH_GPROC_ERROR(mreg1(T, C, KVL), [T, C, KVL]).
 
+
+mreg1(_, _, L) when not is_list(L) ->
+    ?THROW_GPROC_ERROR(badarg);
 mreg1(T, g, KVL) ->
     ?CHK_DIST,
     gproc_dist:mreg(T, KVL);
-mreg1(T, l, KVL) when T==a; T==n ->
-    if is_list(KVL) ->
+mreg1(T, l, KVL) when T==a; T==n; T==rc; T==r ->
             call({mreg, T, l, KVL});
-       true ->
-            erlang:error(badarg)
-    end;
-mreg1(p, l, KVL) ->
-    local_mreg(p, KVL);
+mreg1(T, l, KVL) when T==p ->
+    local_mreg(T, KVL);
 mreg1(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
@@ -1235,24 +1234,22 @@ mreg1(_, _, _) ->
 munreg(T, C, L) ->
     ?CATCH_GPROC_ERROR(munreg1(T, C, L), [T, C, L]).
 
+munreg1(_, _, L) when not is_list(L) ->
+    ?THROW_GPROC_ERROR(badarg);
 munreg1(T, g, L) ->
     ?CHK_DIST,
     gproc_dist:munreg(T, existing(T,g,L));
-munreg1(T, l, L) when T==a; T==n ->
-    if is_list(L) ->
+munreg1(T, l, L) when T==a; T==n; T==rc; T==r ->
             call({munreg, T, l, existing(T,l,L)});
-       true ->
-            erlang:error(badarg)
-    end;
-munreg1(p, l, L) ->
-    local_munreg(p, existing(p,l,L));
+munreg1(T, l, L) when T==p->
+    local_munreg(T, existing(p,l,L));
 munreg1(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 existing(T,Scope,L) ->
-    Keys = if T==p; T==c ->
+    Keys = if T==p; T==c; T==r ->
                    [{{T,Scope,K}, self()} || K <- L];
-              T==a; T==n ->
+              T==a; T==n; T==rc ->
                    [{{T,Scope,K}, T} || K <- L]
            end,
     _ = [case ets:member(?TAB, K) of
@@ -1488,7 +1485,8 @@ local_reg({_,Scope,_} = Key, Value, As, Op) ->
 regged_new(reg   ) -> true;
 regged_new(ensure) -> new.
 
-local_mreg(_, []) -> true;
+local_mreg(_, []) ->
+    true;
 local_mreg(T, [_|_] = KVL) ->
     case gproc_lib:insert_many(T, l, KVL, self()) of
         false     -> ?THROW_GPROC_ERROR(badarg);
@@ -2293,7 +2291,7 @@ handle_call({reg_or_locate, {T,l,_} = Key, Val, P}, _, S) ->
 	    {reply, {OtherPid, OtherValue}, S}
     end;
 handle_call({monitor, {T,l,_} = Key, Pid, Type}, _From, S)
-  when T==n; T==a ->
+  when T==n; T==a; T==rc ->
     Ref = make_ref(),
     Lookup = ets:lookup(?TAB, {Key, T}),
     IsRegged = is_regged(Lookup),
@@ -2413,6 +2411,9 @@ handle_call({await, {_,l,_} = Key, Pid}, From, S) ->
     end;
 handle_call({mreg, T, l, L}, {Pid,_}, S) ->
     try gproc_lib:insert_many(T, l, L, Pid) of
+        {true,_} when T == r ->
+            _ = [gproc_lib:update_resource_count(l, K, 1) || {K,_} <- L],
+            {reply, true, S};
         {true,_} -> {reply, true, S};
         false    -> {reply, badarg, S}
     catch
@@ -2898,7 +2899,7 @@ scope(S) when S==l; S==g -> S.
 
 type('_')   -> '_';
 type(all)   -> '_';
-type(T) when T==n; T==p; T==c; T==a -> T;
+type(T) when T==n; T==p; T==c; T==a; T==r; T==rc -> T;
 type(names) -> n;
 type(props) -> p;
 type(resources) -> r;
@@ -3080,7 +3081,7 @@ qlc_lookup_pid(Pid, Scope, Check) ->
 				   [], ['$_']}]),
 	    lists:flatmap(
 	      fun({{_,{T,_,_}=K}, _}) ->
-		      K2 = if T==n orelse T==a -> T;
+                      K2 = if T==n orelse T==a orelse T==rc -> T;
 			      true -> Pid
 			   end,
 		      case ets:lookup(?TAB, {K,K2}) of
