@@ -46,7 +46,7 @@
          update_aggr_counter/3,
          update_counter/3,
          decrement_resource_count/2,
-	 valid_opts/2,
+	   valid_opts/2,
          valid_key/1]).
 
 -export([dbg/1]).

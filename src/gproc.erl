@@ -988,7 +988,7 @@ reg(Key, Value) ->
 %%    scope. The initial value for an aggregated counter must be `undefined'.
 %% * `r' - 'resource property', behaves like a property, but can be tracked
 %%    with a 'resource counter'. Note that using an `rc' wildcard name
-%%    pattern (se below) for a resource property is not allowed.
+%%    pattern (see below) for a resource property is not allowed.
 %% * `rc' - 'resource counter', tracks the number of resource properties
 %%    with the same name. When the resource count reaches `0', any triggers
 %%    specified using an `on_zero' attribute may be executed (see below).
@@ -1220,7 +1220,6 @@ reg_shared1(_, _, _) ->
 mreg(T, C, KVL) ->
     ?CATCH_GPROC_ERROR(mreg1(T, C, KVL), [T, C, KVL]).
 
-%% TODO: We don't call valid_key/1 here, since 
 mreg1(T, g, KVL) ->
     ?CHK_DIST,
     gproc_dist:mreg(T, KVL);
