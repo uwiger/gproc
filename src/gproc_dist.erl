@@ -233,6 +233,7 @@ give_away({_,g,_} = Key, To) ->
 
 
 update_counter({T,g,_} = Key, Pid, Incr) when is_integer(Incr), T==c;
+                                              is_integer(Incr), T==r;
 					      is_integer(Incr), T==n ->
     leader_call({update_counter, Key, Incr, Pid});
 update_counter(_, _, _) ->
@@ -518,6 +519,7 @@ handle_leader_call({reg_or_locate, {n,g,_} = K, Value, P},
     end;
 handle_leader_call({update_counter, {T,g,_Ctr} = Key, Incr, Pid}, _From, S, _E)
   when is_integer(Incr), T==c;
+       is_integer(Incr), T==r;
        is_integer(Incr), T==n ->
     try New = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
 	 RealPid = case Pid of
@@ -1012,13 +1014,14 @@ surrendered_1(Globs) ->
 batch_update_counters(Cs) ->
     batch_update_counters(Cs, [], []).
 
-batch_update_counters([{{c,g,_} = Key, Pid, Incr}|T], Returns, Updates) ->
+batch_update_counters([{{T,g,_} = Key, Pid, Incr}|Cs], Returns, Updates)
+  when T==c; T==n; T==r ->
     case update_counter_g(Key, Incr, Pid) of
 	[{_,_,_} = A, {_, _, V} = C] ->
-	    batch_update_counters(T, [{Key,Pid,V}|Returns], add_object(
+	    batch_update_counters(Cs, [{Key,Pid,V}|Returns], add_object(
 							      A, add_object(C, Updates)));
 	[{_, _, V} = C] ->
-	    batch_update_counters(T, [{Key,Pid,V}|Returns], add_object(C, Updates))
+	    batch_update_counters(Cs, [{Key,Pid,V}|Returns], add_object(C, Updates))
     end;
 batch_update_counters([], Returns, Updates) ->
     {lists:reverse(Returns), Updates}.
@@ -1033,22 +1036,37 @@ add_object(Obj, []) ->
 
 
 
-update_counter_g({c,g,_} = Key, Incr, Pid) when is_integer(Incr) ->
-    Res = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
-    update_aggr_counter(Key, Incr, [{{Key,Pid},Pid,Res}]);
-update_counter_g({c,g,_} = Key, {Incr, Threshold, SetValue}, Pid)
-  when is_integer(Incr), is_integer(Threshold), is_integer(SetValue) ->
-    [Prev, New] = ets:update_counter(?TAB, {Key, Pid},
+update_counter_g({T,g,_} = Key, Incr, Pid) when is_integer(Incr), T==c;
+                                                is_integer(Incr), T==r;
+                                                is_integer(Incr), T==n ->
+    R = if T==n -> T;
+           true -> Pid
+        end,
+    Res = ets:update_counter(?TAB, {Key, R}, {3,Incr}),
+    update_aggr_counter(Key, Incr, [{{Key,R},Pid,Res}]);
+update_counter_g({T,g,_} = Key, {Incr, Threshold, SetValue}, Pid)
+  when is_integer(Incr), is_integer(Threshold), is_integer(SetValue), T==c;
+       is_integer(Incr), is_integer(Threshold), is_integer(SetValue), T==r;
+       is_integer(Incr), is_integer(Threshold), is_integer(SetValue), T==n ->
+    R = if T==n -> T;
+           true -> Pid
+        end,
+    [Prev, New] = ets:update_counter(?TAB, {Key, R},
 				     [{3, 0}, {3, Incr, Threshold, SetValue}]),
-    update_aggr_counter(Key, New - Prev, [{{Key,Pid},Pid,New}]);
-update_counter_g({c,g,_} = Key, Ops, Pid) when is_list(Ops) ->
-    case ets:update_counter(?TAB, {Key, Pid},
+    update_aggr_counter(Key, New - Prev, [{{Key,R},Pid,New}]);
+update_counter_g({T,g,_} = Key, Ops, Pid) when is_list(Ops), T==c;
+                                               is_list(Ops), T==r;
+                                               is_list(Ops), T==n ->
+    R = if T==n -> T;
+           true -> Pid
+        end,
+    case ets:update_counter(?TAB, {Key, R},
 			    [{3, 0} | expand_ops(Ops)]) of
 	[_] ->
 	    [];
 	[Prev | Rest] ->
 	    [New | _] = lists:reverse(Rest),
-	    update_aggr_counter(Key, New - Prev, [{Key, Pid, Rest}])
+	    update_aggr_counter(Key, New - Prev, [{{Key,R}, Pid, Rest}])
     end;
 update_counter_g(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
@@ -1064,11 +1082,11 @@ expand_ops([]) ->
 expand_ops(_) ->
     ?THROW_GPROC_ERROR(badarg).
 
-update_aggr_counter({n,_,_}, _) ->
-    [];
 update_aggr_counter(Key, Incr) ->
     update_aggr_counter(Key, Incr, []).
 
+update_aggr_counter({T,g,_}, _Incr, Acc) when T==n; T==r ->
+    Acc;
 update_aggr_counter({c,g,Ctr}, Incr, Acc) ->
     Key = {{a,g,Ctr},a},
     case ets:lookup(?TAB, Key) of

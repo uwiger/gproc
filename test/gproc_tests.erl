@@ -108,6 +108,10 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_update_counters()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_update_r_counter()))}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_update_n_counter()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_simple_prop()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_await()))}
@@ -446,6 +450,17 @@ t_update_counters() ->
     end,
     ?assert(gproc:get_value({a,l,c1}) =:= 7).
 
+t_update_r_counter() ->
+    K = {r,l,r1},
+    ?assert(gproc:reg(K, 3) =:= true),
+    ?assertEqual(5, gproc:update_counter(K, 2)),
+    ?assert(gproc:get_value(K) =:= 5).
+
+t_update_n_counter() ->
+    K = {n,l,n1},
+    ?assert(gproc:reg(K, 3) =:= true),
+    ?assertEqual(5, gproc:update_counter(K, 2)),
+    ?assert(gproc:get_value(K) =:= 5).
 
 t_simple_prop() ->
     ?assert(gproc:reg({p,l,prop}) =:= true),

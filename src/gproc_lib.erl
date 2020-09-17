@@ -529,7 +529,8 @@ do_set_counter_value({_,C,N} = Key, Value, Pid) ->
     Res.
 
 update_counter({T,l,Ctr} = Key, Incr, Pid) when is_integer(Incr), T==c;
-						is_integer(Incr), T==n ->
+						is_integer(Incr), T==r;
+                                                is_integer(Incr), T==n ->
     Res = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
     if T==c ->
 	    update_aggr_counter(l, Ctr, Incr);
@@ -539,6 +540,7 @@ update_counter({T,l,Ctr} = Key, Incr, Pid) when is_integer(Incr), T==c;
     Res;
 update_counter({T,l,Ctr} = Key, {Incr, Threshold, SetValue}, Pid)
   when is_integer(Incr), is_integer(Threshold), is_integer(SetValue), T==c;
+       is_integer(Incr), is_integer(Threshold), is_integer(SetValue), T==r;
        is_integer(Incr), is_integer(Threshold), is_integer(SetValue), T==n ->
     [Prev, New] = ets:update_counter(?TAB, {Key, Pid},
 				     [{3, 0}, {3, Incr, Threshold, SetValue}]),

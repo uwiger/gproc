@@ -112,6 +112,8 @@
          lookup_global_properties/1,
          lookup_local_counters/1,
          lookup_global_counters/1,
+         lookup_local_resources/1,
+         lookup_global_resources/1,
          lookup_local_aggr_counter/1,
          lookup_global_aggr_counter/1]).
 
@@ -353,6 +355,25 @@ lookup_local_counters(P)    -> lookup_values({c,l,P}).
 %% @end
 %%
 lookup_global_counters(P)   -> lookup_values({c,g,P}).
+
+%% @spec (Resource::any()) -> [{pid(), Value::integer()}]
+%%
+%% @doc Look up all local (non-unique) instances of a given Resource.
+%% Returns a list of {Pid, Value} tuples for all matching objects.
+%% @equiv lookup_values({c, l, Resource})
+%% @end
+%%
+lookup_local_resources(P)    -> lookup_values({r,l,P}).
+
+
+%% @spec (Resource::any()) -> [{pid(), Value::integer()}]
+%%
+%% @doc Look up all global (non-unique) instances of a given Resource.
+%% Returns a list of {Pid, Value} tuples for all matching objects.
+%% @equiv lookup_values({c, g, Resource})
+%% @end
+%%
+lookup_global_resources(P)   -> lookup_values({r,g,P}).
 
 %% @spec get_env(Scope::scope(), App::atom(), Key::atom()) -> term()
 %% @equiv get_env(Scope, App, Key, [app_env])
@@ -933,10 +954,10 @@ monitor(Key, Type) when Type==info;
                         Type==standby ->
     ?CATCH_GPROC_ERROR(monitor1(Key, Type), [Key, Type]).
 
-monitor1({T,g,_} = Key, Type) when T==n; T==a ->
+monitor1({T,g,_} = Key, Type) when T==n; T==a; T==rc ->
     ?CHK_DIST,
     gproc_dist:monitor(Key, Type);
-monitor1({T,l,_} = Key, Type) when T==n; T==a ->
+monitor1({T,l,_} = Key, Type) when T==n; T==a; T==rc ->
     call({monitor, Key, self(), Type}, l);
 monitor1(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
@@ -950,10 +971,10 @@ monitor1(_, _) ->
 demonitor(Key, Ref) ->
     ?CATCH_GPROC_ERROR(demonitor1(Key, Ref), [Key, Ref]).
 
-demonitor1({T,g,_} = Key, Ref) when T==n; T==a ->
+demonitor1({T,g,_} = Key, Ref) when T==n; T==a; T==rc ->
     ?CHK_DIST,
     gproc_dist:demonitor(Key, Ref);
-demonitor1({T,l,_} = Key, Ref) when T==n; T==a ->
+demonitor1({T,l,_} = Key, Ref) when T==n; T==a; T==rc ->
     call({demonitor, Key, Ref, self()}, l);
 demonitor1(_, _) ->
     ?THROW_GPROC_ERROR(badarg).
@@ -1169,7 +1190,7 @@ reg_shared(Key) ->
     ?CATCH_GPROC_ERROR(reg_shared1(valid_key(Key)), [Key]).
 
 %% @private
-reg_shared1({T,_,_} = Key) when T==a; T==p; T==c ->
+reg_shared1({T,_,_} = Key) when T==a; T==p; T==c; T==r ->
     reg_shared(Key, default(Key)).
 
 %% @spec reg_shared(Key::key(), Value) -> true
@@ -1247,7 +1268,7 @@ munreg(T, C, L) ->
 munreg1(T, g, L) ->
     ?CHK_DIST,
     gproc_dist:munreg(T, existing(T,g,L));
-munreg1(T, l, L) when T==a; T==n ->
+munreg1(T, l, L) when T==p; T==a; T==n; T==rc; T==r ->
     if is_list(L) ->
             call({munreg, T, l, existing(T,l,L)});
        true ->
@@ -1259,9 +1280,9 @@ munreg1(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
 existing(T,Scope,L) ->
-    Keys = if T==p; T==c ->
+    Keys = if T==p; T==c; T==r ->
                    [{{T,Scope,K}, self()} || K <- L];
-              T==a; T==n ->
+              T==a; T==n; T==rc ->
                    [{{T,Scope,K}, T} || K <- L]
            end,
     _ = [case ets:member(?TAB, K) of
@@ -1829,7 +1850,8 @@ lookup_values({T,_,_} = Key) ->
 update_counter(Key, Incr) ->
     Pid = case Key of
 	      {n,_,_} -> n;
-	      {c,_,_} -> self()
+	      {T,_,_} when T==c; T==r ->
+                  self()
 	  end,
     ?CATCH_GPROC_ERROR(update_counter1(Key, Pid, Incr), [Key, Incr]).
 
@@ -1837,9 +1859,9 @@ update_counter(Key, Pid, Incr) when is_pid(Pid);
 				    Pid == shared; Pid == n ->
     ?CATCH_GPROC_ERROR(update_counter1(Key, Pid, Incr), [Key, Pid, Incr]).
 
-update_counter1({T,l,_} = Key, Pid, Incr) when T==c; T==n ->
+update_counter1({T,l,_} = Key, Pid, Incr) when T==c; T==r; T==n ->
     gproc_lib:update_counter(Key, Incr, Pid);
-update_counter1({T,g,_} = Key, Pid, Incr) when T==c; T==n ->
+update_counter1({T,g,_} = Key, Pid, Incr) when T==c; T==r; T==n ->
     ?CHK_DIST,
     gproc_dist:update_counter(Key, Pid, Incr);
 update_counter1(_, _, _) ->
@@ -2302,7 +2324,7 @@ handle_call({reg_or_locate, {T,l,_} = Key, Val, P}, _, S) ->
 	    {reply, {OtherPid, OtherValue}, S}
     end;
 handle_call({monitor, {T,l,_} = Key, Pid, Type}, _From, S)
-  when T==n; T==a ->
+  when T==n; T==a; T==rc ->
     Ref = make_ref(),
     Lookup = ets:lookup(?TAB, {Key, T}),
     IsRegged = is_regged(Lookup),
@@ -2910,7 +2932,7 @@ scope(S) when S==l; S==g -> S.
 
 type('_')   -> '_';
 type(all)   -> '_';
-type(T) when T==n; T==p; T==c; T==a -> T;
+type(T) when T==n; T==p; T==c; T==a; T==r; T==rc -> T;
 type(names) -> n;
 type(props) -> p;
 type(resources) -> r;
@@ -3092,7 +3114,7 @@ qlc_lookup_pid(Pid, Scope, Check) ->
 				   [], ['$_']}]),
 	    lists:flatmap(
 	      fun({{_,{T,_,_}=K}, _}) ->
-		      K2 = if T==n orelse T==a -> T;
+		      K2 = if T==n orelse T==a orelse T==rc -> T;
 			      true -> Pid
 			   end,
 		      case ets:lookup(?TAB, {K,K2}) of
