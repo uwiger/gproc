@@ -985,9 +985,9 @@ surrendered_1(Globs) ->
                   [Obj|Acc]
           end, [], Globs),
     ?event({'Ldr_local_globs', Ldr_local_globs}),
-    case [{K,P,V} || {K,P,V} <- My_local_globs,
+    case [{K,P,V} || {{K,_}=R,P,V} <- My_local_globs,
 		     is_pid(P) andalso
-			 not(lists:keymember(K, 1, Ldr_local_globs))] of
+			 not(lists:keymember(R, 1, Ldr_local_globs))] of
         [] ->
             %% phew! We have the same picture
             ok;
