@@ -2183,6 +2183,7 @@ info_cur_f(T, Default) ->
 			      [global,{capture,[1,2,3],list}]),
     case lists:dropwhile(fun(["gproc","info",_]) -> true;
 			    (["gproc","'-info/1-lc" ++ _, _]) -> true;
+                            (["erlang","process_info", _]) -> true;
 			    (_) -> false
 			 end, Matches) of
 	[] ->

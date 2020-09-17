@@ -14,7 +14,7 @@ reg_and_send_test_() ->
 gproc() ->
     gproc:reg({n, l, <<"test">>}),
 
-    Msg = random:uniform(1000),
+    Msg = rand:uniform(1000),
     {n, l, <<"test">>} ! Msg,
 
     Echo = receive

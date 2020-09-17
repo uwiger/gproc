@@ -7,14 +7,8 @@
 
 -module(gproc_eqc_tests).
 
--ifdef(EQC).
-
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eqc/include/eqc_statem.hrl").
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
-
 -compile(export_all).
 
 %%
@@ -60,12 +54,6 @@
 
 good_number_of_tests() ->
     3000.
-
-%% hook to run from eunit. Note: a small number of tests.
-%% I recommend running at least 3000 to get to interesting stuff.
-%%
-gproc_test_() ->
-    {timeout, 60, [fun() -> run(100) end]}.
 
 %% When run from eunit, we need to set the group leader so that EQC
 %% reporting (the dots) are made visible - that is, if that's what we want.
@@ -671,5 +659,3 @@ check_waiter(WPid, Pid, _Key, Value) ->
     after 1000 ->
             erlang:error(timeout)
     end.
-
--endif.

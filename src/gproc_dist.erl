@@ -22,7 +22,8 @@
 %% <p>For a detailed description, see gproc/doc/erlang07-wiger.pdf.</p>
 %% @end
 -module(gproc_dist).
--behaviour(gen_leader).
+
+%% -behaviour(gen_leader).  % to avoid unnecessary warnings
 
 -export([start_link/0, start_link/1,
          reg/1, reg/4, unreg/1,
@@ -550,7 +551,6 @@ handle_leader_call({reset_counter, {c,g,_Ctr} = Key, Pid}, _From, S, _E) ->
 	 {reply, {Current, New}, [{insert, Vals}], S}
     catch
 	error:_R ->
-	    io:fwrite("reset_counter failed: ~p~n~p~n", [_R, erlang:get_stacktrace()]),
 	    {reply, badarg, S}
     end;
 handle_leader_call({Unreg, {T,g,Name} = K, Pid}, _From, S, _E)

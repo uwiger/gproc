@@ -1,6 +1,8 @@
 current_counterexample.eqc
-deps/
-.eunit/
+_build
+.rebar3
+eqc/.eqc-info
+eqc/*.beam
 *~
 */*~
 */#*#

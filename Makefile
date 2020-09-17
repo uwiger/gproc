@@ -19,32 +19,29 @@
 ## LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 ## FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 ## DEALINGS IN THE SOFTWARE.
-REBAR=$(shell which rebar || echo ./rebar)
+REBAR3=$(shell which rebar3 || echo ./rebar3)
 
-.PHONY: all compile clean eunit test eqc doc check dialyzer
+.PHONY: all compile clean eunit test doc check dialyzer
 
 DIRS=src
 
-all: deps compile
+all: check test
 
 check: compile dialyzer
 
 compile:
-	$(REBAR) compile
-
-deps:
-	$(REBAR) get-deps
+	$(REBAR3) compile
 
 clean:
-	$(REBAR) clean
+	$(REBAR3) clean
 
 eunit:
-	$(REBAR) eunit
+	$(REBAR3) eunit
 
 test: eunit
 
 doc:
-	$(REBAR) get-deps compile doc
+	$(REBAR3) doc
 
 dialyzer:
-	$(REBAR) skip_deps=true dialyze
+	$(REBAR3) dialyzer
