@@ -74,6 +74,7 @@ basic_tests(Ns) ->
      ?f(t_awaited_aggr_counter(Ns)),
      ?f(t_simple_resource_count(Ns)),
      ?f(t_wild_resource_count(Ns)),
+     ?f(t_wild_key_in_resource(Ns)),
      ?f(t_awaited_resource_count(Ns)),
      ?f(t_resource_count_on_zero(Ns)),
      ?f(t_update_counters(Ns)),
@@ -306,6 +307,18 @@ t_wild_resource_count([H1,H2|_] = Ns) ->
     ?assertMatch(ok, t_call(Pr2, die)),
     ?assertMatch(ok, t_call(Prc1, die)),
     ?assertMatch(ok, t_call(Prcw, die)).
+
+-define(FAILS(E), try
+                      E,
+                      error(unexpected)
+                  catch error:{badarg, _} ->
+                          ok
+                  end).
+
+t_wild_key_in_resource([N1|_] = Ns) ->
+    ?FAILS(t_spawn_reg(N1, {r,g,{a,b,'\\_'}}, 1)),
+    ?FAILS(t_spawn_mreg(N1, r, [{{a,b,'\\_'}, 1}])).
+
 
 t_awaited_resource_count([H1,H2|_] = Ns) ->
     {r,g,Nm} = R = ?T_RESOURCE,
@@ -710,6 +723,7 @@ read_result(R) -> R.
 t_spawn(Node) -> gproc_test_lib:t_spawn(Node).
 t_spawn(Node, Selective) -> gproc_test_lib:t_spawn(Node, Selective).
 t_spawn_mreg(Node, KVL) -> gproc_test_lib:t_spawn_mreg(Node, KVL).
+t_spawn_mreg(Node, T, KVL) -> gproc_test_lib:t_spawn_mreg(Node, T, KVL).
 t_spawn_reg(Node, N) -> gproc_test_lib:t_spawn_reg(Node, N).
 t_spawn_reg(Node, N, V) -> gproc_test_lib:t_spawn_reg(Node, N, V).
 t_spawn_reg(Node, N, V, As) -> gproc_test_lib:t_spawn_reg(Node, N, V, As).

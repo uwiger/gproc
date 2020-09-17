@@ -20,6 +20,7 @@
          t_spawn_reg/2, t_spawn_reg/3, t_spawn_reg/4,
          t_spawn_reg_shared/3,
          t_spawn_mreg/2,
+         t_spawn_mreg/3,
          t_call/2,
          t_loop/0, t_loop/1,
 	 t_pool_contains_atleast/2,
@@ -48,39 +49,65 @@ t_spawn_reg(Node, Name) ->
 
 t_spawn_reg(Node, Name, Value) ->
     Me = self(),
-    P = spawn(Node, fun() ->
-                            ?assertMatch(true, gproc:reg(Name, Value)),
-                            Me ! {self(), ok},
-                            t_loop()
-                    end),
+    {P, MRef} =
+        spawn_monitor(
+          Node, fun() ->
+                        ?assertMatch(true, gproc:reg(Name, Value)),
+                        Me ! {self(), ok},
+                        t_loop()
+                end),
     receive
-	{P, ok} -> P
+	{P, ok} ->
+            demonitor(MRef),
+            P;
+        {'DOWN', MRef, _, _, Reason} ->
+            error(Reason)
     after 1000 ->
+            demonitor(MRef),
             erlang:error({timeout, t_spawn_reg, [Node, Name, Value]})
     end.
 
 t_spawn_reg(Node, Name, Value, Attrs) ->
     Me = self(),
-    P = spawn(Node, fun() ->
-                            ?assertMatch(true, gproc:reg(Name, Value, Attrs)),
-                            Me ! {self(), ok},
-                            t_loop()
-                    end),
+    {P, MRef} =
+        spawn_monitor(
+          Node, fun() ->
+                        ?assertMatch(true, gproc:reg(Name, Value, Attrs)),
+                        Me ! {self(), ok},
+                        t_loop()
+                end),
     receive
-	{P, ok} -> P
+	{P, ok} ->
+            demonitor(MRef),
+            P;
+        {'DOWN', MRef, _, _, Reason} ->
+            error(Reason)
     after 1000 ->
+            demonitor(MRef),
             erlang:error({timeout, t_spawn_reg, [Node, Name, Value]})
     end.
 
 t_spawn_mreg(Node, KVL) ->
+    t_spawn_mreg(Node, n, KVL).
+
+t_spawn_mreg(Node, T, KVL) ->
     Me = self(),
-    P = spawn(Node, fun() ->
-                            ?assertMatch(true, gproc:mreg(n, g, KVL)),
-                            Me ! {self(), ok},
-                            t_loop()
-                    end),
+    {P, MRef} =
+        spawn_monitor(
+          Node, fun() ->
+                        ?assertMatch(true, gproc:mreg(T, g, KVL)),
+                        Me ! {self(), ok},
+                        t_loop()
+                end),
     receive
-	{P, ok} -> P
+	{P, ok} ->
+            demonitor(MRef),
+            P;
+        {'DOWN', MRef, _, _, Reason} ->
+            error(Reason)
+    after 1000 ->
+            demonitor(MRef),
+            error({timeout, t_spawn_mreg, [Node, T, KVL]})
     end.
 
 

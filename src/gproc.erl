@@ -621,7 +621,7 @@ is_string(S) ->
 %% @equiv reg(Key, default(Key), [])
 %% @end
 reg(Key) ->
-    ?CATCH_GPROC_ERROR(reg1(Key), [Key]).
+    ?CATCH_GPROC_ERROR(reg1(valid_key(Key)), [Key]).
 
 reg1(Key) ->
     reg1(Key, default(Key), [], reg).
@@ -632,10 +632,13 @@ reg1(Key) ->
 %% @equiv reg_or_locate(Key, default(Key))
 %% @end
 reg_or_locate(Key) ->
-    ?CATCH_GPROC_ERROR(reg_or_locate1(Key), [Key]).
+    ?CATCH_GPROC_ERROR(reg_or_locate1(valid_key(Key)), [Key]).
 
 reg_or_locate1(Key) ->
     reg_or_locate1(Key, default(Key), self()).
+
+valid_key(Key) ->
+    gproc_lib:valid_key(Key).
 
 default({T,_,_}) when T==c -> 0;
 default(_) -> undefined.
@@ -961,7 +964,7 @@ demonitor1(_, _) ->
 %%
 %%
 reg(Key, Value) ->
-    ?CATCH_GPROC_ERROR(reg1(Key, Value, [], reg), [Key, Value]).
+    ?CATCH_GPROC_ERROR(reg1(valid_key(Key), Value, [], reg), [Key, Value]).
 
 %% @spec reg(Key::key(), Value::value(), Attrs::attrs()) -> true
 %%
@@ -984,7 +987,8 @@ reg(Key, Value) ->
 %%    reflects the sum of all counter objects with the same name in the given
 %%    scope. The initial value for an aggregated counter must be `undefined'.
 %% * `r' - 'resource property', behaves like a property, but can be tracked
-%%    with a 'resource counter'.
+%%    with a 'resource counter'. Note that using an `rc' wildcard name
+%%    pattern (se below) for a resource property is not allowed.
 %% * `rc' - 'resource counter', tracks the number of resource properties
 %%    with the same name. When the resource count reaches `0', any triggers
 %%    specified using an `on_zero' attribute may be executed (see below).
@@ -1006,16 +1010,16 @@ reg(Key, Value) ->
 %%  `{Type, Context, Name}'
 %% @end
 reg(Key, Value, Attrs) ->
-    ?CATCH_GPROC_ERROR(reg1(Key, Value, Attrs, reg), [Key, Value, Attrs]).
+    ?CATCH_GPROC_ERROR(reg1(valid_key(Key), Value, Attrs, reg), [Key, Value, Attrs]).
 
 %% @equiv ensure_reg(Key, default(Key), [])
 ensure_reg(Key) ->
-    ?CATCH_GPROC_ERROR(reg1(Key, ensure), [Key]).
+    ?CATCH_GPROC_ERROR(reg1(valid_key(Key), ensure), [Key]).
 
 %% @equiv ensure_reg(Key, Value, [])
 -spec ensure_reg(key(), value()) -> new | updated.
 ensure_reg(Key, Value) ->
-    ?CATCH_GPROC_ERROR(reg1(Key, Value, ensure), [Key, Value]).
+    ?CATCH_GPROC_ERROR(reg1(valid_key(Key), Value, ensure), [Key, Value]).
 
 %% @spec ensure_reg(Key::key(), Value::value(), Attrs::attrs()) ->
 %%          new | updated
@@ -1030,7 +1034,7 @@ ensure_reg(Key, Value) ->
 %% @end
 -spec ensure_reg(key(), value(), attrs()) -> new | updated.
 ensure_reg(Key, Value, Attrs) ->
-    ?CATCH_GPROC_ERROR(reg1(Key, Value, Attrs, ensure), [Key, Value, Attrs]).
+    ?CATCH_GPROC_ERROR(reg1(valid_key(Key), Value, Attrs, ensure), [Key, Value, Attrs]).
 
 reg1(Key, Op) ->
     reg1(Key, default(Key), [], Op).
@@ -1059,11 +1063,11 @@ reg1(_, _, _, _) ->
 
 %% @equiv reg_other(Key, Pid, default(Key), [])
 reg_other(Key, Pid) ->
-    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, reg), [Key, Pid]).
+    ?CATCH_GPROC_ERROR(reg_other1(valid_key(Key), Pid, reg), [Key, Pid]).
 
 %% @equiv reg_other(Key, Pid, Value, [])
 reg_other(Key, Pid, Value) ->
-    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, Value, [], reg), [Key, Pid, Value]).
+    ?CATCH_GPROC_ERROR(reg_other1(valid_key(Key), Pid, Value, [], reg), [Key, Pid, Value]).
 
 %% @spec reg_other(Key, Pid, Value, Attrs) -> true
 %% @doc Register name or property to another process.
@@ -1083,15 +1087,15 @@ reg_other(Key, Pid, Value) ->
 %% * `rc' - resource counters
 %% @end
 reg_other(Key, Pid, Value, Attrs) ->
-    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, Value, Attrs, reg),
+    ?CATCH_GPROC_ERROR(reg_other1(valid_key(Key), Pid, Value, Attrs, reg),
                        [Key, Pid, Value, Attrs]).
 
 ensure_reg_other(Key, Pid) ->
-    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, ensure), [Key, Pid]).
+    ?CATCH_GPROC_ERROR(reg_other1(valid_key(Key), Pid, ensure), [Key, Pid]).
 
 %% @equiv ensure_reg_other(Key, Pid, Value, [])
 ensure_reg_other(Key, Pid, Value) ->
-    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, Value, [], ensure),
+    ?CATCH_GPROC_ERROR(reg_other1(valid_key(Key), Pid, Value, [], ensure),
                        [Key, Pid, Value]).
 
 %% @spec ensure_reg_other(Key::key(), Pid::pid(),
@@ -1104,7 +1108,7 @@ ensure_reg_other(Key, Pid, Value) ->
 %% process instead of the current process. Also see {@link ensure_reg/3}.
 %% @end
 ensure_reg_other(Key, Pid, Value, Attrs) ->
-    ?CATCH_GPROC_ERROR(reg_other1(Key, Pid, Value, Attrs, ensure),
+    ?CATCH_GPROC_ERROR(reg_other1(valid_key(Key), Pid, Value, Attrs, ensure),
                        [Key, Pid, Value, Attrs]).
 
 reg_other1(Key, Pid, Op) ->
@@ -1129,7 +1133,7 @@ reg_other1({T,l,_} = Key, Pid, Value, As, Op) when is_pid(Pid) ->
 %% the current registration is returned instead.
 %% @end
 reg_or_locate(Key, Value) ->
-    ?CATCH_GPROC_ERROR(reg_or_locate1(Key, Value, self()), [Key, Value]).
+    ?CATCH_GPROC_ERROR(reg_or_locate1(valid_key(Key), Value, self()), [Key, Value]).
 
 %% @spec reg_or_locate(Key::key(), Value, Fun::fun()) -> {pid(), NewValue}
 %%
@@ -1144,7 +1148,7 @@ reg_or_locate(Key, Value) ->
 %% process is set to the group_leader of the calling process.
 %% @end
 reg_or_locate({n,_,_} = Key, Value, F) when is_function(F, 0) ->
-    ?CATCH_GPROC_ERROR(reg_or_locate1(Key, Value, F), [Key, Value, F]).
+    ?CATCH_GPROC_ERROR(reg_or_locate1(valid_key(Key), Value, F), [Key, Value, F]).
 
 reg_or_locate1({_,g,_} = Key, Value, P) ->
     ?CHK_DIST,
@@ -1162,7 +1166,7 @@ reg_or_locate1(_, _, _) ->
 %% `reg_shared({a,l,A}) -> reg_shared({a,l,A}, undefined).'
 %% @end
 reg_shared(Key) ->
-    ?CATCH_GPROC_ERROR(reg_shared1(Key), [Key]).
+    ?CATCH_GPROC_ERROR(reg_shared1(valid_key(Key)), [Key]).
 
 %% @private
 reg_shared1({T,_,_} = Key) when T==a; T==p; T==c ->
@@ -1184,10 +1188,10 @@ reg_shared1({T,_,_} = Key) when T==a; T==p; T==c ->
 %% @end
 %%
 reg_shared(Key, Value) ->
-    ?CATCH_GPROC_ERROR(reg_shared1(Key, Value, []), [Key, Value]).
+    ?CATCH_GPROC_ERROR(reg_shared1(valid_key(Key), Value, []), [Key, Value]).
 
 reg_shared(Key, Value, Attrs) when is_list(Attrs) ->
-    ?CATCH_GPROC_ERROR(reg_shared1(Key, Value, Attrs), [Key, Value, Attrs]).
+    ?CATCH_GPROC_ERROR(reg_shared1(valid_key(Key), Value, Attrs), [Key, Value, Attrs]).
 
 %% @private
 reg_shared1({_,g,_} = Key, Value, As) ->
@@ -1216,10 +1220,11 @@ reg_shared1(_, _, _) ->
 mreg(T, C, KVL) ->
     ?CATCH_GPROC_ERROR(mreg1(T, C, KVL), [T, C, KVL]).
 
+%% TODO: We don't call valid_key/1 here, since 
 mreg1(T, g, KVL) ->
     ?CHK_DIST,
     gproc_dist:mreg(T, KVL);
-mreg1(T, l, KVL) when T==a; T==n ->
+mreg1(T, l, KVL) when T==p; T==n; T==a; T==r ->
     if is_list(KVL) ->
             call({mreg, T, l, KVL});
        true ->
@@ -2421,7 +2426,10 @@ handle_call({mreg, T, l, L}, {Pid,_}, S) ->
         {true,_} -> {reply, true, S};
         false    -> {reply, badarg, S}
     catch
-        error:_  -> {reply, badarg, S}
+        throw:?GPROC_THROW(_) ->
+            {reply, badarg, S};
+        error:_ ->
+            {reply, badarg, S}
     end;
 handle_call({munreg, T, l, L}, {Pid,_}, S) ->
     _ = gproc_lib:remove_many(T, l, L, Pid),

@@ -100,6 +100,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_wild_resource_count()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_wild_in_resource()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_awaited_resource_count()))}
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_resource_count_on_zero_send()))}
@@ -378,6 +380,17 @@ t_wild_resource_count() ->
     end,
     ?assert(gproc:get_value({rc,l,{r1,1}}) =:= 1),
     ?assert(gproc:get_value({rc,l,{r1,'\\_'}}) =:= 1).
+
+-define(FAILS(E), try
+                      E,
+                      error(unexpected)
+                  catch error:badarg ->
+                          ok
+                  end).
+
+t_wild_in_resource() ->
+    ?FAILS(gproc:reg({r,l,{a,b,'\\_'}})),
+    ?FAILS(gproc:mreg(r, l, [{{a,b,'\\_'}, 1}])).
 
 t_awaited_resource_count() ->
     ?assert(gproc:reg({r,l,r1}, 3) =:= true),

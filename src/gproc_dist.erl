@@ -617,12 +617,15 @@ handle_leader_call({give_away, {T,g,_} = K, To, Pid}, _From, S, _E)
             {reply, badarg, S}
     end;
 handle_leader_call({mreg, T, g, L, Pid}, _From, S, _E) ->
-    if T==p; T==n; T==r ->
+    if T==p; T==n; T==a; T==r ->
             try gproc_lib:insert_many(T, g, L, Pid) of
                 {true,Objs} -> {reply, true, [{insert,Objs}], S};
                 false       -> {reply, badarg, S}
             catch
-                error:_     -> {reply, badarg, S}
+                throw:?GPROC_THROW(_) ->
+                    {reply, badarg, S};
+                error:_ ->
+                    {reply, badarg, S}
             end;
        true -> {reply, badarg, S}
     end;

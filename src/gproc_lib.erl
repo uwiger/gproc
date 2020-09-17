@@ -46,7 +46,8 @@
          update_aggr_counter/3,
          update_counter/3,
          decrement_resource_count/2,
-	 valid_opts/2]).
+	 valid_opts/2,
+         valid_key/1]).
 
 -export([dbg/1]).
 
@@ -166,6 +167,13 @@ get_attr(Attr, Pid, {_,_,_} = Key, Default) ->
           {true,list()} | false.
 
 insert_many(T, Scope, KVL, Pid) ->
+    try insert_many_(T, Scope, KVL, Pid)
+    catch
+        throw:?GPROC_THROW(_) ->
+            false
+    end.
+
+insert_many_(T, Scope, KVL, Pid) ->
     Objs = mk_reg_objs(T, Scope, Pid, KVL),
     case ets:insert_new(?TAB, Objs) of
         true ->
@@ -320,20 +328,34 @@ does_pid_monitor(Pid, Opts) ->
 
 mk_reg_objs(T, Scope, Pid, L) when T==n; T==a; T==rc ->
     lists:map(fun({K,V}) ->
-                      {{{T,Scope,K},T}, Pid, V};
+                      Key = {T, Scope, K},
+                      _ = valid_key(Key),
+                      {{Key,T}, Pid, V};
                  (_) ->
-                      erlang:error(badarg)
+                      ?THROW_GPROC_ERROR(badarg)
               end, L);
-mk_reg_objs(p = T, Scope, Pid, L) ->
+mk_reg_objs(T, Scope, Pid, L) when T==p; T==r ->
     lists:map(fun({K,V}) ->
-                      {{{T,Scope,K},Pid}, Pid, V};
+                      Key = {T, Scope, K},
+                      _ = valid_key(Key),
+                      {{Key,Pid}, Pid, V};
                  (_) ->
-                      erlang:error(badarg)
+                      ?THROW_GPROC_ERROR(badarg)
               end, L).
 
 mk_reg_rev_objs(T, Scope, Pid, L) ->
     [{{Pid,{T,Scope,K}}, []} || {K,_} <- L].
 
+valid_key({r,_,R} = Key) when is_tuple(R) ->
+    case element(tuple_size(R), R) of
+        '\\_' ->
+            %% Cannot allow this, since '\\_' is a wildcard for resources
+            ?THROW_GPROC_ERROR(badarg);
+        _ ->
+            Key
+    end;
+valid_key(Key) ->
+    Key.
 
 ensure_monitor(shared, _) ->
     ok;
