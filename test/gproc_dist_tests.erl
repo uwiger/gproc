@@ -73,6 +73,8 @@ basic_tests(Ns) ->
      ?f(t_aggr_counter(Ns)),
      ?f(t_awaited_aggr_counter(Ns)),
      ?f(t_simple_resource_count(Ns)),
+     ?f(t_wild_resource_count(Ns)),
+     ?f(t_wild_key_in_resource(Ns)),
      ?f(t_awaited_resource_count(Ns)),
      ?f(t_resource_count_on_zero(Ns)),
      ?f(t_update_counters(Ns)),
@@ -130,6 +132,7 @@ run_dist_tests() ->
 -define(T_KVL, [{foo, "foo"}, {bar, "bar"}]).
 -define(T_COUNTER, {c, g, {?MODULE, ?LINE}}).
 -define(T_RESOURCE, {r, g, {?MODULE, ?LINE}}).
+-define(T_RESOURCE1(N), {r, g, {?MODULE, {?LINE,N}}}).
 -define(T_PROP, {p, g, ?MODULE}).
 
 t_simple_reg([H|_] = Ns) ->
@@ -282,6 +285,40 @@ t_simple_resource_count([H1,H2|_] = Ns) ->
     ?assertMatch(ok, t_read_everywhere(RC, Prc, Ns, 1)),
     ?assertMatch(ok, t_call(Pr2, die)),
     ?assertMatch(ok, t_call(Prc, die)).
+
+t_wild_resource_count([H1,H2|_] = Ns) ->
+    L = ?LINE,
+    R1 = {r, g, {L, 1}},
+    R2 = {r, g, {L, 2}},
+    RC1 = {rc, g, {L,1}},
+    RCw = {rc, g, {L,'\\_'}},
+    Pr1 = t_spawn_reg(H1, R1, 3),
+    Prc1 = t_spawn_reg(H2, RC1),
+    ?assertMatch(ok, t_read_everywhere(R1, Pr1, Ns, 3)),
+    ?assertMatch(ok, t_read_everywhere(RC1, Prc1, Ns, 1)),
+    Pr2 = t_spawn_reg(H2, R2, 4),
+    Prcw = t_spawn_reg(H2, RCw),
+    ?assertMatch(ok, t_read_everywhere(R2, Pr2, Ns, 4)),
+    ?assertMatch(ok, t_read_everywhere(RC1, Prc1, Ns, 1)),
+    ?assertMatch(ok, t_read_everywhere(RCw, Prcw, Ns, 2)),
+    ?assertMatch(ok, t_call(Pr1, die)),
+    ?assertMatch(ok, t_read_everywhere(RC1, Prc1, Ns, 0)),
+    ?assertMatch(ok, t_read_everywhere(RCw, Prcw, Ns, 1)),
+    ?assertMatch(ok, t_call(Pr2, die)),
+    ?assertMatch(ok, t_call(Prc1, die)),
+    ?assertMatch(ok, t_call(Prcw, die)).
+
+t_wild_key_in_resource([H1|_]) ->
+    N1 = ?T_NAME,
+    N2 = ?T_NAME,
+    Rw = {a,b,'\\_'},
+    P1 = t_spawn_reg(H1, N1),
+    P2 = t_spawn_reg(H1, N2),
+    ?assertError({'DOWN', _, {badarg, _}},
+                 t_call(P1, {apply, gproc, reg, [{r,g,Rw}, 1]})),
+    ?assertError({'DOWN', _, {badarg, _}},
+                 t_call(P2, {apply, gproc, mreg, [r, g, [{Rw, 1}]]})).
+
 
 t_awaited_resource_count([H1,H2|_] = Ns) ->
     {r,g,Nm} = R = ?T_RESOURCE,
@@ -686,6 +723,7 @@ read_result(R) -> R.
 t_spawn(Node) -> gproc_test_lib:t_spawn(Node).
 t_spawn(Node, Selective) -> gproc_test_lib:t_spawn(Node, Selective).
 t_spawn_mreg(Node, KVL) -> gproc_test_lib:t_spawn_mreg(Node, KVL).
+%%t_spawn_mreg(Node, T, KVL) -> gproc_test_lib:t_spawn_mreg(Node, T, KVL).
 t_spawn_reg(Node, N) -> gproc_test_lib:t_spawn_reg(Node, N).
 t_spawn_reg(Node, N, V) -> gproc_test_lib:t_spawn_reg(Node, N, V).
 t_spawn_reg(Node, N, V, As) -> gproc_test_lib:t_spawn_reg(Node, N, V, As).

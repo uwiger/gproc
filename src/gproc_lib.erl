@@ -46,7 +46,8 @@
          update_aggr_counter/3,
          update_counter/3,
          decrement_resource_count/2,
-	 valid_opts/2]).
+	   valid_opts/2,
+         valid_key/1]).
 
 -export([dbg/1]).
 
@@ -79,7 +80,12 @@ insert_reg({T,_,Name} = K, Value, Pid, Scope, Event) when T==a; T==n; T==rc ->
               false ->
                   maybe_waiters(K, Pid, Value, T, Event)
           end,
-    maybe_scan(T, Pid, Scope, Name, K),
+    case Res of
+        true ->
+            maybe_scan(T, Pid, Scope, Name, K);
+        false ->
+            false
+    end,
     Res;
 insert_reg({p,Scope,_} = K, Value, shared, Scope, _E)
   when Scope == g; Scope == l ->
@@ -161,6 +167,13 @@ get_attr(Attr, Pid, {_,_,_} = Key, Default) ->
           {true,list()} | false.
 
 insert_many(T, Scope, KVL, Pid) ->
+    try insert_many_(T, Scope, KVL, Pid)
+    catch
+        throw:?GPROC_THROW(_) ->
+            false
+    end.
+
+insert_many_(T, Scope, KVL, Pid) ->
     Objs = mk_reg_objs(T, Scope, Pid, KVL),
     case ets:insert_new(?TAB, Objs) of
         true ->
@@ -315,20 +328,34 @@ does_pid_monitor(Pid, Opts) ->
 
 mk_reg_objs(T, Scope, Pid, L) when T==n; T==a; T==rc ->
     lists:map(fun({K,V}) ->
-                      {{{T,Scope,K},T}, Pid, V};
+                      Key = {T, Scope, K},
+                      _ = valid_key(Key),
+                      {{Key,T}, Pid, V};
                  (_) ->
-                      erlang:error(badarg)
+                      ?THROW_GPROC_ERROR(badarg)
               end, L);
-mk_reg_objs(p = T, Scope, Pid, L) ->
+mk_reg_objs(T, Scope, Pid, L) when T==p; T==r ->
     lists:map(fun({K,V}) ->
-                      {{{T,Scope,K},Pid}, Pid, V};
+                      Key = {T, Scope, K},
+                      _ = valid_key(Key),
+                      {{Key,Pid}, Pid, V};
                  (_) ->
-                      erlang:error(badarg)
+                      ?THROW_GPROC_ERROR(badarg)
               end, L).
 
 mk_reg_rev_objs(T, Scope, Pid, L) ->
     [{{Pid,{T,Scope,K}}, []} || {K,_} <- L].
 
+valid_key({r,_,R} = Key) when is_tuple(R) ->
+    case element(tuple_size(R), R) of
+        '\\_' ->
+            %% Cannot allow this, since '\\_' is a wildcard for resources
+            ?THROW_GPROC_ERROR(badarg);
+        _ ->
+            Key
+    end;
+valid_key(Key) ->
+    Key.
 
 ensure_monitor(shared, _) ->
     ok;
@@ -557,6 +584,14 @@ decrement_resource_count(C, N) ->
     update_resource_count(C, N, -1).
 
 update_resource_count(C, N, Val) ->
+    update_resource_count_(C, N, Val),
+    case is_tuple(N) of
+        true -> update_resource_count_(
+                  C, setelement(size(N), N, '\\_'), Val);
+        false -> ok
+    end.
+
+update_resource_count_(C, N, Val) ->
     try ets:update_counter(?TAB, {{rc,C,N},rc}, {3, Val}) of
         0 ->
             resource_count_zero(C, N);
@@ -615,8 +650,17 @@ scan_existing_counters(Ctxt, Name) ->
     lists:sum(Cs).
 
 scan_existing_resources(Ctxt, Name) ->
-    Head = {{{r,Ctxt,Name},'_'},'_','_'},
+    Head = {{{r,Ctxt,adjust_wild(Name)},'_'},'_','_'},
     ets:select_count(?TAB, [{Head, [], [true]}]).
+
+adjust_wild(N) when is_tuple(N) ->
+    Sz = size(N),
+    case element(Sz, N) of
+        '\\_' -> setelement(Sz, N, '_');
+        _     -> N
+    end;
+adjust_wild(N) ->
+    N.
 
 valid_opts(Type, Default) ->
     Opts = get_app_env(Type, Default),

@@ -22,11 +22,13 @@
 -define(CATCH_GPROC_ERROR(Expr, Args),
 	try Expr
 	catch
-	    throw:{gproc_error, GprocError} ->
+	    throw:?GPROC_THROW(GprocError) ->
 		erlang:error(GprocError, Args)
 	end).
 
--define(THROW_GPROC_ERROR(E), throw({gproc_error, E})).
+-define(GPROC_THROW(E), {gproc_error, E}).
+
+-define(THROW_GPROC_ERROR(E), throw(?GPROC_THROW(E))).
 
 %% Used to wrap operations that may fail, but we ignore the exception.
 %% Use instead of catch, to avoid building a stacktrace unnecessarily.

@@ -20,6 +20,7 @@
          t_spawn_reg/2, t_spawn_reg/3, t_spawn_reg/4,
          t_spawn_reg_shared/3,
          t_spawn_mreg/2,
+         t_spawn_mreg/3,
          t_call/2,
          t_loop/0, t_loop/1,
 	 t_pool_contains_atleast/2,
@@ -54,7 +55,8 @@ t_spawn_reg(Node, Name, Value) ->
                             t_loop()
                     end),
     receive
-	{P, ok} -> P
+	{P, ok} ->
+            P
     after 1000 ->
             erlang:error({timeout, t_spawn_reg, [Node, Name, Value]})
     end.
@@ -67,20 +69,27 @@ t_spawn_reg(Node, Name, Value, Attrs) ->
                             t_loop()
                     end),
     receive
-	{P, ok} -> P
+	{P, ok} ->
+            P
     after 1000 ->
             erlang:error({timeout, t_spawn_reg, [Node, Name, Value]})
     end.
 
 t_spawn_mreg(Node, KVL) ->
+    t_spawn_mreg(Node, n, KVL).
+
+t_spawn_mreg(Node, T, KVL) ->
     Me = self(),
     P = spawn(Node, fun() ->
-                            ?assertMatch(true, gproc:mreg(n, g, KVL)),
+                            ?assertMatch(true, gproc:mreg(T, g, KVL)),
                             Me ! {self(), ok},
                             t_loop()
                     end),
     receive
-	{P, ok} -> P
+	{P, ok} ->
+            P
+    after 1000 ->
+            error({timeout, t_spawn_mreg, [Node, T, KVL]})
     end.
 
 
