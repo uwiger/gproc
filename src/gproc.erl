@@ -1849,10 +1849,10 @@ lookup_values({T,_,_} = Key) ->
 -spec update_counter(key(), increment()) -> integer() | [integer()].
 update_counter(Key, Incr) ->
     Pid = case Key of
-	      {n,_,_} -> n;
-	      {T,_,_} when T==c; T==r ->
+              {n,_,_} -> n;
+              {T,_,_} when T==c; T==r ->
                   self()
-	  end,
+          end,
     ?CATCH_GPROC_ERROR(update_counter1(Key, Pid, Incr), [Key, Incr]).
 
 update_counter(Key, Pid, Incr) when is_pid(Pid);
@@ -2329,10 +2329,10 @@ handle_call({monitor, {T,l,_} = Key, Pid, Type}, _From, S)
     Lookup = ets:lookup(?TAB, {Key, T}),
     IsRegged = is_regged(Lookup),
     _ = case {IsRegged, Type} of
-	    {false, info} ->
-		Pid ! {gproc, unreg, Ref, Key};
+            {false, info} ->
+                Pid ! {gproc, unreg, Ref, Key};
             {false, follow} ->
-		Pid ! {gproc, unreg, Ref, Key},
+                Pid ! {gproc, unreg, Ref, Key},
                 _ = gproc_lib:ensure_monitor(Pid, l),
                 case Lookup of
                     [{K, Waiters}] ->
@@ -2348,19 +2348,19 @@ handle_call({monitor, {T,l,_} = Key, Pid, Type}, _From, S)
                 true = gproc_lib:insert_reg(Key, undefined, Pid, l, Evt),
                 Pid ! {gproc, Evt, Ref, Key},
                 _ = gproc_lib:ensure_monitor(Pid, l);
-	    {true, _} ->
+            {true, _} ->
                 [{_, RegPid, _}] = Lookup,
                 _ = gproc_lib:ensure_monitor(Pid, l),
-		case ets:lookup(?TAB, {RegPid, Key}) of
-		    [{K,r}] ->
-			ets:insert(?TAB, {K, [{monitor, [{Pid,Ref,Type}]}]}),
+                case ets:lookup(?TAB, {RegPid, Key}) of
+                    [{K,r}] ->
+                        ets:insert(?TAB, {K, [{monitor, [{Pid,Ref,Type}]}]}),
                         ets:insert_new(?TAB, {{Pid,Key}, []});
-		    [{K, Opts}] ->
-			ets:insert(?TAB, {K, gproc_lib:add_monitor(
+                    [{K, Opts}] ->
+                        ets:insert(?TAB, {K, gproc_lib:add_monitor(
                                                Opts, Pid, Ref, Type)}),
                         ets:insert_new(?TAB, {{Pid,Key}, []})
-		end
-	end,
+                end
+        end,
     {reply, Ref, S};
 handle_call({demonitor, {T,l,_} = Key, Ref, Pid}, _From, S)
   when T==n; T==a; T==rc ->
@@ -3106,24 +3106,24 @@ remove_dead(true, Objs) ->
 %% a test case that verifies the difference between having the option and not.
 qlc_lookup_pid(Pid, Scope, Check) ->
     case Check andalso ?PID_IS_DEAD(Pid) of
-	true ->
-	    [];
-	false ->
-	    Found =
-		ets:select(?TAB, [{{{Pid, rev_keypat(Scope)}, '_'},
-				   [], ['$_']}]),
-	    lists:flatmap(
-	      fun({{_,{T,_,_}=K}, _}) ->
-		      K2 = if T==n orelse T==a orelse T==rc -> T;
-			      true -> Pid
-			   end,
-		      case ets:lookup(?TAB, {K,K2}) of
-			  [{{Key,_},_,Value}] ->
-			      [{Key, Pid, Value}];
-			  [] ->
-			      []
-		      end
-	      end, Found)
+        true ->
+            [];
+        false ->
+            Found =
+                ets:select(?TAB, [{{{Pid, rev_keypat(Scope)}, '_'},
+                                   [], ['$_']}]),
+            lists:flatmap(
+              fun({{_,{T,_,_}=K}, _}) ->
+                      K2 = if T==n orelse T==a orelse T==rc -> T;
+                              true -> Pid
+                           end,
+                      case ets:lookup(?TAB, {K,K2}) of
+                          [{{Key,_},_,Value}] ->
+                              [{Key, Pid, Value}];
+                          [] ->
+                              []
+                      end
+              end, Found)
     end.
 
 

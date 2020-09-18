@@ -46,7 +46,7 @@
          update_aggr_counter/3,
          update_counter/3,
          decrement_resource_count/2,
-	   valid_opts/2,
+         valid_opts/2,
          valid_key/1]).
 
 -export([dbg/1]).
@@ -529,13 +529,13 @@ do_set_counter_value({_,C,N} = Key, Value, Pid) ->
     Res.
 
 update_counter({T,l,Ctr} = Key, Incr, Pid) when is_integer(Incr), T==c;
-						is_integer(Incr), T==r;
+                                                is_integer(Incr), T==r;
                                                 is_integer(Incr), T==n ->
     Res = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
     if T==c ->
-	    update_aggr_counter(l, Ctr, Incr);
+            update_aggr_counter(l, Ctr, Incr);
        true ->
-	    ok
+            ok
     end,
     Res;
 update_counter({T,l,Ctr} = Key, {Incr, Threshold, SetValue}, Pid)
@@ -543,28 +543,28 @@ update_counter({T,l,Ctr} = Key, {Incr, Threshold, SetValue}, Pid)
        is_integer(Incr), is_integer(Threshold), is_integer(SetValue), T==r;
        is_integer(Incr), is_integer(Threshold), is_integer(SetValue), T==n ->
     [Prev, New] = ets:update_counter(?TAB, {Key, Pid},
-				     [{3, 0}, {3, Incr, Threshold, SetValue}]),
+                                     [{3, 0}, {3, Incr, Threshold, SetValue}]),
     if T==c ->
-	    update_aggr_counter(l, Ctr, New - Prev);
+            update_aggr_counter(l, Ctr, New - Prev);
        true ->
-	    ok
+            ok
     end,
     New;
 update_counter({T,l,Ctr} = Key, Ops, Pid) when is_list(Ops), T==c;
                                                is_list(Ops), T==r;
-					       is_list(Ops), T==n ->
+                                               is_list(Ops), T==n ->
     case ets:update_counter(?TAB, {Key, Pid},
-			    [{3, 0} | expand_ops(Ops)]) of
-	[_] ->
-	    [];
-	[Prev | Rest] ->
-	    [New | _] = lists:reverse(Rest),
-	    if T==c ->
-		    update_aggr_counter(l, Ctr, New - Prev);
-	       true ->
-		    ok
-	    end,
-	    Rest
+                            [{3, 0} | expand_ops(Ops)]) of
+        [_] ->
+            [];
+        [Prev | Rest] ->
+            [New | _] = lists:reverse(Rest),
+            if T==c ->
+                    update_aggr_counter(l, Ctr, New - Prev);
+               true ->
+                    ok
+            end,
+            Rest
     end;
 update_counter(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).

@@ -234,7 +234,7 @@ give_away({_,g,_} = Key, To) ->
 
 update_counter({T,g,_} = Key, Pid, Incr) when is_integer(Incr), T==c;
                                               is_integer(Incr), T==r;
-					      is_integer(Incr), T==n ->
+                                              is_integer(Incr), T==n ->
     leader_call({update_counter, Key, Incr, Pid});
 update_counter(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
@@ -522,12 +522,12 @@ handle_leader_call({update_counter, {T,g,_Ctr} = Key, Incr, Pid}, _From, S, _E)
        is_integer(Incr), T==r;
        is_integer(Incr), T==n ->
     try New = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
-	 RealPid = case Pid of
-		       n -> ets:lookup_element(?TAB, {Key,Pid}, 2);
-		       shared -> shared;
-		       P when is_pid(P) -> P
-		   end,
-	 Vals = [{{Key,Pid},RealPid,New} | update_aggr_counter(Key, Incr)],
+         RealPid = case Pid of
+                       n -> ets:lookup_element(?TAB, {Key,Pid}, 2);
+                       shared -> shared;
+                       P when is_pid(P) -> P
+                   end,
+         Vals = [{{Key,Pid},RealPid,New} | update_aggr_counter(Key, Incr)],
         {reply, New, [{insert, Vals}], S}
     catch
         error:_ ->
@@ -1017,11 +1017,12 @@ batch_update_counters(Cs) ->
 batch_update_counters([{{T,g,_} = Key, Pid, Incr}|Cs], Returns, Updates)
   when T==c; T==n; T==r ->
     case update_counter_g(Key, Incr, Pid) of
-	[{_,_,_} = A, {_, _, V} = C] ->
-	    batch_update_counters(Cs, [{Key,Pid,V}|Returns], add_object(
-							      A, add_object(C, Updates)));
-	[{_, _, V} = C] ->
-	    batch_update_counters(Cs, [{Key,Pid,V}|Returns], add_object(C, Updates))
+        [{_,_,_} = A, {_, _, V} = C] ->
+            batch_update_counters(Cs, [{Key,Pid,V}|Returns],
+                                  add_object(A, add_object(C, Updates)));
+        [{_, _, V} = C] ->
+            batch_update_counters(
+              Cs, [{Key,Pid,V}|Returns], add_object(C, Updates))
     end;
 batch_update_counters([], Returns, Updates) ->
     {lists:reverse(Returns), Updates}.
@@ -1052,7 +1053,7 @@ update_counter_g({T,g,_} = Key, {Incr, Threshold, SetValue}, Pid)
            true -> Pid
         end,
     [Prev, New] = ets:update_counter(?TAB, {Key, R},
-				     [{3, 0}, {3, Incr, Threshold, SetValue}]),
+                                     [{3, 0}, {3, Incr, Threshold, SetValue}]),
     update_aggr_counter(Key, New - Prev, [{{Key,R},Pid,New}]);
 update_counter_g({T,g,_} = Key, Ops, Pid) when is_list(Ops), T==c;
                                                is_list(Ops), T==r;
@@ -1061,12 +1062,12 @@ update_counter_g({T,g,_} = Key, Ops, Pid) when is_list(Ops), T==c;
            true -> Pid
         end,
     case ets:update_counter(?TAB, {Key, R},
-			    [{3, 0} | expand_ops(Ops)]) of
-	[_] ->
-	    [];
-	[Prev | Rest] ->
-	    [New | _] = lists:reverse(Rest),
-	    update_aggr_counter(Key, New - Prev, [{{Key,R}, Pid, Rest}])
+                            [{3, 0} | expand_ops(Ops)]) of
+        [_] ->
+            [];
+        [Prev | Rest] ->
+            [New | _] = lists:reverse(Rest),
+            update_aggr_counter(Key, New - Prev, [{{Key,R}, Pid, Rest}])
     end;
 update_counter_g(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).

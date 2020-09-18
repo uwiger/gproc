@@ -419,9 +419,11 @@ t_update_counters(C1, C12, C2, [H1,H2|_] = Ns) ->
        true -> ok
     end,
     ?assertMatch([{C1,P1, 3},
-		  {C12,P12,4},
-		  {C2,P2, 0}], t_call(P1, {apply, gproc, update_counters,
-					   [g, [{C1,P1,1},{C12,P12,2},{C2,P2,{-2,0,0}}]]})),
+                  {C12,P12,4},
+                  {C2,P2, 0}], t_call(P1, {apply, gproc, update_counters,
+                                           [g, [ {C1,P1,1}
+                                               , {C12,P12,2}
+                                               , {C2,P2,{-2,0,0}} ]]})),
     ?assertMatch(ok, t_read_everywhere(C1, P1, Ns, 3)),
     ?assertMatch(ok, t_read_everywhere(C12, P12, Ns, 4)),
     ?assertMatch(ok, t_read_everywhere(C2, P2, Ns, 0)),
