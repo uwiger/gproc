@@ -70,6 +70,8 @@ basic_tests(Ns) ->
      ?f(t_simple_ensure_other(Ns)),
      ?f(t_simple_reg_or_locate(Ns)),
      ?f(t_simple_counter(Ns)),
+     ?f(t_simple_r_counter(Ns)),
+     ?f(t_simple_n_counter(Ns)),
      ?f(t_aggr_counter(Ns)),
      ?f(t_awaited_aggr_counter(Ns)),
      ?f(t_simple_resource_count(Ns)),
@@ -78,6 +80,8 @@ basic_tests(Ns) ->
      ?f(t_awaited_resource_count(Ns)),
      ?f(t_resource_count_on_zero(Ns)),
      ?f(t_update_counters(Ns)),
+     ?f(t_update_r_counters(Ns)),
+     ?f(t_update_n_counters(Ns)),
      ?f(t_shared_counter(Ns)),
      ?f(t_prop(Ns)),
      ?f(t_mreg(Ns)),
@@ -216,6 +220,22 @@ t_simple_counter([H|_] = Ns) ->
     ?assertMatch(ok, t_read_everywhere(Ctr, P, Ns, 5)),
     ?assertMatch(ok, t_call(P, die)).
 
+t_simple_r_counter([H|_] = Ns) ->
+    Ctr = ?T_RESOURCE,
+    P = t_spawn_reg(H, Ctr, 3),
+    ?assertMatch(ok, t_read_everywhere(Ctr, P, Ns, 3)),
+    ?assertMatch(5, t_call(P, {apply, gproc, update_counter, [Ctr, 2]})),
+    ?assertMatch(ok, t_read_everywhere(Ctr, P, Ns, 5)),
+    ?assertMatch(ok, t_call(P, die)).
+
+t_simple_n_counter([H|_] = Ns) ->
+    Ctr = ?T_NAME,
+    P = t_spawn_reg(H, Ctr, 3),
+    ?assertMatch(ok, t_read_everywhere(Ctr, P, Ns, 3)),
+    ?assertMatch(5, t_call(P, {apply, gproc, update_counter, [Ctr, 2]})),
+    ?assertMatch(ok, t_read_everywhere(Ctr, P, Ns, 5)),
+    ?assertMatch(ok, t_call(P, die)).
+
 t_shared_counter([H|_] = Ns) ->
     Ctr = ?T_COUNTER,
     P = t_spawn_reg_shared(H, Ctr, 3),
@@ -319,7 +339,6 @@ t_wild_key_in_resource([H1|_]) ->
     ?assertError({'DOWN', _, {badarg, _}},
                  t_call(P2, {apply, gproc, mreg, [r, g, [{Rw, 1}]]})).
 
-
 t_awaited_resource_count([H1,H2|_] = Ns) ->
     {r,g,Nm} = R = ?T_RESOURCE,
     RC = {rc,g,Nm},
@@ -368,29 +387,55 @@ t_resource_count_on_zero([H1,H2|_] = Ns) ->
     ?assertMatch(ok, t_call(Pp, die)),
     ?assertMatch(ok, t_call(Prc, die)).
 
-t_update_counters([H1,H2|_] = Ns) ->
-    {c,g,N1} = C1 = ?T_COUNTER,
-    A1 = {a,g,N1},
+t_update_counters(Ns) ->
+    C1 = ?T_COUNTER,
     C2 = ?T_COUNTER,
+    t_update_counters(C1, C1, C2, Ns).
+
+t_update_r_counters(Ns) ->
+    C1 = ?T_RESOURCE,
+    C2 = ?T_RESOURCE,
+    t_update_counters(C1, C1, C2, Ns).
+
+t_update_n_counters(Ns) ->
+    C1 = ?T_NAME,
+    C2 = ?T_NAME,
+    C3 = ?T_NAME,
+    t_update_counters(C1, C2, C3, Ns).
+
+t_update_counters(C1, C12, C2, [H1,H2|_] = Ns) ->
+    {T,g,N1} = C1,
+    A1 = {a,g,N1},
     P1 = t_spawn_reg(H1, C1, 2),
-    P12 = t_spawn_reg(H2, C1, 2),
+    P12 = t_spawn_reg(H2, C12, 2),
     P2 = t_spawn_reg(H2, C2, 1),
-    Pa1 = t_spawn_reg(H2, A1),
+    Pa1 = if T==c -> t_spawn_reg(H2, A1);
+             true -> undefined
+          end,
     ?assertMatch(ok, t_read_everywhere(C1, P1, Ns, 2)),
-    ?assertMatch(ok, t_read_everywhere(C1, P12, Ns, 2)),
+    ?assertMatch(ok, t_read_everywhere(C12, P12, Ns, 2)),
     ?assertMatch(ok, t_read_everywhere(C2, P2, Ns, 1)),
-    ?assertMatch(ok, t_read_everywhere(A1, Pa1, Ns, 4)),
+    if T==c -> ?assertMatch(ok, t_read_everywhere(A1, Pa1, Ns, 4));
+       true -> ok
+    end,
     ?assertMatch([{C1,P1, 3},
-		  {C1,P12,4},
-		  {C2,P2, 0}], t_call(P1, {apply, gproc, update_counters,
-					   [g, [{C1,P1,1},{C1,P12,2},{C2,P2,{-2,0,0}}]]})),
+                  {C12,P12,4},
+                  {C2,P2, 0}], t_call(P1, {apply, gproc, update_counters,
+                                           [g, [ {C1,P1,1}
+                                               , {C12,P12,2}
+                                               , {C2,P2,{-2,0,0}} ]]})),
     ?assertMatch(ok, t_read_everywhere(C1, P1, Ns, 3)),
-    ?assertMatch(ok, t_read_everywhere(C1, P12, Ns, 4)),
+    ?assertMatch(ok, t_read_everywhere(C12, P12, Ns, 4)),
     ?assertMatch(ok, t_read_everywhere(C2, P2, Ns, 0)),
-    ?assertMatch(ok, t_read_everywhere(A1, Pa1, Ns, 7)),
+    if T==c -> ?assertMatch(ok, t_read_everywhere(A1, Pa1, Ns, 7));
+       true -> ok
+    end,
     ?assertMatch(ok, t_call(P1, die)),
     ?assertMatch(ok, t_call(P12, die)),
-    ?assertMatch(ok, t_call(P2, die)).
+    ?assertMatch(ok, t_call(P2, die)),
+    if T==c -> ?assertMatch(ok, t_call(Pa1, die));
+       true -> ok
+    end.
 
 t_prop([H1,H2|_] = Ns) ->
     {p, g, _} = P = ?T_PROP,
