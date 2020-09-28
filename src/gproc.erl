@@ -360,7 +360,7 @@ lookup_global_counters(P)   -> lookup_values({c,g,P}).
 %%
 %% @doc Look up all local (non-unique) instances of a given Resource.
 %% Returns a list of {Pid, Value} tuples for all matching objects.
-%% @equiv lookup_values({c, l, Resource})
+%% @equiv lookup_values({r, l, Resource})
 %% @end
 %%
 lookup_local_resources(P)    -> lookup_values({r,l,P}).
@@ -370,7 +370,7 @@ lookup_local_resources(P)    -> lookup_values({r,l,P}).
 %%
 %% @doc Look up all global (non-unique) instances of a given Resource.
 %% Returns a list of {Pid, Value} tuples for all matching objects.
-%% @equiv lookup_values({c, g, Resource})
+%% @equiv lookup_values({r, g, Resource})
 %% @end
 %%
 lookup_global_resources(P)   -> lookup_values({r,g,P}).
