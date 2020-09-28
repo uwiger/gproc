@@ -37,7 +37,9 @@
 -module(gproc_ps).
 
 -export([subscribe/2,
+         subscribe_remote/2,
 	 subscribe_cond/3,
+         subscribe_cond_remote/3,
 	 change_cond/3,
 	 unsubscribe/2,
 	 publish/3,
@@ -79,6 +81,9 @@
 subscribe(Scope, Event) when Scope==l; Scope==g ->
     gproc:reg({p,Scope,{?ETag, Event}}).
 
+subscribe_remote(Event, Pid) when is_pid(Pid), node(Pid) =/= node() ->
+    gproc:reg_remote({p,l,{?ETag, Event}}, Pid).
+
 -spec subscribe_cond(scope(), event(), undefined | ets:match_spec()) -> true.
 %% @doc Subscribe conditionally to events of type `Event'
 %%
@@ -113,6 +118,15 @@ subscribe_cond(Scope, Event, Spec) when Scope==l; Scope==g ->
 	_ -> error(badarg)
     end,
     gproc:reg({p,Scope,{?ETag, Event}}, Spec).
+
+subscribe_cond_remote(Event, Spec, Pid)
+  when is_pid(Pid), node(Pid) =/= node() ->
+    case Spec of
+        undefined -> ok;
+        [_|_] -> _ = ets:match_spec_compile(Spec);
+        _ -> error(badarg)
+    end,
+    gproc:reg_remote({p,l,{?ETag, Event}}, Spec).
 
 -spec change_cond(scope(), event(), undefined | ets:match_spec()) -> true.
 %% @doc Change the condition specification of an existing subscription.

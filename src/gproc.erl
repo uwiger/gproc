@@ -50,6 +50,7 @@
 -export([start_link/0,
          reg/1, reg/2, reg/3, unreg/1, set_attributes/2,
          reg_other/2, reg_other/3, reg_other/4, unreg_other/2,
+         reg_remote/2, reg_remote/3, reg_remote/4,
 	 reg_or_locate/1, reg_or_locate/2, reg_or_locate/3,
 	 reg_shared/1, reg_shared/2, reg_shared/3, unreg_shared/1,
 	 set_attributes_shared/2, set_value_shared/2,
@@ -1141,6 +1142,33 @@ reg_other1({_,g,_} = Key, Pid, Value, As, Op) when is_pid(Pid) ->
 reg_other1({T,l,_} = Key, Pid, Value, As, Op) when is_pid(Pid) ->
     if T==n; T==a; T==r; T==rc ->
             call({reg_other, Key, Pid, Value, As, Op});
+       true ->
+            ?THROW_GPROC_ERROR(badarg)
+    end.
+
+reg_remote(Key, Pid) ->
+    ?CATCH_GPROC_ERROR(reg_remote1(Key, Pid, reg), [Key, Pid]).
+
+reg_remote(Key, Pid, Value) ->
+    ?CATCH_GPROC_ERROR(reg_remote1(Key, Pid, Value, [], reg), [Key, Pid, Value]).
+
+reg_remote(Key, Pid, Value, Attrs) ->
+    ?CATCH_GPROC_ERROR(reg_remote1(Key, Pid, Value, Attrs, reg),
+                       [Key, Pid, Value, Attrs]).
+
+reg_remote1({_,l,_} = Key, Pid, Op) when is_pid(Pid), node(Pid) =/= node() ->
+    reg_remote1(Key, Pid, default(Key), [], Op);
+reg_remote1(_, _, _) ->
+    ?THROW_GPROC_ERROR(badarg).
+
+reg_remote1({T,l,_} = Key, Pid, Value, As, Op)
+  when is_pid(Pid), node(Pid) =/= node(), is_list(As) ->
+    if Op == reg; Op == ensure ->
+            if T==n; T==p; T==c; T==a; T==r; T==rc ->
+                    call({reg_remote, Key, Pid, Value, As, Op});
+               true ->
+                    ?THROW_GPROC_ERROR(badarg)
+            end;
        true ->
             ?THROW_GPROC_ERROR(badarg)
     end.
@@ -2290,6 +2318,8 @@ handle_cast({cancel_wait_or_monitor, Pid, {T,_,_} = Key}, S) ->
 handle_call({reg, {_T,l,_} = Key, Val, Attrs, Op}, {Pid,_}, S) ->
     handle_reg_call(Key, Pid, Val, Attrs, Op, S);
 handle_call({reg_other, {_T,l,_} = Key, Pid, Val, Attrs, Op}, _, S) ->
+    handle_reg_call(Key, Pid, Val, Attrs, Op, S);
+handle_call({reg_remote, {_T,l,_} = Key, Pid, Val, Attrs, Op}, _, S) ->
     handle_reg_call(Key, Pid, Val, Attrs, Op, S);
 handle_call({set_attributes, {_,l,_} = Key, Attrs}, {Pid,_}, S) ->
     case gproc_lib:insert_attr(Key, Attrs, Pid, l) of
