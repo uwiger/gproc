@@ -194,7 +194,7 @@ reply({To, Tag}, Reply) ->
     catch To ! {Tag, Reply}.
 
 %% ----------------------------------------------------------------- 
-%% Asyncronous broadcast, returns nothing, it's just send'n prey
+%% Asynchronous broadcast, returns nothing, it's just send'n prey
 %%-----------------------------------------------------------------  
 abcast(Name, Request) when is_atom(Name) ->
     do_abcast([node() | nodes()], Name, cast_msg(Request)).
@@ -324,7 +324,7 @@ loop(Parent, Name, State, Mod, Time, Debug) ->
     end.
 
 %%% ---------------------------------------------------
-%%% Send/recive functions
+%%% Send/receive functions
 %%% ---------------------------------------------------
 do_send(Dest, Msg) ->
     case catch erlang:send(Dest, Msg, [noconnect]) of
@@ -345,7 +345,7 @@ do_multi_call(Nodes, Name, Req, Timeout) ->
 	spawn(
 	  fun() ->
 		  %% Middleman process. Should be unsensitive to regular
-		  %% exit signals. The sychronization is needed in case
+		  %% exit signals. The synchronization is needed in case
 		  %% the receiver would exit before the caller started
 		  %% the monitor.
 		  process_flag(trap_exit, true),

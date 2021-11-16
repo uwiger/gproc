@@ -114,7 +114,7 @@ new(Pool) ->
 %% The pool starts out empty. If a size is not given, the pool size is set to
 %% 0 initially. `auto_size' is `true' by default if size is not specified, but
 %% `false' by default otherwise. If `auto_size == true', the pool will be
-%% enlarged to accomodate new workers, when necessary. Otherwise, trying to add
+%% enlarged to accommodate new workers, when necessary. Otherwise, trying to add
 %% a worker when the pool is full will raise an exception, as will trying to add
 %% a worker on a specific position beyond the current size of the pool.
 %%
@@ -182,7 +182,7 @@ add_worker(Pool, Name) ->
 %% inside the pool. An exception is raised if the position is already taken,
 %% or if `Name' already exists in the pool. If `Slot' is larger than the current
 %% size of the pool, an exception is raised iff `auto_size' is `false';
-%% otherwise the pool is expanded to accomodate the new position.
+%% otherwise the pool is expanded to accommodate the new position.
 %% @end
 add_worker(Pool, Name, Slot) ->
     call({add_worker, Pool, Name, Slot}).

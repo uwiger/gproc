@@ -417,7 +417,7 @@ get_env(Scope, App, Key) ->
 %%
 %% The return value will be one of:
 %%
-%% * The value of the first matching alternative, or `error' eception,
+%% * The value of the first matching alternative, or `error' exception,
 %%   whichever comes first
 %% * The last instance of `{default, Value}', or `undefined', if there is no
 %%   matching alternative, default or `error' entry in the list.
@@ -675,7 +675,7 @@ await(Key) ->
 %%
 %% @doc Wait for a name or aggregated counter to be registered.
 %% The function raises an exception if the timeout expires. Timeout must be
-%% either an interger &gt; 0 or 'infinity'.
+%% either an integer &gt; 0 or 'infinity'.
 %% A small optimization: we first perform a lookup, to see if the name
 %% is already registered. This way, the cost of the operation will be
 %% roughly the same as of where/1 in the case where the name is already
@@ -1343,7 +1343,7 @@ unreg_other1({T,l,_} = Key, Pid) when is_pid(Pid) ->
 %% Gproc registration objects can have `{Key, Value}' attributes associated with
 %% them. These are stored in a way that doesn't affect the cost of name lookup.
 %%
-%% Attributs can be retrieved using `gproc:get_attribute/3' or
+%% Attributes can be retrieved using `gproc:get_attribute/3' or
 %% `gproc:get_attributes/2'.
 %% @end
 set_attributes(Key, Props) ->
