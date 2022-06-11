@@ -683,8 +683,10 @@ check_opts(Type, Other) ->
 check_option_f(ets_options)    -> fun check_ets_option/1;
 check_option_f(server_options) -> fun check_server_option/1.
 
-check_ets_option({read_concurrency , B}) -> is_boolean(B);
+check_ets_option({read_concurrency, B}) -> is_boolean(B);
+check_ets_option({write_concurrency, auto}) -> true;
 check_ets_option({write_concurrency, B}) -> is_boolean(B);
+check_ets_option({decentralized_counters, B}) -> is_boolean(B);
 check_ets_option(_) -> false.
 
 check_server_option({priority, P}) ->
