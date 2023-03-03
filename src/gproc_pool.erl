@@ -557,7 +557,7 @@ execute_claim(F, K, Pid) ->
 setup_wait(nowait, _) ->
     nowait;
 setup_wait({busy_wait, MS}, Pool) ->
-    Ref = erlang:send_after(MS, self(), {claim, Pool}),
+    Ref = erlang:start_timer(MS, self(), {claim, Pool}),
     {busy_wait, Ref}.
 
 do_wait(nowait) ->
@@ -569,7 +569,9 @@ do_wait({busy_wait, Ref} = W) ->
     erlang:yield(),
     case erlang:read_timer(Ref) of
 	false ->
-	    erlang:cancel_timer(Ref),
+            receive {timeout, Ref, _} -> ok
+            after 0 -> ok
+            end,
 	    timeout;
 	_ ->
 	    W
