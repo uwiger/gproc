@@ -377,7 +377,7 @@ pick(Pool, Sz, round_robin, Ret) ->
             end
     end;
 pick(Pool, Sz, random, Ret) ->
-    pick_near(Pool, rand:uniform(Sz + 1), Ret).
+    pick_near(Pool, rand:uniform(Sz), Ret).
 
 pick(Pool, Sz, hash, Val, Ret) ->
     pick_near(Pool, erlang:phash2(Val, Sz) + 1, Ret);
@@ -606,7 +606,7 @@ randomize(Pool) ->
         0 -> 0;
         1 -> 1;
         Sz ->
-            incr(Pool, rand:uniform(Sz + 1) - 1, Sz)
+            incr(Pool, rand:uniform(Sz) - 1, Sz)
     end.
 
 %% @spec pool_size(Pool::any()) -> integer()
