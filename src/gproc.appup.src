@@ -1,0 +1,6 @@
+%% -*- mode: erlang; -*-
+{VSN
+ [{"0.9.0",[{load_module,gproc_pool,brutal_purge,soft_purge,[]}]}
+ ],
+ [{"0.9.0",[{load_module,gproc_pool,brutal_purge,soft_purge,[]}]}
+ ]}.
