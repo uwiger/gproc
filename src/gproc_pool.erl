@@ -439,8 +439,7 @@ claim(Pool, F, Wait) ->
     case gproc:get_value(?POOL(Pool), shared) of
 	{0, _} -> false;
 	{_, claim} ->
-	    W = setup_wait(Wait, Pool),
-	    claim_w(Pool, F, W);
+	    claim_w(Pool, F, setup_wait(Wait));
 	_ ->
 	    error(badarg)
     end.
@@ -452,7 +451,6 @@ claim_w(Pool, F, W) ->
 	false ->
 	    claim_w(Pool, F, do_wait(W));
 	Other ->
-	    clear_wait(W),
 	    Other
     end.
 
@@ -554,34 +552,22 @@ execute_claim(F, K, Pid) ->
         ?MAY_FAIL(gproc:reset_counter(K))
     end.
 
-setup_wait(nowait, _) ->
+setup_wait(nowait) ->
     nowait;
-setup_wait({busy_wait, MS}, Pool) ->
-    Ref = erlang:start_timer(MS, self(), {claim, Pool}),
-    {busy_wait, Ref}.
+setup_wait({busy_wait, MS}) ->
+    {busy_wait, erlang:monotonic_time(millisecond) + MS}.
 
 do_wait(nowait) ->
     timeout;
-do_wait({busy_wait, Ref} = W) ->
+do_wait({busy_wait, EndTime} = W) ->
     %% Yielding here serves two purposes:
     %% 1) Increase the chance that whoever's before us can finish
     %% 2) The value of read_timer/1 only refreshes after yield (so I've heard)
     erlang:yield(),
-    case erlang:read_timer(Ref) of
-	false ->
-            receive {timeout, Ref, _} -> ok
-            after 0 -> ok
-            end,
-	    timeout;
-	_ ->
-	    W
+    case erlang:monotonic_time(millisecond) >= EndTime of
+        true -> timeout;
+        false -> W
     end.
-
-clear_wait(nowait) ->
-    ok;
-clear_wait({busy_wait, Ref}) ->
-    erlang:cancel_timer(Ref),
-    ok.
 
 %% @spec log(GprocKey) -> integer()
 %% @doc Update a counter associated with a worker name.
