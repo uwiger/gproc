@@ -135,6 +135,8 @@ subscribe_cond(Scope, Event, Spec) when Scope==l; Scope==g ->
     gproc:reg({p,Scope,{?ETag, Event}}, Spec).
 
 -spec subscribe_cond_remote(node(), event(), cond_spec()) -> true.
+%% @doc Subscribe conditionally from a remote node
+%% @end
 subscribe_cond_remote(Node, Event, Spec) when is_atom(Node) ->
     _ = case Spec of
             undefined -> ok;
@@ -159,6 +161,8 @@ change_cond(Scope, Event, Spec) when Scope==l; Scope==g ->
     gproc:set_value({p,Scope,{?ETag, Event}}, Spec).
 
 -spec change_cond_remote(node(), event(), cond_spec()) -> true.
+%% @doc Change the condition spec of a subscription created from a remote node
+%% @end
 change_cond_remote(Node, Event, Spec) ->
     _ = validate_spec(Spec),
     gproc:set_value_remote(Node, {p,l,{?ETag, Event}}, Spec).
@@ -171,7 +175,7 @@ validate_spec(Spec) ->
     end.
 
 -spec unsubscribe(scope(), event()) -> true.
-%% @doc Remove subscribtion created using `subscribe(Scope, Event)'
+%% @doc Remove subscription created using `subscribe(Scope, Event)'
 %%
 %% This removes the property created through `subscribe/2'.
 %% @end
@@ -179,6 +183,8 @@ unsubscribe(Scope, Event) when Scope==l; Scope==g ->
     gproc:unreg({p,Scope,{?ETag, Event}}).
 
 -spec unsubscribe_remote(node(), event()) -> true.
+%% @doc Remove subscription created from a remote node
+%% @end
 unsubscribe_remote(Node, Event) ->
     gproc:unreg_remote(Node, {p, l, {?ETag, Event}}).
 
@@ -292,16 +298,28 @@ enable_single(Scope, Event) when Scope==l; Scope==g ->
     [Prev,1] = gproc:update_counter({c,Scope,{?ETag,Event}}, [0, {1, 1, 1}]),
     Prev.
 
+-spec create_single_remote(node(), event()) -> true.
+%% @doc Create a local single-shot subscription from a remote node
+%% @end
 create_single_remote(Node, Event) ->
     gproc:reg_remote(Node, {c,l,{?ETag, Event}}, 1).
 
+-spec delete_single_remote(node(), event()) -> true.
+%% @doc Delete a single-shot subscription created from a remote node
+%% @end
 delete_single_remote(Node, Event) ->
     gproc:unreg_remote(Node, {c,l,{?ETag, Event}}).
 
+-spec disable_single_remote(node(), event()) -> status().
+%% @doc Disable a single-shot subscription created from a remote node
+%% @end
 disable_single_remote(Node, Event) ->
     [Prev,0] = gproc:update_counter_remote(Node, {c,l,{?ETag,Event}}, [0, {-1,0,0}]),
     Prev.
 
+-spec enable_single_remote(node(), event()) -> status().
+%% @doc Enable a single-shot subscription created from a remote node
+%% @end
 enable_single_remote(Node, Event) ->
     [Prev,1] = gproc:update_counter_remote(Node, {c,l,{?ETag,Event}}, [0, {1,1,1}]),
     Prev.
