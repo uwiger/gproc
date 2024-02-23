@@ -22,7 +22,7 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_monitor-4">add_monitor/4</a></td><td></td></tr><tr><td valign="top"><a href="#await-3">await/3</a></td><td></td></tr><tr><td valign="top"><a href="#dbg-1">dbg/1</a></td><td></td></tr><tr><td valign="top"><a href="#decrement_resource_count-2">decrement_resource_count/2</a></td><td></td></tr><tr><td valign="top"><a href="#do_set_counter_value-3">do_set_counter_value/3</a></td><td></td></tr><tr><td valign="top"><a href="#do_set_value-3">do_set_value/3</a></td><td></td></tr><tr><td valign="top"><a href="#does_pid_monitor-2">does_pid_monitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#ensure_monitor-2">ensure_monitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#followers-1">followers/1</a></td><td></td></tr><tr><td valign="top"><a href="#insert_attr-4">insert_attr/4</a></td><td></td></tr><tr><td valign="top"><a href="#insert_many-4">insert_many/4</a></td><td></td></tr><tr><td valign="top"><a href="#insert_reg-4">insert_reg/4</a></td><td></td></tr><tr><td valign="top"><a href="#insert_reg-5">insert_reg/5</a></td><td></td></tr><tr><td valign="top"><a href="#monitors-1">monitors/1</a></td><td></td></tr><tr><td valign="top"><a href="#notify-2">notify/2</a></td><td></td></tr><tr><td valign="top"><a href="#notify-3">notify/3</a></td><td></td></tr><tr><td valign="top"><a href="#remove_many-4">remove_many/4</a></td><td></td></tr><tr><td valign="top"><a href="#remove_monitor-3">remove_monitor/3</a></td><td></td></tr><tr><td valign="top"><a href="#remove_monitor_pid-2">remove_monitor_pid/2</a></td><td></td></tr><tr><td valign="top"><a href="#remove_monitors-3">remove_monitors/3</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reg-3">remove_reg/3</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reg-4">remove_reg/4</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reverse_mapping-3">remove_reverse_mapping/3</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reverse_mapping-4">remove_reverse_mapping/4</a></td><td></td></tr><tr><td valign="top"><a href="#remove_wait-4">remove_wait/4</a></td><td></td></tr><tr><td valign="top"><a href="#standbys-1">standbys/1</a></td><td></td></tr><tr><td valign="top"><a href="#update_aggr_counter-3">update_aggr_counter/3</a></td><td></td></tr><tr><td valign="top"><a href="#update_counter-3">update_counter/3</a></td><td></td></tr><tr><td valign="top"><a href="#valid_opts-2">valid_opts/2</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_monitor-4">add_monitor/4</a></td><td></td></tr><tr><td valign="top"><a href="#await-3">await/3</a></td><td></td></tr><tr><td valign="top"><a href="#dbg-1">dbg/1</a></td><td></td></tr><tr><td valign="top"><a href="#decrement_resource_count-2">decrement_resource_count/2</a></td><td></td></tr><tr><td valign="top"><a href="#do_set_counter_value-3">do_set_counter_value/3</a></td><td></td></tr><tr><td valign="top"><a href="#do_set_value-3">do_set_value/3</a></td><td></td></tr><tr><td valign="top"><a href="#does_pid_monitor-2">does_pid_monitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#ensure_monitor-2">ensure_monitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#followers-1">followers/1</a></td><td></td></tr><tr><td valign="top"><a href="#insert_attr-4">insert_attr/4</a></td><td></td></tr><tr><td valign="top"><a href="#insert_many-4">insert_many/4</a></td><td></td></tr><tr><td valign="top"><a href="#insert_reg-4">insert_reg/4</a></td><td></td></tr><tr><td valign="top"><a href="#insert_reg-5">insert_reg/5</a></td><td></td></tr><tr><td valign="top"><a href="#monitors-1">monitors/1</a></td><td></td></tr><tr><td valign="top"><a href="#notify-2">notify/2</a></td><td></td></tr><tr><td valign="top"><a href="#notify-3">notify/3</a></td><td></td></tr><tr><td valign="top"><a href="#remove_many-4">remove_many/4</a></td><td></td></tr><tr><td valign="top"><a href="#remove_monitor-3">remove_monitor/3</a></td><td></td></tr><tr><td valign="top"><a href="#remove_monitor_pid-2">remove_monitor_pid/2</a></td><td></td></tr><tr><td valign="top"><a href="#remove_monitors-3">remove_monitors/3</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reg-3">remove_reg/3</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reg-4">remove_reg/4</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reverse_mapping-3">remove_reverse_mapping/3</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reverse_mapping-4">remove_reverse_mapping/4</a></td><td></td></tr><tr><td valign="top"><a href="#remove_wait-4">remove_wait/4</a></td><td></td></tr><tr><td valign="top"><a href="#standbys-1">standbys/1</a></td><td></td></tr><tr><td valign="top"><a href="#update_aggr_counter-3">update_aggr_counter/3</a></td><td></td></tr><tr><td valign="top"><a href="#update_counter-3">update_counter/3</a></td><td></td></tr><tr><td valign="top"><a href="#valid_key-1">valid_key/1</a></td><td></td></tr><tr><td valign="top"><a href="#valid_opts-2">valid_opts/2</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
@@ -94,7 +94,7 @@ For a detailed description, see gproc/doc/erlang07-wiger.pdf.
 ### insert_many/4 ###
 
 <pre><code>
-insert_many(T::<a href="gproc.md#type-type">gproc:type()</a>, Scope::<a href="gproc.md#type-scope">gproc:scope()</a>, KVL::[{<a href="gproc.md#type-key">gproc:key()</a>, any()}], Pid::pid()) -&gt; {true, list()} | false
+insert_many(T::<a href="http://www.erlang.org/doc/man/gproc.html#type-type">gproc:type()</a>, Scope::<a href="http://www.erlang.org/doc/man/gproc.html#type-scope">gproc:scope()</a>, KVL::[{<a href="http://www.erlang.org/doc/man/gproc.html#type-key">gproc:key()</a>, any()}], Pid::pid()) -&gt; {true, list()} | false
 </code></pre>
 <br />
 
@@ -103,7 +103,7 @@ insert_many(T::<a href="gproc.md#type-type">gproc:type()</a>, Scope::<a href="gp
 ### insert_reg/4 ###
 
 <pre><code>
-insert_reg(K::<a href="gproc.md#type-key">gproc:key()</a>, Value::any(), Pid::pid() | shared, Scope::<a href="gproc.md#type-scope">gproc:scope()</a>) -&gt; boolean()
+insert_reg(K::<a href="http://www.erlang.org/doc/man/gproc.html#type-key">gproc:key()</a>, Value::any(), Pid::pid() | shared, Scope::<a href="http://www.erlang.org/doc/man/gproc.html#type-scope">gproc:scope()</a>) -&gt; boolean()
 </code></pre>
 <br />
 
@@ -202,6 +202,12 @@ insert_reg(K::<a href="gproc.md#type-key">gproc:key()</a>, Value::any(), Pid::pi
 ### update_counter/3 ###
 
 `update_counter(Key, Incr, Pid) -> any()`
+
+<a name="valid_key-1"></a>
+
+### valid_key/1 ###
+
+`valid_key(Key) -> any()`
 
 <a name="valid_opts-2"></a>
 

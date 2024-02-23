@@ -50,7 +50,6 @@
 -export([start_link/0,
          reg/1, reg/2, reg/3, unreg/1, set_attributes/2,
          reg_other/2, reg_other/3, reg_other/4, unreg_other/2,
-         reg_remote/2, reg_remote/3, reg_remote/4,
 	 reg_or_locate/1, reg_or_locate/2, reg_or_locate/3,
 	 reg_shared/1, reg_shared/2, reg_shared/3, unreg_shared/1,
 	 set_attributes_shared/2, set_value_shared/2,
@@ -91,6 +90,10 @@
          prev/2,
          last/1,
          table/0, table/1, table/2]).
+
+%% Remote API
+-export([reg_remote/2, reg_remote/3, reg_remote/4, unreg_remote/2,
+         set_value_remote/3, update_counter_remote/3]).
 
 %% Environment handling
 -export([get_env/3, get_env/4,
@@ -1146,32 +1149,35 @@ reg_other1({T,l,_} = Key, Pid, Value, As, Op) when is_pid(Pid) ->
             ?THROW_GPROC_ERROR(badarg)
     end.
 
-reg_remote(Key, Pid) ->
-    ?CATCH_GPROC_ERROR(reg_remote1(Key, Pid, reg), [Key, Pid]).
+reg_remote(Node, Key) ->
+    ?CATCH_GPROC_ERROR(reg_remote1(Node, Key, reg), [Node, Key]).
 
-reg_remote(Key, Pid, Value) ->
-    ?CATCH_GPROC_ERROR(reg_remote1(Key, Pid, Value, [], reg), [Key, Pid, Value]).
+reg_remote(Node, Key, Value) ->
+    ?CATCH_GPROC_ERROR(reg_remote1(Node, Key, Value, [], reg), [Node, Key, Value, []]).
 
-reg_remote(Key, Pid, Value, Attrs) ->
-    ?CATCH_GPROC_ERROR(reg_remote1(Key, Pid, Value, Attrs, reg),
-                       [Key, Pid, Value, Attrs]).
+reg_remote(Node, Key, Value, Attrs) ->
+    ?CATCH_GPROC_ERROR(reg_remote1(Node, Key, Value, Attrs, reg),
+                       [Node, Key, Value, Attrs]).
 
-reg_remote1({_,l,_} = Key, Pid, Op) when is_pid(Pid), node(Pid) =/= node() ->
-    reg_remote1(Key, Pid, default(Key), [], Op);
+reg_remote1(Node, {_,l,_} = Key, Op) ->
+    reg_remote1(Node, Key, default(Key), [], Op);
 reg_remote1(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
 
-reg_remote1({T,l,_} = Key, Pid, Value, As, Op)
-  when is_pid(Pid), node(Pid) =/= node(), is_list(As) ->
+reg_remote1(Node, {T,l,_} = Key, Value, As, Op)
+  when is_atom(Node), Node =/= node(self()), is_list(As) ->
     if Op == reg; Op == ensure ->
             if T==n; T==p; T==c; T==a; T==r; T==rc ->
-                    call({reg_remote, Key, Pid, Value, As, Op});
+                    call(Node, {reg_remote, Key, Value, As, Op}, l);
                true ->
                     ?THROW_GPROC_ERROR(badarg)
             end;
        true ->
             ?THROW_GPROC_ERROR(badarg)
     end.
+
+unreg_remote(Node, {_,l,_} = Key) ->
+    call(Node, {unreg, Key}, l).
 
 %% @spec reg_or_locate(Key::key(), Value) -> {pid(), NewValue}
 %%
@@ -1528,7 +1534,7 @@ local_reg({_,Scope,_} = Key, Value, As, Op) ->
             case ets:member(?TAB, {Key, self()}) of
                 true when Op == ensure ->
                     gproc_lib:do_set_value(Key, Value, self()),
-                    set_attrs(As, Key, self()),
+                    _ = set_attrs(As, Key, self()),
                     updated;
                 _ ->
                     ?THROW_GPROC_ERROR(badarg)
@@ -1536,7 +1542,7 @@ local_reg({_,Scope,_} = Key, Value, As, Op) ->
         true  ->
             monitor_me(),
             if As =/= [] ->
-                    gproc_lib:insert_attr(Key, As, self(), Scope),
+                    _ = gproc_lib:insert_attr(Key, As, self(), Scope),
                     regged_new(Op);
                true ->
                     regged_new(Op)
@@ -1569,6 +1575,12 @@ local_munreg(T, L) when T==p; T==c ->
 %%
 set_value(Key, Value) ->
     ?CATCH_GPROC_ERROR(set_value1(Key, Value), [Key, Value]).
+
+set_value_remote(Node, Key, Value) when is_atom(Node) ->
+    ?CATCH_GPROC_ERROR(set_value_remote1(Node, Key, Value), [Node, Key, Value]).
+
+set_value_remote1(Node, Key, Value) when is_atom(Node), Node =/= node(self()) ->
+    call(Node, {set, Key, Value}, l).
 
 %% @spec (Key :: key(), Value) -> true
 %% @doc Sets the value of the shared registration given by Key
@@ -1894,6 +1906,12 @@ update_counter1({T,g,_} = Key, Pid, Incr) when T==c; T==r; T==n ->
     gproc_dist:update_counter(Key, Pid, Incr);
 update_counter1(_, _, _) ->
     ?THROW_GPROC_ERROR(badarg).
+
+update_counter_remote(Node, Key, Incr) ->
+    ?CATCH_GPROC_ERROR(update_counter_remote1(Node, Key, Incr), [Node, Key, Incr]).
+
+update_counter_remote1(Node, Key, Incr) when Node =/= node(self()) ->
+    call(Node, {update_counter_remote, Key, Incr}, l).
 
 %% @doc Update a list of counters
 %%
@@ -2319,7 +2337,7 @@ handle_call({reg, {_T,l,_} = Key, Val, Attrs, Op}, {Pid,_}, S) ->
     handle_reg_call(Key, Pid, Val, Attrs, Op, S);
 handle_call({reg_other, {_T,l,_} = Key, Pid, Val, Attrs, Op}, _, S) ->
     handle_reg_call(Key, Pid, Val, Attrs, Op, S);
-handle_call({reg_remote, {_T,l,_} = Key, Pid, Val, Attrs, Op}, _, S) ->
+handle_call({reg_remote, {_T,l,_} = Key, Val, Attrs, Op}, {Pid,_}, S) ->
     handle_reg_call(Key, Pid, Val, Attrs, Op, S);
 handle_call({set_attributes, {_,l,_} = Key, Attrs}, {Pid,_}, S) ->
     case gproc_lib:insert_attr(Key, Attrs, Pid, l) of
@@ -2333,6 +2351,14 @@ handle_call({set_attributes_shared, {_,l,_} = Key, Attrs}, _, S) ->
 	    {reply, badarg, S};
 	L when is_list(L) ->
 	    {reply, true, S}
+    end;
+handle_call({update_counter_remote, Key, Incr}, {Pid,_}, S) ->
+    try gproc_lib:update_counter(Key, Incr, Pid) of
+        Res ->
+            {reply, Res, S}
+    catch
+        error:_ ->
+            {reply, badarg, S}
     end;
 handle_call({reg_or_locate, {T,l,_} = Key, Val, P}, _, S) ->
     Reg = fun() ->

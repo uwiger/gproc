@@ -55,9 +55,9 @@
 -include("gproc.hrl").
 
 dbg(Mods) ->
-    dbg:tracer(),
-    [dbg:tpl(M,x) || M <- Mods],
-    dbg:tp(ets,'_',[{[gproc,'_'], [], [{message,{exception_trace}}]}]),
+    _ = dbg:tracer(),
+    _ = [dbg:tpl(M,x) || M <- Mods],
+    _ = dbg:tp(ets,'_',[{[gproc,'_'], [], [{message,{exception_trace}}]}]),
     dbg:p(all,[c]).
 
 %% We want to store names and aggregated counters with the same
@@ -97,12 +97,12 @@ insert_reg({c,Scope,Ctr} = Key, Value, Pid, Scope, _E) when Scope==l; Scope==g -
     K = {Key, Pid},
     Kr = {Pid, Key},
     Res = ets:insert_new(?TAB, [{K, Pid, Value}, {Kr, [{initial, Value}]}]),
-    case Res of
-        true ->
-            update_aggr_counter(Scope, Ctr, Value);
-        false ->
-            ignore
-    end,
+    _ = case Res of
+            true ->
+                update_aggr_counter(Scope, Ctr, Value);
+            false ->
+                ignore
+        end,
     Res;
 insert_reg({r,Scope,R} = Key, Value, Pid, Scope, _E) when Scope==l; Scope==g ->
     K = {Key, Pid},
@@ -500,7 +500,7 @@ remove_reg_1({_,_,_} = Key, Pid) ->
 
 remove_counter_1({c,C,N} = Key, Val, Pid) ->
     Res = ets:delete(?TAB, {Key, Pid}),
-    update_aggr_counter(C, N, -Val),
+    _ = update_aggr_counter(C, N, -Val),
     Res.
 
 remove_resource_1({r,C,N} = Key, _, Pid) ->
@@ -525,18 +525,18 @@ do_set_value({T,_,_} = Key, Value, Pid) ->
 do_set_counter_value({_,C,N} = Key, Value, Pid) ->
     OldVal = ets:lookup_element(?TAB, {Key, Pid}, 3), % may fail with badarg
     Res = ets:insert(?TAB, {{Key, Pid}, Pid, Value}),
-    update_aggr_counter(C, N, Value - OldVal),
+    _ = update_aggr_counter(C, N, Value - OldVal),
     Res.
 
 update_counter({T,l,Ctr} = Key, Incr, Pid) when is_integer(Incr), T==c;
                                                 is_integer(Incr), T==r;
                                                 is_integer(Incr), T==n ->
     Res = ets:update_counter(?TAB, {Key, Pid}, {3,Incr}),
-    if T==c ->
-            update_aggr_counter(l, Ctr, Incr);
-       true ->
-            ok
-    end,
+    _ = if T==c ->
+                update_aggr_counter(l, Ctr, Incr);
+           true ->
+                ok
+        end,
     Res;
 update_counter({T,l,Ctr} = Key, {Incr, Threshold, SetValue}, Pid)
   when is_integer(Incr), is_integer(Threshold), is_integer(SetValue), T==c;
@@ -544,11 +544,11 @@ update_counter({T,l,Ctr} = Key, {Incr, Threshold, SetValue}, Pid)
        is_integer(Incr), is_integer(Threshold), is_integer(SetValue), T==n ->
     [Prev, New] = ets:update_counter(?TAB, {Key, Pid},
                                      [{3, 0}, {3, Incr, Threshold, SetValue}]),
-    if T==c ->
-            update_aggr_counter(l, Ctr, New - Prev);
-       true ->
-            ok
-    end,
+    _ = if T==c ->
+                update_aggr_counter(l, Ctr, New - Prev);
+           true ->
+                ok
+        end,
     New;
 update_counter({T,l,Ctr} = Key, Ops, Pid) when is_list(Ops), T==c;
                                                is_list(Ops), T==r;
@@ -559,11 +559,11 @@ update_counter({T,l,Ctr} = Key, Ops, Pid) when is_list(Ops), T==c;
             [];
         [Prev | Rest] ->
             [New | _] = lists:reverse(Rest),
-            if T==c ->
-                    update_aggr_counter(l, Ctr, New - Prev);
-               true ->
-                    ok
-            end,
+            _ = if T==c ->
+                        update_aggr_counter(l, Ctr, New - Prev);
+                   true ->
+                        ok
+                end,
             Rest
     end;
 update_counter(_, _, _) ->
@@ -629,7 +629,7 @@ perform_on_zero_({bcast, ToProc}, C, N, Pid) ->
     gproc:bcast(ToProc, {gproc, resource_on_zero, C, N, Pid}),
     ok;
 perform_on_zero_(publish, C, N, Pid) ->
-    gproc_ps:publish(C, gproc_resource_on_zero, {C, N, Pid}),
+    _ = gproc_ps:publish(C, gproc_resource_on_zero, {C, N, Pid}),
     ok;
 perform_on_zero_({unreg_shared, T,N}, C, _, _) ->
     K = {T, C, N},

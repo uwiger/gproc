@@ -178,6 +178,12 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_pool_round_robin_disconnect_worker()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_pubsub()))}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_singles()))}
+      , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_ps_cond()))}
+      , ?_test(t_is_clean())
      ]}.
 
 t_simple_reg() ->
@@ -280,17 +286,18 @@ t_reg_or_locate3() ->
     {P1, Value} = gproc:reg_or_locate(
 		     {n,l,foo}, the_value,
 		     fun() ->
+                             PRef = erlang:monitor(process, P),
 			     P ! {self(), ok},
 			     receive
-				 {'DOWN',_Ref,_,_,_} -> ok
+				 {'DOWN',PRef,_,_,_} -> ok
 			     end
 		     end),
     ?assert(P =/= P1),
     ?assert(Value =:= the_value),
-    _Ref = erlang:monitor(process, P1),
+    ERef = erlang:monitor(process, P1),
     receive
 	{P1, ok} -> ok;
-	{'DOWN', _Ref, _, _, _Reason} ->
+	{'DOWN', ERef, _, _, _Reason} ->
 	    ?assert(process_died_unexpectedly)
     end,
     ?assertMatch({P1, the_value}, gproc:reg_or_locate({n,l,foo})),
@@ -1151,10 +1158,57 @@ t_pool_round_robin_disconnect_worker() ->
 
     gproc_pool:force_delete(p).
 
+t_pubsub() ->
+    true = gproc_ps:subscribe(l, my_event),
+    {gproc_ps_event, my_event, foo1} = Msg = gproc_ps:publish(l, my_event, foo1),
+    Msg = get_msg(),
+    true = gproc_ps:unsubscribe(l, my_event),
+    gproc_ps:publish(l, my_event, foo2),
+    timeout = get_msg(100),
+    ok.
+
+t_singles() ->
+    Me = self(),
+    true = gproc_ps:create_single(l, my_single),
+    [Me] = gproc_ps:tell_singles(l, my_single, foo1),
+    {gproc_ps_event, my_single, foo1} = get_msg(),
+    [] = gproc_ps:tell_singles(l, my_single, foo2),
+    timeout = get_msg(100),
+    0 = gproc_ps:enable_single(l, my_single),
+    [Me] = gproc_ps:tell_singles(l, my_single, foo3),
+    {gproc_ps_event, my_single, foo3} = get_msg(),
+    0 = gproc_ps:enable_single(l, my_single),
+    1 = gproc_ps:disable_single(l, my_single),
+    0 = gproc_ps:enable_single(l, my_single),
+    1 = gproc_ps:enable_single(l, my_single),
+    true = gproc_ps:delete_single(l, my_single),
+    ok.
+
+t_ps_cond() ->
+    Pat1 = [{'$1',[{'==',1,{'rem','$1',2}}], [true]}],  % odd numbers
+    Pat2 = [{'$1',[{'==',0,{'rem','$1',2}}], [true]}],  % even numbers
+    P1 = t_spawn(_Selective = true),
+    P2 = t_spawn(true),
+    true = t_call(P1, {apply, gproc_ps, subscribe_cond, [l, my_cond, Pat1]}),
+    true = t_call(P2, {apply, gproc_ps, subscribe_cond, [l, my_cond, Pat2]}),
+    Msg = gproc_ps:publish_cond(l, my_cond, 1),
+    Msg = got_msg(P1),
+    ok = no_msg(P2),
+    Msg2 = gproc_ps:publish_cond(l, my_cond, 2),
+    Msg2 = got_msg(P2),
+    ok = no_msg(P1),
+    true = t_call(P1, {apply, gproc_ps, unsubscribe, [l, my_cond]}),
+    true = t_call(P2, {apply, gproc_ps, unsubscribe, [l, my_cond]}),
+    [exit(P, kill) || P <- [P1, P2]],
+    ok.
+
 get_msg() ->
+    get_msg(1000).
+
+get_msg(Timeout) ->
     receive M ->
 	    M
-    after 1000 ->
+    after Timeout ->
 	    timeout
     end.
 
@@ -1164,7 +1218,7 @@ t_spawn_reg(N) -> gproc_test_lib:t_spawn_reg(node(), N).
 t_call(P, Req) -> gproc_test_lib:t_call(P, Req).
 %% got_msg(P, M)  -> gproc_test_lib:got_msg(P, M).
 got_msg(P)     -> gproc_test_lib:got_msg(P).
-
+no_msg(P)      -> gproc_test_lib:no_msg(P, 100).
 
 t_loop() ->
     receive

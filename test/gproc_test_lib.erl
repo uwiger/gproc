@@ -27,7 +27,71 @@
          got_msg/1, got_msg/2,
          no_msg/2]).
 
+-export([ensure_dist/0,
+         start_nodes/1,
+         start_node/1,
+         stop_nodes/1,
+         stop_node/1,
+         node_name/1]).
+
 -include_lib("eunit/include/eunit.hrl").
+
+
+start_nodes(Ns) ->
+    [H|T] = Nodes = [start_node(N) || N <- Ns],
+    _ = [rpc:call(H, net_adm, ping, [N]) || N <- T],
+    Nodes.
+
+start_node(Name0) ->
+    {Name, _} = eunit_lib:split_node(Name0),
+    ensure_dist(),
+    {Pa, Pz} = paths(),
+    Paths = "-pa ./ -pz ../ebin" ++
+        lists:flatten([[" -pa " ++ Path || Path <- Pa],
+		       [" -pz " ++ Path || Path <- Pz]]),
+    Args = "-kernel prevent_overlapping_partitions false " ++ Paths,
+    {ok, Node} = slave:start(host(), Name, Args),
+    Node.
+
+stop_nodes(Ns) ->
+    [stop_node(N) || N <- Ns],
+    ok.
+
+stop_node(N) ->
+    slave:stop(N).
+
+paths() ->
+    Path = code:get_path(),
+    {ok, [[Root]]} = init:get_argument(root),
+    {Pas, Rest} = lists:splitwith(fun(P) ->
+					  not lists:prefix(Root, P)
+				  end, Path),
+    {_, Pzs} = lists:splitwith(fun(P) ->
+				       lists:prefix(Root, P)
+			       end, Rest),
+    {Pas, Pzs}.
+
+
+host() ->
+    list_to_atom(host_string()).
+
+host_string() ->
+    [_Name, Host] = re:split(atom_to_list(node()), "@", [{return, list}]),
+    Host.
+
+node_name(NamePart) ->
+    ensure_dist(),
+    list_to_atom(atom_to_list(NamePart) ++ "@" ++ host_string()).
+
+ensure_dist() ->
+    case node() of
+        nonode@nohost ->
+            os:cmd("epmd -daemon"),
+            {ok, _} = net_kernel:start([gproc_master, shortnames]),
+            true;
+        _ ->
+            false
+    end.
 
 t_spawn(Node) ->
     t_spawn(Node, false).

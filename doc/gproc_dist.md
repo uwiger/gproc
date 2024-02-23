@@ -7,8 +7,6 @@
 
 Extended process registry.
 
-__Behaviours:__ [`gen_leader`](gen_leader.md).
-
 __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)).
 
 <a name="description"></a>
