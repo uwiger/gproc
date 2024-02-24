@@ -31,6 +31,16 @@ counters to good effect.
 
 
 
+### <a name="type-cond_spec">cond_spec()</a> ###
+
+
+<pre><code>
+cond_spec() = undefined | <a href="http://www.erlang.org/doc/man/ets.html#type-match_spec">ets:match_spec()</a>
+</code></pre>
+
+
+
+
 ### <a name="type-event">event()</a> ###
 
 
@@ -46,6 +56,16 @@ event() = any()
 
 <pre><code>
 msg() = any()
+</code></pre>
+
+
+
+
+### <a name="type-notification">notification()</a> ###
+
+
+<pre><code>
+notification() = {?ETag, <a href="#type-event">event()</a>, <a href="#type-msg">msg()</a>}
 </code></pre>
 
 
@@ -73,7 +93,7 @@ status() = 1 | 0
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#change_cond-3">change_cond/3</a></td><td>Change the condition specification of an existing subscription.</td></tr><tr><td valign="top"><a href="#create_single-2">create_single/2</a></td><td>Creates a single-shot subscription entry for Event.</td></tr><tr><td valign="top"><a href="#delete_single-2">delete_single/2</a></td><td>Deletes the single-shot subscription for Event.</td></tr><tr><td valign="top"><a href="#disable_single-2">disable_single/2</a></td><td>Disables the single-shot subscription for Event.</td></tr><tr><td valign="top"><a href="#enable_single-2">enable_single/2</a></td><td>Enables the single-shot subscription for Event.</td></tr><tr><td valign="top"><a href="#list_singles-2">list_singles/2</a></td><td>Lists all single-shot subscribers of Event, together with their status.</td></tr><tr><td valign="top"><a href="#list_subs-2">list_subs/2</a></td><td>List the pids of all processes subscribing to <code>Event</code></td></tr><tr><td valign="top"><a href="#notify_single_if_true-4">notify_single_if_true/4</a></td><td>Create/enable a single subscription for event; notify at once if F() -> true.</td></tr><tr><td valign="top"><a href="#publish-3">publish/3</a></td><td>Publish the message <code>Msg</code> to all subscribers of <code>Event</code></td></tr><tr><td valign="top"><a href="#publish_cond-3">publish_cond/3</a></td><td>Publishes the message <code>Msg</code> to conditional subscribers of <code>Event</code></td></tr><tr><td valign="top"><a href="#subscribe-2">subscribe/2</a></td><td>Subscribe to events of type <code>Event</code></td></tr><tr><td valign="top"><a href="#subscribe_cond-3">subscribe_cond/3</a></td><td>Subscribe conditionally to events of type <code>Event</code></td></tr><tr><td valign="top"><a href="#tell_singles-3">tell_singles/3</a></td><td>Publish <code>Msg</code> to all single-shot subscribers of <code>Event</code></td></tr><tr><td valign="top"><a href="#unsubscribe-2">unsubscribe/2</a></td><td>Remove subscribtion created using <code>subscribe(Scope, Event)</code></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#change_cond-3">change_cond/3</a></td><td>Change the condition specification of an existing subscription.</td></tr><tr><td valign="top"><a href="#change_cond_remote-3">change_cond_remote/3</a></td><td>Change the condition spec of a subscription created from a remote node.</td></tr><tr><td valign="top"><a href="#create_single-2">create_single/2</a></td><td>Creates a single-shot subscription entry for Event.</td></tr><tr><td valign="top"><a href="#create_single_remote-2">create_single_remote/2</a></td><td>Create a local single-shot subscription from a remote node.</td></tr><tr><td valign="top"><a href="#delete_single-2">delete_single/2</a></td><td>Deletes the single-shot subscription for Event.</td></tr><tr><td valign="top"><a href="#delete_single_remote-2">delete_single_remote/2</a></td><td>Delete a single-shot subscription created from a remote node.</td></tr><tr><td valign="top"><a href="#disable_single-2">disable_single/2</a></td><td>Disables the single-shot subscription for Event.</td></tr><tr><td valign="top"><a href="#disable_single_remote-2">disable_single_remote/2</a></td><td>Disable a single-shot subscription created from a remote node.</td></tr><tr><td valign="top"><a href="#enable_single-2">enable_single/2</a></td><td>Enables the single-shot subscription for Event.</td></tr><tr><td valign="top"><a href="#enable_single_remote-2">enable_single_remote/2</a></td><td>Enable a single-shot subscription created from a remote node.</td></tr><tr><td valign="top"><a href="#list_singles-2">list_singles/2</a></td><td>Lists all single-shot subscribers of Event, together with their status.</td></tr><tr><td valign="top"><a href="#list_subs-2">list_subs/2</a></td><td>List the pids of all processes subscribing to <code>Event</code></td></tr><tr><td valign="top"><a href="#notify_single_if_true-4">notify_single_if_true/4</a></td><td>Create/enable a single subscription for event; notify at once if F() -> true.</td></tr><tr><td valign="top"><a href="#publish-3">publish/3</a></td><td>Publish the message <code>Msg</code> to all subscribers of <code>Event</code></td></tr><tr><td valign="top"><a href="#publish_cond-3">publish_cond/3</a></td><td>Publishes the message <code>Msg</code> to conditional subscribers of <code>Event</code></td></tr><tr><td valign="top"><a href="#subscribe-2">subscribe/2</a></td><td>Subscribe to events of type <code>Event</code></td></tr><tr><td valign="top"><a href="#subscribe_cond-3">subscribe_cond/3</a></td><td>Subscribe conditionally to events of type <code>Event</code></td></tr><tr><td valign="top"><a href="#subscribe_cond_remote-3">subscribe_cond_remote/3</a></td><td>Subscribe conditionally from a remote node.</td></tr><tr><td valign="top"><a href="#subscribe_remote-2">subscribe_remote/2</a></td><td>Subscribe from a remote node.</td></tr><tr><td valign="top"><a href="#tell_singles-3">tell_singles/3</a></td><td>Publish <code>Msg</code> to all single-shot subscribers of <code>Event</code></td></tr><tr><td valign="top"><a href="#unsubscribe-2">unsubscribe/2</a></td><td>Remove subscription created using <code>subscribe(Scope, Event)</code></td></tr><tr><td valign="top"><a href="#unsubscribe_remote-2">unsubscribe_remote/2</a></td><td>Remove subscription created from a remote node.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -85,7 +105,7 @@ status() = 1 | 0
 ### change_cond/3 ###
 
 <pre><code>
-change_cond(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Spec::undefined | <a href="ets.md#type-match_spec">ets:match_spec()</a>) -&gt; true
+change_cond(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Spec::<a href="#type-cond_spec">cond_spec()</a>) -&gt; true
 </code></pre>
 <br />
 
@@ -98,6 +118,17 @@ the subscription doesn't already exist.
 Note that this function can also be used to change a conditional subscription
 to an unconditional one (by setting `Spec = undefined`), or a 'normal'
 subscription to a conditional one.
+
+<a name="change_cond_remote-3"></a>
+
+### change_cond_remote/3 ###
+
+<pre><code>
+change_cond_remote(Node::node(), Event::<a href="#type-event">event()</a>, Spec::<a href="#type-cond_spec">cond_spec()</a>) -&gt; true
+</code></pre>
+<br />
+
+Change the condition spec of a subscription created from a remote node
 
 <a name="create_single-2"></a>
 
@@ -123,6 +154,17 @@ Counters are used in this case, since they can be atomically updated by both the
 subscriber (owner) and publisher. The publisher sets the counter value to `0` as soon
 as it has delivered a message.
 
+<a name="create_single_remote-2"></a>
+
+### create_single_remote/2 ###
+
+<pre><code>
+create_single_remote(Node::node(), Event::<a href="#type-event">event()</a>) -&gt; true
+</code></pre>
+<br />
+
+Create a local single-shot subscription from a remote node
+
 <a name="delete_single-2"></a>
 
 ### delete_single/2 ###
@@ -136,6 +178,17 @@ Deletes the single-shot subscription for Event
 
 This function deletes the counter entry representing the single-shot description.
 An exception will be raised if there is no such subscription.
+
+<a name="delete_single_remote-2"></a>
+
+### delete_single_remote/2 ###
+
+<pre><code>
+delete_single_remote(Node::node(), Event::<a href="#type-event">event()</a>) -&gt; true
+</code></pre>
+<br />
+
+Delete a single-shot subscription created from a remote node
 
 <a name="disable_single-2"></a>
 
@@ -156,6 +209,17 @@ This guarantees that the counter will have either the value 1 or 0, depending on
 update happened last.
 
 The return value indicates the previous status.
+
+<a name="disable_single_remote-2"></a>
+
+### disable_single_remote/2 ###
+
+<pre><code>
+disable_single_remote(Node::node(), Event::<a href="#type-event">event()</a>) -&gt; <a href="#type-status">status()</a>
+</code></pre>
+<br />
+
+Disable a single-shot subscription created from a remote node
 
 <a name="enable_single-2"></a>
 
@@ -178,6 +242,17 @@ This guarantees that the counter will have either the value 1 or 0, depending on
 update happened last.
 
 The return value indicates the previous status.
+
+<a name="enable_single_remote-2"></a>
+
+### enable_single_remote/2 ###
+
+<pre><code>
+enable_single_remote(Node::node(), Event::<a href="#type-event">event()</a>) -&gt; <a href="#type-status">status()</a>
+</code></pre>
+<br />
+
+Enable a single-shot subscription created from a remote node
 
 <a name="list_singles-2"></a>
 
@@ -223,7 +298,7 @@ immediate test returns `false`.
 ### publish/3 ###
 
 <pre><code>
-publish(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Msg::<a href="#type-msg">msg()</a>) -&gt; ok
+publish(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Msg::<a href="#type-msg">msg()</a>) -&gt; <a href="#type-notification">notification()</a>
 </code></pre>
 <br />
 
@@ -241,7 +316,7 @@ property `{p,Scope,{gproc_ps_event,Event}}`.
 ### publish_cond/3 ###
 
 <pre><code>
-publish_cond(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Msg::<a href="#type-msg">msg()</a>) -&gt; <a href="#type-msg">msg()</a>
+publish_cond(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Msg::<a href="#type-msg">msg()</a>) -&gt; <a href="#type-notification">notification()</a>
 </code></pre>
 <br />
 
@@ -278,7 +353,7 @@ process.
 ### subscribe_cond/3 ###
 
 <pre><code>
-subscribe_cond(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Spec::undefined | <a href="ets.md#type-match_spec">ets:match_spec()</a>) -&gt; true
+subscribe_cond(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-event">event()</a>, Spec::<a href="#type-cond_spec">cond_spec()</a>) -&gt; true
 </code></pre>
 <br />
 
@@ -307,6 +382,31 @@ equivalent.
 Note that, as with [`gproc:reg/1`](gproc.md#reg-1), this function will raise an
 exception if you try to subscribe to the same event twice from the same
 process.
+
+<a name="subscribe_cond_remote-3"></a>
+
+### subscribe_cond_remote/3 ###
+
+<pre><code>
+subscribe_cond_remote(Node::node(), Event::<a href="#type-event">event()</a>, Spec::<a href="#type-cond_spec">cond_spec()</a>) -&gt; true
+</code></pre>
+<br />
+
+Subscribe conditionally from a remote node
+
+<a name="subscribe_remote-2"></a>
+
+### subscribe_remote/2 ###
+
+<pre><code>
+subscribe_remote(Node::node(), Event::<a href="#type-event">event()</a>) -&gt; true
+</code></pre>
+<br />
+
+Subscribe from a remote node
+
+This functions as `gproc_ps:subscribe(Scope, Event)`, but is supposed to
+be called from a remote node (it will fail if called from a local process).
 
 <a name="tell_singles-3"></a>
 
@@ -338,7 +438,18 @@ unsubscribe(Scope::<a href="#type-scope">scope()</a>, Event::<a href="#type-even
 </code></pre>
 <br />
 
-Remove subscribtion created using `subscribe(Scope, Event)`
+Remove subscription created using `subscribe(Scope, Event)`
 
 This removes the property created through `subscribe/2`.
+
+<a name="unsubscribe_remote-2"></a>
+
+### unsubscribe_remote/2 ###
+
+<pre><code>
+unsubscribe_remote(Node::node(), Event::<a href="#type-event">event()</a>) -&gt; true
+</code></pre>
+<br />
+
+Remove subscription created from a remote node
 

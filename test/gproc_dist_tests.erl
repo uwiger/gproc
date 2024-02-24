@@ -101,7 +101,7 @@ basic_tests(Ns) ->
 dist_setup() ->
     case run_dist_tests() of
         true ->
-            Ns = start_slaves([dist_test_n1, dist_test_n2, dist_test_n3]),
+            Ns = gproc_test_lib:start_nodes([dist_test_n1, dist_test_n2, dist_test_n3]),
             ?assertMatch({[ok,ok,ok],[]},
                          rpc:multicall(Ns, application, set_env,
                                        [gproc, gproc_dist, Ns])),
@@ -116,7 +116,7 @@ dist_setup() ->
 dist_cleanup(skip) ->
     ok;
 dist_cleanup(Ns) ->
-    [slave:stop(N) || N <- Ns],
+    ok = gproc_test_lib:stop_nodes(Ns),
     ok.
 
 run_dist_tests() ->
@@ -779,41 +779,5 @@ no_msg(P, Timeout) -> gproc_test_lib:no_msg(P, Timeout).
 
 t_call(P, Req) ->
     gproc_test_lib:t_call(P, Req).
-
-start_slaves(Ns) ->
-    [H|T] = Nodes = [start_slave(N) || N <- Ns],
-    _ = [rpc:call(H, net_adm, ping, [N]) || N <- T],
-    Nodes.
-
-start_slave(Name) ->
-    case node() of
-        nonode@nohost ->
-            os:cmd("epmd -daemon"),
-            {ok, _} = net_kernel:start([gproc_master, shortnames]);
-        _ ->
-            ok
-    end,
-    {Pa, Pz} = paths(),
-    Paths = "-pa ./ -pz ../ebin" ++
-        lists:flatten([[" -pa " ++ Path || Path <- Pa],
-		       [" -pz " ++ Path || Path <- Pz]]),
-    {ok, Node} = slave:start(host(), Name, Paths),
-    Node.
-
-paths() ->
-    Path = code:get_path(),
-    {ok, [[Root]]} = init:get_argument(root),
-    {Pas, Rest} = lists:splitwith(fun(P) ->
-					  not lists:prefix(Root, P)
-				  end, Path),
-    {_, Pzs} = lists:splitwith(fun(P) ->
-				       lists:prefix(Root, P)
-			       end, Rest),
-    {Pas, Pzs}.
-
-
-host() ->
-    [_Name, Host] = re:split(atom_to_list(node()), "@", [{return, list}]),
-    list_to_atom(Host).
 
 -endif.

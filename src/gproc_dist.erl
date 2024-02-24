@@ -389,7 +389,7 @@ handle_leader_call({Reg, {_C,g,_Name} = K, Value, Pid, As, Op}, _From, S, _E)
             case ets:lookup(?TAB, ets_key(K, Pid)) of
                 [{_, Pid, _}] ->
                     gproc_lib:do_set_value(K, Value, Pid),
-                    gproc_lib:insert_attr(K, As, Pid, g),
+                    _ = gproc_lib:insert_attr(K, As, Pid, g),
                     Vals = mk_broadcast_insert_vals([{K, Pid, Value}]),
                     {reply, updated, [{insert, Vals}], S};
                 _ ->
@@ -893,14 +893,14 @@ insert_globals(Globals) ->
       fun({{{_,_,_} = Key,_}, Pid, _} = Obj, A) ->
               ets:insert(?TAB, Obj),
 	      ets:insert_new(?TAB, {{Pid,Key}, []}),
-	      gproc_lib:ensure_monitor(Pid,g),
+	      _ = gproc_lib:ensure_monitor(Pid,g),
 	      A;
          ({{{_,_,_},_}, _} = Obj, A) ->
               ets:insert(?TAB, Obj),
               A;
          ({{P,_K}, Opts} = Obj, A) when is_pid(P), is_list(Opts) ->
 	      ets:insert(?TAB, Obj),
-	      gproc_lib:ensure_monitor(P,g),
+	      _ = gproc_lib:ensure_monitor(P,g),
 	      [Obj] ++ A;
 	 (_Other, A) ->
 	      A

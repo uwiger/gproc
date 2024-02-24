@@ -45,6 +45,16 @@
 	 list_subs/2
 	]).
 
+%% Remote subscriber API
+-export([subscribe_remote/2,
+         subscribe_cond_remote/3,
+         change_cond_remote/3,
+         unsubscribe_remote/2,
+         create_single_remote/2,
+         delete_single_remote/2,
+         enable_single_remote/2,
+         disable_single_remote/2]).
+
 -export([create_single/2,
 	 delete_single/2,
 	 disable_single/2,
@@ -61,7 +71,8 @@
 -type event()  :: any().
 -type msg()    :: any().
 -type status() :: 1 | 0.
-
+-type cond_spec() :: 'undefined' | ets:match_spec().
+-type notification() :: {?ETag, event(), msg()}.
 
 -spec subscribe(scope(), event()) -> true.
 %% @doc Subscribe to events of type `Event'
@@ -79,7 +90,16 @@
 subscribe(Scope, Event) when Scope==l; Scope==g ->
     gproc:reg({p,Scope,{?ETag, Event}}).
 
--spec subscribe_cond(scope(), event(), undefined | ets:match_spec()) -> true.
+-spec subscribe_remote(node(), event()) -> true.
+%% @doc Subscribe from a remote node
+%%
+%% This functions as `gproc_ps:subscribe(Scope, Event)', but is supposed to
+%% be called from a remote node (it will fail if called from a local process).
+%% @end
+subscribe_remote(Node, Event) when is_atom(Node) ->
+    gproc:reg_remote(Node, {p,l,{?ETag, Event}}).
+
+-spec subscribe_cond(scope(), event(), cond_spec()) -> true.
 %% @doc Subscribe conditionally to events of type `Event'
 %%
 %% This function is similar to {@link subscribe/2}, but adds a condition
@@ -107,14 +127,25 @@ subscribe(Scope, Event) when Scope==l; Scope==g ->
 %% process.
 %% @end
 subscribe_cond(Scope, Event, Spec) when Scope==l; Scope==g ->
-    case Spec of
-	undefined -> ok;
-	[_|_] -> _ = ets:match_spec_compile(Spec);  % validation
-	_ -> error(badarg)
-    end,
+    _ = case Spec of
+            undefined -> ok;
+            [_|_] -> _ = ets:match_spec_compile(Spec);  % validation
+            _ -> error(badarg)
+        end,
     gproc:reg({p,Scope,{?ETag, Event}}, Spec).
 
--spec change_cond(scope(), event(), undefined | ets:match_spec()) -> true.
+-spec subscribe_cond_remote(node(), event(), cond_spec()) -> true.
+%% @doc Subscribe conditionally from a remote node
+%% @end
+subscribe_cond_remote(Node, Event, Spec) when is_atom(Node) ->
+    _ = case Spec of
+            undefined -> ok;
+            [_|_] -> _ = ets:match_spec_compile(Spec);
+            _ -> error(badarg)
+        end,
+    gproc:reg_remote(Node, {p,l,{?ETag, Event}}, Spec).
+
+-spec change_cond(scope(), event(), cond_spec()) -> true.
 %% @doc Change the condition specification of an existing subscription.
 %%
 %% This function atomically changes the condition spec of an existing
@@ -126,23 +157,38 @@ subscribe_cond(Scope, Event, Spec) when Scope==l; Scope==g ->
 %% subscription to a conditional one.
 %% @end
 change_cond(Scope, Event, Spec) when Scope==l; Scope==g ->
-    case Spec of
-	undefined -> ok;
-	[_|_] -> _ = ets:match_spec_compile(Spec);  % validation
-	_ -> error(badarg)
-    end,
+    _ = validate_spec(Spec),
     gproc:set_value({p,Scope,{?ETag, Event}}, Spec).
 
+-spec change_cond_remote(node(), event(), cond_spec()) -> true.
+%% @doc Change the condition spec of a subscription created from a remote node
+%% @end
+change_cond_remote(Node, Event, Spec) ->
+    _ = validate_spec(Spec),
+    gproc:set_value_remote(Node, {p,l,{?ETag, Event}}, Spec).
+
+validate_spec(Spec) ->
+    case Spec of
+        undefined -> ok;
+        [_|_] -> ets:match_spec_compile(Spec);
+        _ -> error(badarg)
+    end.
 
 -spec unsubscribe(scope(), event()) -> true.
-%% @doc Remove subscribtion created using `subscribe(Scope, Event)'
+%% @doc Remove subscription created using `subscribe(Scope, Event)'
 %%
 %% This removes the property created through `subscribe/2'.
 %% @end
 unsubscribe(Scope, Event) when Scope==l; Scope==g ->
     gproc:unreg({p,Scope,{?ETag, Event}}).
 
--spec publish(scope(), event(), msg()) -> ok.
+-spec unsubscribe_remote(node(), event()) -> true.
+%% @doc Remove subscription created from a remote node
+%% @end
+unsubscribe_remote(Node, Event) ->
+    gproc:unreg_remote(Node, {p, l, {?ETag, Event}}).
+
+-spec publish(scope(), event(), msg()) -> notification().
 %% @doc Publish the message `Msg' to all subscribers of `Event'
 %%
 %% The message delivered to each subscriber will be of the form:
@@ -155,7 +201,7 @@ unsubscribe(Scope, Event) when Scope==l; Scope==g ->
 publish(Scope, Event, Msg) when Scope==l; Scope==g ->
      gproc:send({p, Scope, {?ETag, Event}}, {?ETag, Event, Msg}).
 
--spec publish_cond(scope(), event(), msg()) -> msg().
+-spec publish_cond(scope(), event(), msg()) -> notification().
 %% @doc Publishes the message `Msg' to conditional subscribers of `Event'
 %%
 %% The message will be delivered to each subscriber provided their respective
@@ -178,7 +224,8 @@ publish_cond(Scope, Event, Msg) when Scope==l; Scope==g ->
 		      ok
 	      end
       end, gproc:select({Scope,p}, [{ {{p,Scope,{?ETag,Event}}, '$1', '$2'},
-				      [], [{{'$1','$2'}}] }])).
+				      [], [{{'$1','$2'}}] }])),
+    Message.
 
 
 -spec list_subs(scope(), event()) -> [pid()].
@@ -230,7 +277,8 @@ delete_single(Scope, Event) when Scope==l; Scope==g ->
 %% The return value indicates the previous status.
 %% @end
 disable_single(Scope, Event) when Scope==l; Scope==g ->
-    gproc:update_counter({c,Scope,{?ETag,Event}}, {-1, 0, 0}).
+    [Prev, 0] = gproc:update_counter({c,Scope,{?ETag,Event}}, [0, {-1, 0, 0}]),
+    Prev.
 
 -spec enable_single(scope(), event()) -> integer().
 %% @doc Enables the single-shot subscription for Event
@@ -247,7 +295,34 @@ disable_single(Scope, Event) when Scope==l; Scope==g ->
 %% The return value indicates the previous status.
 %% @end
 enable_single(Scope, Event) when Scope==l; Scope==g ->
-    gproc:update_counter({c,Scope,{?ETag,Event}}, {1, 1, 1}).
+    [Prev,1] = gproc:update_counter({c,Scope,{?ETag,Event}}, [0, {1, 1, 1}]),
+    Prev.
+
+-spec create_single_remote(node(), event()) -> true.
+%% @doc Create a local single-shot subscription from a remote node
+%% @end
+create_single_remote(Node, Event) ->
+    gproc:reg_remote(Node, {c,l,{?ETag, Event}}, 1).
+
+-spec delete_single_remote(node(), event()) -> true.
+%% @doc Delete a single-shot subscription created from a remote node
+%% @end
+delete_single_remote(Node, Event) ->
+    gproc:unreg_remote(Node, {c,l,{?ETag, Event}}).
+
+-spec disable_single_remote(node(), event()) -> status().
+%% @doc Disable a single-shot subscription created from a remote node
+%% @end
+disable_single_remote(Node, Event) ->
+    [Prev,0] = gproc:update_counter_remote(Node, {c,l,{?ETag,Event}}, [0, {-1,0,0}]),
+    Prev.
+
+-spec enable_single_remote(node(), event()) -> status().
+%% @doc Enable a single-shot subscription created from a remote node
+%% @end
+enable_single_remote(Node, Event) ->
+    [Prev,1] = gproc:update_counter_remote(Node, {c,l,{?ETag,Event}}, [0, {1,1,1}]),
+    Prev.
 
 -spec tell_singles(scope(), event(), msg()) -> [pid()].
 %% @doc Publish `Msg' to all single-shot subscribers of `Event'
@@ -270,6 +345,8 @@ tell_singles(Scope, Event, Msg) when Scope==l; Scope==g ->
     _ = gproc:update_counters(Scope, Subs),
     [begin P ! {?ETag, Event, Msg}, P end || {_,P,_} <- Subs].
 
+%% This function ensures that any tuples in the Event are wrapped (e.g. {Tuple})
+%% when used in ets match spec patterns.
 wrap(E) when is_tuple(E) ->
     {list_to_tuple([wrap(X) || X <- tuple_to_list(E)])};
 wrap(E) when is_list(E) ->
@@ -293,11 +370,11 @@ list_singles(Scope, Event) ->
 %% immediate test returns `false'.
 %% @end
 notify_single_if_true(Scope, Event, F, Msg) ->
-    try enable_single(Scope, Event)
-    catch
-	error:_ ->
-	    create_single(Scope, Event)
-    end,
+    _ = try enable_single(Scope, Event)
+        catch
+            error:_ ->
+                create_single(Scope, Event)
+        end,
     case F() of
 	true ->
 	    disable_single(Scope, Event),

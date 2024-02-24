@@ -99,6 +99,8 @@
 
 -record(st, {}).
 
+-dialyzer({nowarn_function, ptest/4}).
+
 %% @spec new(Pool::any()) -> ok
 %%
 %% @equiv new(Pool, round_robin, [])
@@ -745,7 +747,7 @@ force_delete_(Pool) ->
       fun({Key, Pid, _}) when Pid == self() -> gproc:unreg(Key);
          ({_, Pid, _}) when is_pid(Pid) -> exit(Pid, kill)
       end, Names),
-    [gproc:unreg_shared(W) || {W,shared,_} <- Cur ++ Props ++ Workers],
+    _ = [gproc:unreg_shared(W) || {W,shared,_} <- Cur ++ Props ++ Workers],
     true.
 
 find_names(Pool, Pid) ->
@@ -992,7 +994,7 @@ test(N, Type, Opts) when Type==round_robin;
                          Type==direct;
                          Type==claim ->
     P = ?LINE,
-    setup_test_pool(P, Type, Opts),
+    _ = setup_test_pool(P, Type, Opts),
     try timer:tc(?MODULE, f(Type), [N, P])
     after
         remove_test_pool(P)
@@ -1000,7 +1002,7 @@ test(N, Type, Opts) when Type==round_robin;
 
 ptest(N, I, Type, Opts) ->
     P = ?LINE,
-    setup_test_pool(P, Type, Opts),
+    _ = setup_test_pool(P, Type, Opts),
     F = f(Type),
     Pids =
         [spawn_monitor(fun() -> exit({ok, timer:tc(?MODULE, F, [I, P])}) end)
@@ -1053,9 +1055,9 @@ remove_test_pool(P) ->
                             {l,c},
                             [{ {{c,l,{?MODULE,P,w,'$1'}},'_','$2'}, [],
                                [{{'$1','$2'}}] }])]),
-    [begin disconnect_worker(P, W),
-           remove_worker(P, W)
-     end || W <- test_workers()],
+    _ = [begin disconnect_worker(P, W),
+               remove_worker(P, W)
+         end || W <- test_workers()],
     delete(P).
 
 test_workers() -> [a,b,c,d,e,f].

@@ -6,7 +6,7 @@ __Authors:__ Ulf Wiger ([`ulf@wiger.net`](mailto:ulf@wiger.net)), Joseph Wayne N
 
 Extended process dictionary
 
-[![Build Status](https://travis-ci.org/uwiger/gproc.png?branch=master)](https://travis-ci.org/uwiger/gproc)
+[![Build Status](https://github.com/uwiger/gproc/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/uwiger/gproc/actions/workflows/ci.yml)
 [![Hex pm](http://img.shields.io/hexpm/v/gproc.svg?style=flat)](https://hex.pm/packages/gproc)
 
 

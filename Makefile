@@ -41,7 +41,7 @@ eunit:
 test: eunit
 
 doc:
-	$(REBAR3) doc
+	$(REBAR3) as edown edoc
 
 dialyzer:
-	$(REBAR3) dialyzer
+	GPROC_DIST=true $(REBAR3) dialyzer
