@@ -1465,7 +1465,7 @@ select(Continuation::Arg) -&gt; [Match] | {[Match], Continuation} | $end_of_tabl
 
 Perform a select operation on the process registry
 
-When Arg = Contination, resume a gproc:select/1 operation
+When Arg = Continuation, resume a gproc:select/1 operation
 (see [ets:select/1](http://www.erlang.org/doc/man/ets.html#select-1)
 
 When Arg = <code><a href="#type-sel_pattern" docgen-rel="seetype" docgen-href="#sel_pattern/0">sel_pattern()</a></code>, this function executes a select operation,
@@ -1510,7 +1510,7 @@ variable substitution and ensure that the scan is limited.
 ### select/3 ###
 
 <pre><code>
-select(Context::<a href="#type-context">context()</a>, Pat::<a href="#type-sel_patten">sel_patten()</a>, Limit::integer()) -&gt; {[Match], Continuation} | $end_of_table
+select(Context::<a href="#type-context">context()</a>, Pat::<a href="#type-sel_pattern">sel_pattern()</a>, Limit::integer()) -&gt; {[Match], Continuation} | $end_of_table
 </code></pre>
 <br />
 

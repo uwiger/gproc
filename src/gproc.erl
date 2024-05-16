@@ -1456,7 +1456,7 @@ unregister_name(Key) ->
 %%          Match = {Key, Pid, Value}
 %% @doc Perform a select operation on the process registry
 %%
-%% When Arg = Contination, resume a gproc:select/1 operation
+%% When Arg = Continuation, resume a gproc:select/1 operation
 %% (see {@link //stdlib/ets:select/1. ets:select/1}
 %%
 %% When Arg = {@type sel_pattern()}, this function executes a select operation,
@@ -1497,7 +1497,7 @@ select(Pat) ->
 select(Context, Pat) ->
     ets:select(?TAB, pattern(Pat, Context)).
 
-%% @spec (Context::context(), Pat::sel_patten(), Limit::integer()) ->
+%% @spec (Context::context(), Pat::sel_pattern(), Limit::integer()) ->
 %%          {[Match],Continuation} | '$end_of_table'
 %% @doc Like {@link select/2} but returns Limit objects at a time.
 %%
