@@ -777,7 +777,7 @@ name_to_pid(Name) ->
 	undefined ->
 	    case global:safe_whereis_name(Name) of
 		undefined ->
-		    exit(could_not_find_registerd_name);
+		    exit(could_not_find_registered_name);
 		Pid ->
 		    Pid
 	    end;
@@ -797,7 +797,7 @@ format_status(Opt, StatusData) ->
 	      end,
     Header = lists:concat(["Status for generic server ", NameTag]),
     Log = sys:get_debug(log, Debug, []),
-    Specfic = 
+    Specific = 
 	case erlang:function_exported(Mod, format_status, 2) of
 	    true ->
 		case catch Mod:format_status(Opt, [PDict, State]) of
@@ -811,4 +811,4 @@ format_status(Opt, StatusData) ->
      {data, [{"Status", SysState},
 	     {"Parent", Parent},
 	     {"Logged events", Log}]} |
-     Specfic].
+     Specific].

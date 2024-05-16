@@ -294,7 +294,7 @@ name_to_pid(Name) ->
 	undefined ->
 	    case global:safe_whereis_name(Name) of
 		undefined ->
-		    exit(could_not_find_registerd_name);
+		    exit(could_not_find_registered_name);
 		Pid ->
 		    Pid
 	    end;
@@ -578,7 +578,7 @@ format_status(Opt, StatusData) ->
 	StatusData,
     Header = lists:concat(["Status for state machine ", Name]),
     Log = sys:get_debug(log, Debug, []),
-    Specfic = 
+    Specific = 
 	case erlang:function_exported(Mod, format_status, 2) of
 	    true ->
 		case catch Mod:format_status(Opt,[PDict,StateData]) of
@@ -593,4 +593,4 @@ format_status(Opt, StatusData) ->
 	     {"Parent", Parent},
 	     {"Logged events", Log},
 	     {"StateName", StateName}]} |
-     Specfic].
+     Specific].
