@@ -12,7 +12,7 @@
   {mod, {gproc_app, []} },
 
   {maintainers, ["Ulf Wiger"]},
-  {licenses, ["APL 2.0"]},
+  {licenses, ["Apache-2.0"]},
   {links, [{"Github", "https://github.com/uwiger/gproc"}]}
  ]
 }.
