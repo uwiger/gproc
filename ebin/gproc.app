@@ -1,0 +1,12 @@
+{application,gproc,
+             [{description,"Extended process registry for Erlang"},
+              {registered,[]},
+              {included_applications,[]},
+              {applications,[stdlib,kernel]},
+              {vsn,"1.0.0"},
+              {modules,[gproc_eqc_tests,gproc,gproc_app,gproc_bcast,
+                        gproc_dist,gproc_info,gproc_init,gproc_lib,
+                        gproc_monitor,gproc_pool,gproc_ps,gproc_pt,gproc_sup,
+                        gproc_dist_tests,gproc_pt_tests,gproc_remote_tests,
+                        gproc_test_lib,gproc_tests]},
+              {mod,{gproc_app,[]}}]}.

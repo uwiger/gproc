@@ -1,0 +1,17 @@
+{name,"gproc"}.
+{type,app}.
+{modules,[]}.
+{prefix,"gproc"}.
+{desc,"Extended process registry for Erlang"}.
+{author,"Ulf Wiger"}.
+{package_id,{"uwiger","gproc",{1,0,0}}}.
+{deps,[]}.
+{key_name,none}.
+{a_email,"ulf@wiger.net"}.
+{c_email,"ulf@wiger.net"}.
+{copyright,"Ulf Wiger"}.
+{file_exts,[]}.
+{license,"Apache-2.0"}.
+{repo_url,"https://github.com/uwiger/gproc"}.
+{tags,[]}.
+{ws_url,[]}.
