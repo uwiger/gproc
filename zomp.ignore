@@ -1,0 +1,10 @@
+tetrapak
+rebar.lock
+doc/*.pdf
+doc/edoc-info
+doc/stylesheet.css
+reference
+edoc-info
+test
+dist_shell.config
+priv
