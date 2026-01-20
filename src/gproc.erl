@@ -2895,17 +2895,18 @@ monitor_me() ->
     end.
 
 
+pattern(L, Ctxt) when is_list(L) ->
+    [pattern_(P, Ctxt) || P <- L].
 
-
-pattern([{'_', Gs, As}], T) ->
+pattern_({'_', Gs, As}, T) ->
     ?l,
     {HeadPat, Vs} = headpat(T, '$1', '$2', '$3'),
-    [{HeadPat, rewrite(Gs,Vs), rewrite(As,Vs)}];
-pattern([{{A,B,C},Gs,As}], Scope) ->
+    {HeadPat, rewrite(Gs,Vs), rewrite(As,Vs)};
+pattern_({{A,B,C},Gs,As}, Scope) ->
     ?l,
     {HeadPat, Vars} = headpat(Scope, A,B,C),
-    [{HeadPat, rewrite(Gs,Vars), rewrite(As,Vars)}];
-pattern([{Head, Gs, As}], Scope) ->
+    {HeadPat, rewrite(Gs,Vars), rewrite(As,Vars)};
+pattern_({Head, Gs, As}, Scope) ->
     ?l,
     {S, T} = get_s_t(Scope),
     case is_var(Head) of
@@ -2914,7 +2915,7 @@ pattern([{Head, Gs, As}], Scope) ->
             Vs = [{Head, obj_prod()}],
             %% the headpat function should somehow verify that Head is
             %% consistent with Scope (or should we add a guard?)
-            [{HeadPat, rewrite(Gs, Vs), rewrite(As, Vs)}];
+            {HeadPat, rewrite(Gs, Vs), rewrite(As, Vs)};
         false ->
             erlang:error(badarg)
     end.
