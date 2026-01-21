@@ -1,0 +1,14 @@
+%% -*- erlang-mode; erlang-indent-level: 4; indent-tabs-mode: nil -*-
+
+[{application, Name, Opts}] = CONFIG.
+case lists:keyfind(vsn, 1, Opts) of
+    {vsn, "zomp"} ->
+        ZompMetaF = filename:join(filename:dirname(filename:dirname(SCRIPT)), "zomp.meta"),
+        {ok, ZMeta} = file:consult(ZompMetaF),
+        {_, {_, _, {Vmaj,Vmin,Vpatch}}} = lists:keyfind(package_id, 1, ZMeta),
+        VsnStr = unicode:characters_to_list(io_lib:fwrite("~w.~w.~w", [Vmaj, Vmin, Vpatch])),
+        Opts1 = lists:keyreplace(vsn, 1, Opts, {vsn, VsnStr}),
+        [{application, Name, Opts1}];
+    _ ->
+        CONFIG
+end.
