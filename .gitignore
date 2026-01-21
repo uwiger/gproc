@@ -8,3 +8,4 @@ eqc/*.beam
 */#*#
 erl_crash.dump
 gproc_dist*@*
+rebar.lock
