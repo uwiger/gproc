@@ -3,7 +3,7 @@
               {registered,[]},
               {included_applications,[]},
               {applications,[stdlib,kernel]},
-              {vsn,"1.0.0"},
+              {vsn,"1.1.0"},
               {modules,[gproc_eqc_tests,gproc,gproc_app,gproc_bcast,
                         gproc_dist,gproc_info,gproc_init,gproc_lib,
                         gproc_monitor,gproc_pool,gproc_ps,gproc_pt,gproc_sup,
