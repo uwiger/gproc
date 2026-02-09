@@ -26,7 +26,7 @@ actively use either, they are no longer fetched by default.
 
 You can get `gproc` from the [Hex package manager](https://hex.pm/packages/gproc)
 
-That means declaring dependency on `{gproc, "0.5.0"}` in your `rebar3`-based applications or `{:gproc, "~> 0.5.0"}` in your `mix` based applications.
+That means declaring dependency on `{gproc, "0.9.0"}` in your `rebar3`-based applications or `{:gproc, "~> 0.9.0"}` in your `mix` based applications.
 
 
 ## Introduction ##
