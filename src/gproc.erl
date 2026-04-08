@@ -3040,6 +3040,8 @@ rewrite1(Guard, R) when is_tuple(Guard) ->
     list_to_tuple([rewrite1(G, R) || G <- tuple_to_list(Guard)]);
 rewrite1(Exprs, R) when is_list(Exprs) ->
     [rewrite1(E, R) || E <- Exprs];
+rewrite1(M, R) when is_map(M) ->
+    maps:from_list([{rewrite1(K, R), rewrite1(V, R)} || {K, V} <- maps:to_list(M)]);
 rewrite1(V, R) when is_atom(V) ->
     case is_var(V) of
         {true,_N} ->
