@@ -351,6 +351,8 @@ wrap(E) when is_tuple(E) ->
     {list_to_tuple([wrap(X) || X <- tuple_to_list(E)])};
 wrap(E) when is_list(E) ->
     [wrap(X) || X <- E];
+wrap(E) when is_map(E) ->
+    maps:from_list([{wrap(K), wrap(V)} || {K, V} <- maps:to_list(E)]);
 wrap(X) ->
     X.
 

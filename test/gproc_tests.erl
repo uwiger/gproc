@@ -182,6 +182,8 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_singles()))}
       , ?_test(t_is_clean())
+      , {spawn, ?_test(?debugVal(t_singles_map_event()))}
+      , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_ps_cond()))}
       , ?_test(t_is_clean())
      ]}.
@@ -1182,6 +1184,20 @@ t_singles() ->
     0 = gproc_ps:enable_single(l, my_single),
     1 = gproc_ps:enable_single(l, my_single),
     true = gproc_ps:delete_single(l, my_single),
+    ok.
+
+%% gproc_ps:wrap/1 must walk into map literals so that any tuples
+%% nested inside an event-as-map are properly wrapped for the
+%% match-spec result expression used by tell_singles/3. Without that,
+%% the inner tuple is interpreted as a constructor and tell_singles
+%% crashes with badarg.
+t_singles_map_event() ->
+    Me = self(),
+    Event = #{kind => #{type => {foo, bar}}},
+    true = gproc_ps:create_single(l, Event),
+    [Me] = gproc_ps:tell_singles(l, Event, hello),
+    {gproc_ps_event, Event, hello} = get_msg(),
+    true = gproc_ps:delete_single(l, Event),
     ok.
 
 t_ps_cond() ->
