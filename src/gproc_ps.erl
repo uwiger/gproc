@@ -352,9 +352,21 @@ wrap(E) when is_tuple(E) ->
 wrap(E) when is_list(E) ->
     [wrap(X) || X <- E];
 wrap(E) when is_map(E) ->
-    maps:from_list([{wrap(K), wrap(V)} || {K, V} <- maps:to_list(E)]);
+    wrap_map(E);
 wrap(X) ->
     X.
+
+%% From OTP 24 onward, ETS match-spec result expressions evaluate
+%% values inside map literals, so any nested tuples need the same
+%% double-wrapping that wrap/1 already applies to bare tuples. On
+%% older OTPs the map is emitted as-is and the wrapping would corrupt
+%% the value, so leave it alone.
+-if(?OTP_RELEASE >= 24).
+wrap_map(E) ->
+    maps:from_list([{wrap(K), wrap(V)} || {K, V} <- maps:to_list(E)]).
+-else.
+wrap_map(E) -> E.
+-endif.
 
 
 -spec list_singles(scope(), event()) -> [{pid(), status()}].
