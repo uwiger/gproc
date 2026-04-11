@@ -27,6 +27,7 @@
 %% @end
 
 -module(gproc_bcast).
+-vsn("1.2.0").
 -behaviour(gen_server).
 
 -export([start_link/0,

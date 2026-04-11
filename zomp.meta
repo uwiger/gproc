@@ -1,10 +1,10 @@
 {name,"gproc"}.
 {type,app}.
 {modules,[]}.
-{prefix,"gproc"}.
 {author,"Ulf Wiger"}.
+{prefix,"gproc"}.
 {desc,"Extended process registry for Erlang"}.
-{package_id,{"uwiger","gproc",{1,1,0}}}.
+{package_id,{"uwiger","gproc",{1,2,0}}}.
 {deps,[]}.
 {key_name,none}.
 {a_email,"ulf@wiger.net"}.

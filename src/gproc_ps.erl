@@ -35,6 +35,7 @@
 %% @type status() = 1 | 0.
 %% @end
 -module(gproc_ps).
+-vsn("1.2.0").
 
 -export([subscribe/2,
 	 subscribe_cond/3,

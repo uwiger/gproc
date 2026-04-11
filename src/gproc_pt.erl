@@ -38,6 +38,7 @@
 %% @end
 %%
 -module(gproc_pt).
+-vsn("1.2.0").
 
 -export([parse_transform/2]).
 

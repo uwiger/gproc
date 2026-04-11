@@ -22,6 +22,7 @@
 %% <p>For a detailed description, see gproc/doc/erlang07-wiger.pdf.</p>
 %% @end
 -module(gproc_dist).
+-vsn("1.2.0").
 
 %% -behaviour(gen_leader).  % to avoid unnecessary warnings
 

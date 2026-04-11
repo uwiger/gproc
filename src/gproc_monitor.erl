@@ -22,6 +22,7 @@
 %% When a process subscribes to notifications for a given name, a message
 %% will be sent each time that name is registered
 -module(gproc_monitor).
+-vsn("1.2.0").
 
 -behaviour(gen_server).
 
