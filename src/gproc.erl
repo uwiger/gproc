@@ -3040,6 +3040,8 @@ rewrite1(Guard, R) when is_tuple(Guard) ->
     list_to_tuple([rewrite1(G, R) || G <- tuple_to_list(Guard)]);
 rewrite1(Exprs, R) when is_list(Exprs) ->
     [rewrite1(E, R) || E <- Exprs];
+rewrite1(M, R) when is_map(M) ->
+    rewrite_map(M, R);
 rewrite1(V, R) when is_atom(V) ->
     case is_var(V) of
         {true,_N} ->
@@ -3054,6 +3056,19 @@ rewrite1(V, R) when is_atom(V) ->
     end;
 rewrite1(Expr, _) ->
     Expr.
+
+%% ETS match-spec result expressions only recursively evaluate values
+%% inside map literals from OTP 24 onward. On older releases the map
+%% is emitted as-is, so substitution must not descend into it (any
+%% rewritten {element,...} expression would otherwise be returned
+%% verbatim to the caller).
+-if(?OTP_RELEASE >= 24).
+rewrite_map(M, R) ->
+    maps:from_list([{rewrite1(K, R), rewrite1(V, R)}
+                    || {K, V} <- maps:to_list(M)]).
+-else.
+rewrite_map(M, _R) -> M.
+-endif.
 
 
 %% @spec () -> any()

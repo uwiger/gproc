@@ -184,7 +184,7 @@ reg_test_() ->
       , ?_test(t_is_clean())
       , {spawn, ?_test(?debugVal(t_ps_cond()))}
       , ?_test(t_is_clean())
-     ]}.
+     ] ++ map_event_tests()}.
 
 t_simple_reg() ->
     ?assert(gproc:reg({n,l,name}) =:= true),
@@ -1183,6 +1183,28 @@ t_singles() ->
     1 = gproc_ps:enable_single(l, my_single),
     true = gproc_ps:delete_single(l, my_single),
     ok.
+
+%% gproc_ps:wrap/1 must walk into map literals so that any tuples
+%% nested inside an event-as-map are properly wrapped for the
+%% match-spec result expression used by tell_singles/3. Without that,
+%% the inner tuple is interpreted as a constructor and tell_singles
+%% crashes with badarg. Only relevant on OTP 24+ (see gproc_ps:wrap/1).
+-if(?OTP_RELEASE >= 24).
+map_event_tests() ->
+    [{spawn, ?_test(?debugVal(t_singles_map_event()))},
+     ?_test(t_is_clean())].
+
+t_singles_map_event() ->
+    Me = self(),
+    Event = #{kind => #{type => {foo, bar}}},
+    true = gproc_ps:create_single(l, Event),
+    [Me] = gproc_ps:tell_singles(l, Event, hello),
+    {gproc_ps_event, Event, hello} = get_msg(),
+    true = gproc_ps:delete_single(l, Event),
+    ok.
+-else.
+map_event_tests() -> [].
+-endif.
 
 t_ps_cond() ->
     Pat1 = [{'$1',[{'==',1,{'rem','$1',2}}], [true]}],  % odd numbers
