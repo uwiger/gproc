@@ -1,6 +1,7 @@
 current_counterexample.eqc
 _build
 .rebar3
+ebin/*.beam
 eqc/.eqc-info
 eqc/*.beam
 *~
