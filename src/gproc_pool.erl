@@ -805,7 +805,8 @@ add_worker_(Pool, Name, Pos) ->
     Pos.
 
 reg_worker(Pool, Name, Pos) ->
-    gproc:reg_shared(Wrk = ?POOL_WRK(Pool, Name), 0),
+    Wrk = ?POOL_WRK(Pool, Name),
+    gproc:reg_shared(Wrk, 0),
     gproc:set_attributes_shared(Wrk, [{n, Pos}]).
 
 remove_worker_(Pool, Name) ->
@@ -825,7 +826,8 @@ do_remove_worker_(Pool, Name) ->
     case AutoSize of
         false -> ok;
         true ->
-            case (NewLen = length(Ws1)) - length(Ws0) of
+            NewLen = length(Ws1),
+            case NewLen - length(Ws0) of
                 0 -> ok;
                 Diff when Diff < 0 ->
                     {_, Type} = gproc:get_value(K, shared),

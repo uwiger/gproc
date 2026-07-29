@@ -46,11 +46,14 @@ start_node(Name0) ->
     {Name, _} = eunit_lib:split_node(Name0),
     ensure_dist(),
     {Pa, Pz} = paths(),
-    Paths = "-pa ./ -pz ../ebin" ++
-        lists:flatten([[" -pa " ++ Path || Path <- Pa],
-		       [" -pz " ++ Path || Path <- Pz]]),
-    Args = "-kernel prevent_overlapping_partitions false " ++ Paths,
-    {ok, Node} = slave:start(host(), Name, Args),
+    Paths = lists:append([["-pa", "./", "-pz", "../ebin"]]
+                         ++ [["-pa", Path] || Path <- Pa]
+                         ++ [["-pz", Path] || Path <- Pz]),
+    Args = ["-kernel", "prevent_overlapping_partitions", "false" | Paths],
+    {ok, Pid, Node} = peer:start(#{ name => Name
+                                  , host => host_string()
+                                  , args => Args }),
+    save_controlling_pid(Node, Pid),
     Node.
 
 stop_nodes(Ns) ->
@@ -58,7 +61,20 @@ stop_nodes(Ns) ->
     ok.
 
 stop_node(N) ->
-    slave:stop(N).
+    Pid = get_controlling_pid(N),
+    try peer:stop(Pid)
+    after
+        delete_controlling_pid(N)
+    end.
+
+save_controlling_pid(Node, Pid) ->
+    persistent_term:put({?MODULE,peer_ref,Node}, Pid).
+
+get_controlling_pid(Node) ->
+    persistent_term:get({?MODULE, peer_ref, Node}).
+
+delete_controlling_pid(Node) ->
+    persistent_term:erase({?MODULE, peer_ref, Node}).
 
 paths() ->
     Path = code:get_path(),
@@ -72,8 +88,8 @@ paths() ->
     {Pas, Pzs}.
 
 
-host() ->
-    list_to_atom(host_string()).
+%% host() ->
+%%     list_to_atom(host_string()).
 
 host_string() ->
     [_Name, Host] = re:split(atom_to_list(node()), "@", [{return, list}]),
