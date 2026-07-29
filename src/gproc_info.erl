@@ -22,7 +22,7 @@
 %% @author Ulf Wiger <ulf@wiger.net>
 %%
 -module(gproc_info).
--vsn("1.2.0").
+-vsn("1.3.0").
 
 -export([i/0]).
 

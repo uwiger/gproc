@@ -53,7 +53,7 @@
 %%   jobs will not exceed the size of the pool.
 %% @end
 -module(gproc_pool).
--vsn("1.2.0").
+-vsn("1.3.0").
 -behavior(gen_server).
 
 %% gproc round-robin name lookup
