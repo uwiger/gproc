@@ -22,7 +22,7 @@
 %% <p>For a detailed description, see gproc/doc/erlang07-wiger.pdf.</p>
 %% @end
 -module(gproc_lib).
--vsn("1.2.0").
+-vsn("1.3.0").
 
 -export([await/3,
          do_set_counter_value/3,
@@ -133,7 +133,8 @@ maybe_scan(_, _, _, _, _) ->
 
 insert_attr({_,Scope,_} = Key, Attrs, Pid, Scope) when Scope==l;
 						       Scope==g ->
-    case ets:lookup(?TAB,  K = {Pid, Key}) of
+    K = {Pid, Key},
+    case ets:lookup(?TAB,  K) of
 	[{_, Attrs0}] when is_list(Attrs) ->
 	    As = proplists:get_value(attrs, Attrs0, []),
 	    As1 = lists:foldl(fun({K1,_} = Attr, Acc) ->
@@ -487,16 +488,20 @@ unreg_opts(Key, Pid) ->
     end.
 
 remove_reg_1({c,_,_} = Key, Pid) ->
-    remove_counter_1(Key, ets:lookup_element(?TAB, Reg = {Key,Pid}, 3), Pid),
+    Reg = {Key,Pid},
+    remove_counter_1(Key, ets:lookup_element(?TAB, Reg, 3), Pid),
     Reg;
 remove_reg_1({r,_,_} = Key, Pid) ->
-    remove_resource_1(Key, ets:lookup_element(?TAB, Reg = {Key,Pid}, 3), Pid),
+    Reg = {Key,Pid},
+    remove_resource_1(Key, ets:lookup_element(?TAB, Reg, 3), Pid),
     Reg;
 remove_reg_1({T,_,_} = Key, _Pid) when T==a; T==n; T==rc ->
-    ets:delete(?TAB, Reg = {Key,T}),
+    Reg = {Key,T},
+    ets:delete(?TAB, Reg),
     Reg;
 remove_reg_1({_,_,_} = Key, Pid) ->
-    ets:delete(?TAB, Reg = {Key, Pid}),
+    Reg = {Key, Pid},
+    ets:delete(?TAB, Reg),
     Reg.
 
 remove_counter_1({c,C,N} = Key, Val, Pid) ->
@@ -605,7 +610,8 @@ update_resource_count_(C, N, Val) ->
     end.
 
 resource_count_zero(C, N) ->
-    case ets:lookup(?TAB, {K = {rc,C,N},rc}) of
+    K = {rc,C,N},
+    case ets:lookup(?TAB, {K, rc}) of
         [{_, Pid, _}] ->
             case get_attr(on_zero, Pid, K, undefined) of
                 undefined -> ok;

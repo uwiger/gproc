@@ -45,7 +45,7 @@
 %% @end
 
 -module(gproc).
--vsn("1.2.0").
+-vsn("1.3.0").
 -behaviour(gen_server).
 
 -export([start_link/0,
@@ -2282,7 +2282,7 @@ to_atom(S) ->
 gproc_info(Pid, Pat) ->
     Keys = ets:select(?TAB, [{ {{Pid,Pat}, '_'}, [], [{element,2,
 						       {element,1,'$_'}}] }]),
-    {?MODULE, lists:zf(
+    {?MODULE, lists:filtermap(
                 fun(K) ->
                         try V = get_value(K, Pid),
 			      {true, {K,V}}
