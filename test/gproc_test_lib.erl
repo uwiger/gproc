@@ -104,7 +104,12 @@ start_gproc(Ns) ->
     ok.
 
 wait_gproc_leader(Ns) ->
-    wait_gproc_leader(Ns, 50).
+    Leader = wait_gproc_leader(Ns, 50),
+    %% get_leader agreement is not enough: locks_leader only broadcasts to
+    %% *synced* followers. Probe until a global reg is visible on every node
+    %% (or we will flake on the first real lookup under load / OTP 27 CI).
+    ok = wait_gproc_replicated(Ns, Leader, 50),
+    Leader.
 
 wait_gproc_leader(Ns, 0) ->
     Status = [{N, rpc:call(N, gproc_dist, get_leader, [])} || N <- Ns],
@@ -120,6 +125,46 @@ wait_gproc_leader(Ns, I) ->
         _ ->
             timer:sleep(100),
             wait_gproc_leader(Ns, I - 1)
+    end.
+
+wait_gproc_replicated(Ns, _Leader, 0) ->
+    error({gproc_not_replicated, Ns,
+           [{N, rpc:call(N, gproc_dist, get_leader, [])} || N <- Ns]});
+wait_gproc_replicated(Ns, Leader, I) ->
+    %% Must use a long-lived process: gproc:where/1 returns undefined for
+    %% dead pids, and rpc:call's worker exits as soon as reg returns.
+    Key = {n, g, {gproc_ready_probe, make_ref()}},
+    Me = self(),
+    P = spawn(Leader, fun() ->
+                              case catch gproc:reg(Key, ready) of
+                                  true -> Me ! {self(), ok};
+                                  Other -> Me ! {self(), {error, Other}}
+                              end,
+                              receive
+                                  stop ->
+                                      catch gproc:unreg(Key),
+                                      ok
+                              end
+                      end),
+    receive
+        {P, ok} ->
+            Found = [{N, rpc:call(N, gproc, where, [Key])} || N <- Ns],
+            P ! stop,
+            case lists:all(fun({_, Q}) -> Q =:= P end, Found) of
+                true ->
+                    ok;
+                false ->
+                    timer:sleep(100),
+                    wait_gproc_replicated(Ns, Leader, I - 1)
+            end;
+        {P, {error, _}} ->
+            P ! stop,
+            timer:sleep(100),
+            wait_gproc_replicated(Ns, Leader, I - 1)
+    after 5000 ->
+            exit(P, kill),
+            timer:sleep(100),
+            wait_gproc_replicated(Ns, wait_gproc_leader(Ns, 10), I - 1)
     end.
 
 %% Disk log per peer under LogDir/<node>.log (logger_std_h).

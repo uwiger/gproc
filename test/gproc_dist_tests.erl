@@ -690,7 +690,9 @@ t_sleep() ->
 
 t_lookup_everywhere(Key, Nodes, Exp) ->
     true = sync_via_leader(Nodes),
-    t_lookup_everywhere(Key, Nodes, Exp, 3).
+    %% Patient under CI load (OTP 27 containers): 3×500ms was too tight when
+    %% followers were still joining the leader's synced set.
+    t_lookup_everywhere(Key, Nodes, Exp, 20).
 
 t_lookup_everywhere(Key, _, Exp, 0) ->
     {lookup_failed, Key, Exp};
@@ -710,7 +712,7 @@ t_lookup_everywhere(Key, Nodes, Exp, I) ->
 
 t_read_everywhere(Key, Pid, Nodes, Exp) ->
     true = sync_via_leader(Nodes),
-    t_read_everywhere(Key, Pid, Nodes, Exp, 3).
+    t_read_everywhere(Key, Pid, Nodes, Exp, 20).
 
 t_read_everywhere(Key, _, _, Exp, 0) ->
     {read_failed, Key, Exp};
