@@ -21,7 +21,7 @@
 ## DEALINGS IN THE SOFTWARE.
 REBAR3=$(shell which rebar3 || echo ./rebar3)
 
-.PHONY: all compile clean eunit test doc check dialyzer
+.PHONY: all compile clean eunit ct test doc check dialyzer
 
 DIRS=src
 
@@ -35,10 +35,18 @@ compile:
 clean:
 	$(REBAR3) clean
 
+# Local / non-distributed eunit only. gproc_dist lives under CT
+# (see gproc_dist_SUITE); the old dist eunit generator is disabled.
 eunit:
 	$(REBAR3) eunit
 
-test: eunit
+# Distributed suite: locks_leader peers + per-node disk logs.
+ct:
+	@epmd -daemon 2>/dev/null || true
+	$(REBAR3) ct --suite test/gproc_dist_SUITE
+
+# Full local gate (matches intended CI split).
+test: eunit ct
 
 doc:
 	$(REBAR3) as edown edoc

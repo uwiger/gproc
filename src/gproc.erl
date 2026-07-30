@@ -41,6 +41,13 @@
 %%   starting the `gproc' and `gproc_dist' servers. Default is `[]'. It is
 %%   likely that `{priority, high | max}' and/or increasing `min_heap_size'
 %%   will improve performance.
+%% * `{gproc_dist, all | [node()] | {[node()], list()}}' - When `locks' is
+%%   available and `gproc_dist' is started, an explicit node list causes
+%%   `net_kernel:connect_node/1' for each peer before joining the society.
+%%   `all' / `true' do not connect (already-connected nodes are discovered
+%%   via locks_pg). Under gen_leader this env also controlled whether dist
+%%   started; now dist starts whenever `locks' is running
+%%   (see optional_applications).
 %%
 %% @end
 
@@ -190,6 +197,7 @@
             _ ->
                 ok
         end).
+
 
 -define(PID_IS_DEAD(Pid),
 	(node(Pid) == node() andalso is_process_alive(Pid) == false)).
@@ -706,7 +714,6 @@ await(Node, Key, Timeout) when is_atom(Node) ->
     ?CATCH_GPROC_ERROR(await1(Node, Key, Timeout), [Node, Key, Timeout]).
 
 await1({T,g,_} = Key, Timeout) when T=:=n; T=:=a; T=:=rc ->
-    ?CHK_DIST,
     request_wait(Key, Timeout);
 await1({T,l,_} = Key, Timeout) when T=:=n; T=:=a; T=:=rc ->
     case ets:lookup(?TAB, {Key, T}) of
@@ -860,7 +867,6 @@ nb_wait(Node, Key) ->
     ?CATCH_GPROC_ERROR(nb_wait1(Node, Key), [Node, Key]).
 
 nb_wait1({T,g,_} = Key) when T=:=n; T=:=a; T=:=rc ->
-    ?CHK_DIST,
     call({await, Key, self()}, g);
 nb_wait1({T,l,_} = Key) when T=:=n; T=:=a; T=:=rc ->
     call({await, Key, self()}, l);
@@ -901,7 +907,6 @@ cancel_wait(N, Key, Ref) ->
 
 
 cancel_wait1({_,g,_} = Key, Ref) ->
-    ?CHK_DIST,
     cast({cancel_wait, self(), Key, Ref}, g),
     ok;
 cancel_wait1({_,l,_} = Key, Ref) ->
@@ -917,7 +922,6 @@ cancel_wait_or_monitor(Key) ->
     ?CATCH_GPROC_ERROR(cancel_wait_or_monitor1(Key), [Key]).
 
 cancel_wait_or_monitor1({_,g,_} = Key) ->
-    ?CHK_DIST,
     cast({cancel_wait_or_monitor, self(), Key}, g),
     ok;
 cancel_wait_or_monitor1({_,l,_} = Key) ->
@@ -2610,12 +2614,14 @@ call(Req) ->
 call(Req, l) ->
     chk_reply(gen_server:call(?MODULE, Req));
 call(Req, g) ->
+    ?CHK_DIST,
     chk_reply(gproc_dist:leader_call(Req)).
 
 call(N, Req, l) ->
     chk_reply(gen_server:call({?MODULE, N}, Req));
 call(undefined, Req, g) ->
     %% we always call the leader
+    ?CHK_DIST,
     chk_reply(gproc_dist:leader_call(Req)).
 
 
@@ -2632,6 +2638,7 @@ cast(Msg) ->
 cast(Msg, l) ->
     gen_server:cast(?MODULE, Msg);
 cast(Msg, g) ->
+    ?CHK_DIST,
     gproc_dist:leader_cast(Msg).
 
 cast(N, Msg, l) ->

@@ -23,38 +23,127 @@
          t_spawn_mreg/3,
          t_call/2,
          t_loop/0, t_loop/1,
-	 t_pool_contains_atleast/2,
+         t_pool_contains_atleast/2,
          got_msg/1, got_msg/2,
          no_msg/2]).
 
 -export([ensure_dist/0,
-         start_nodes/1,
-         start_node/1,
+         start_nodes/1, start_nodes/2,
+         start_node/1, start_node/2,
          stop_nodes/1,
          stop_node/1,
-         node_name/1]).
+         node_name/1,
+         mesh_connect/1,
+         start_gproc/1,
+         wait_gproc_leader/1,
+         setup_peer_logger/2]).
 
 -include_lib("eunit/include/eunit.hrl").
 
 
+%% ============================================================
+%% Node lifecycle (peer)
+%% ============================================================
+
 start_nodes(Ns) ->
-    [H|T] = Nodes = [start_node(N) || N <- Ns],
-    _ = [rpc:call(H, net_adm, ping, [N]) || N <- T],
+    start_nodes(Ns, #{}).
+
+%% Opts:
+%%   log_dir => dirname() | undefined  — enable disk logger on each peer
+start_nodes(Ns, Opts) when is_map(Opts) ->
+    Nodes = [start_node(N, Opts) || N <- Ns],
+    mesh_connect(Nodes),
+    case maps:get(log_dir, Opts, undefined) of
+        undefined -> ok;
+        LogDir    -> [setup_peer_logger(N, LogDir) || N <- Nodes]
+    end,
     Nodes.
 
 start_node(Name0) ->
+    start_node(Name0, #{}).
+
+start_node(Name0, Opts) when is_map(Opts) ->
     {Name, _} = eunit_lib:split_node(Name0),
     ensure_dist(),
     {Pa, Pz} = paths(),
     Paths = lists:append([["-pa", "./", "-pz", "../ebin"]]
                          ++ [["-pa", Path] || Path <- Pa]
                          ++ [["-pz", Path] || Path <- Pz]),
-    Args = ["-kernel", "prevent_overlapping_partitions", "false" | Paths],
+    Args = ["-kernel", "prevent_overlapping_partitions", "false",
+            "-kernel", "logger_level", "debug"
+            | Paths],
+    %% standard_io control so intentional dist drops do not kill the peer.
     {ok, Pid, Node} = peer:start(#{ name => Name
                                   , host => host_string()
-                                  , args => Args }),
+                                  , args => Args
+                                  , connection => standard_io }),
     save_controlling_pid(Node, Pid),
+    case maps:get(log_dir, Opts, undefined) of
+        undefined -> ok;
+        LogDir    -> setup_peer_logger(Node, LogDir)
+    end,
     Node.
+
+%% Full mesh among peers.
+mesh_connect(Nodes) ->
+    [begin
+         true = rpc:call(A, net_kernel, connect_node, [B])
+     end || A <- Nodes, B <- Nodes, A =/= B],
+    ok.
+
+%% Start gproc (and thus locks + gproc_dist) on every peer; wait for a leader.
+start_gproc(Ns) ->
+    {Results, Bad} = rpc:multicall(Ns, application, ensure_all_started, [gproc]),
+    [] = Bad,
+    [case R of
+         {ok, _} -> ok;
+         {error, {already_started, _}} -> ok;
+         Other -> error({gproc_start_failed, Other})
+     end || R <- Results],
+    wait_gproc_leader(Ns),
+    ok.
+
+wait_gproc_leader(Ns) ->
+    wait_gproc_leader(Ns, 50).
+
+wait_gproc_leader(Ns, 0) ->
+    Status = [{N, rpc:call(N, gproc_dist, get_leader, [])} || N <- Ns],
+    error({no_gproc_leader, Status});
+wait_gproc_leader(Ns, I) ->
+    Ls = [rpc:call(N, gproc_dist, get_leader, []) || N <- Ns],
+    case lists:usort([L || L <- Ls, is_atom(L), L =/= undefined, L =/= nonode@nohost]) of
+        [Leader] when length(Ls) =:= length(Ns) ->
+            case lists:all(fun(L) -> L =:= Leader end, Ls) of
+                true  -> Leader;
+                false -> timer:sleep(100), wait_gproc_leader(Ns, I - 1)
+            end;
+        _ ->
+            timer:sleep(100),
+            wait_gproc_leader(Ns, I - 1)
+    end.
+
+%% Disk log per peer under LogDir/<node>.log (logger_std_h).
+setup_peer_logger(Node, LogDir) ->
+    ok = filelib:ensure_dir(filename:join(LogDir, "dummy")),
+    File = filename:join(LogDir, atom_to_list(Node) ++ ".log"),
+    ok = rpc:call(Node, logger, set_primary_config, [level, debug]),
+    %% Replace default handler so everything hits the file (and keep stderr
+    %% free of CT noise). Fail soft if already configured.
+    _ = rpc:call(Node, logger, remove_handler, [default]),
+    case rpc:call(Node, logger, add_handler,
+                  [default, logger_std_h,
+                   #{level => debug,
+                     config => #{file => File},
+                     formatter =>
+                         {logger_formatter,
+                          #{template => [time, " ", level, " ",
+                                         {pid, ["[", pid, "] "], []},
+                                         msg, "\n"]}}}]) of
+        ok -> ok;
+        {error, {already_exist, _}} -> ok;
+        Other -> error({peer_logger_failed, Node, Other})
+    end,
+    ok.
 
 stop_nodes(Ns) ->
     [stop_node(N) || N <- Ns],
@@ -68,7 +157,7 @@ stop_node(N) ->
     end.
 
 save_controlling_pid(Node, Pid) ->
-    persistent_term:put({?MODULE,peer_ref,Node}, Pid).
+    persistent_term:put({?MODULE, peer_ref, Node}, Pid).
 
 get_controlling_pid(Node) ->
     persistent_term:get({?MODULE, peer_ref, Node}).
@@ -80,16 +169,13 @@ paths() ->
     Path = code:get_path(),
     {ok, [[Root]]} = init:get_argument(root),
     {Pas, Rest} = lists:splitwith(fun(P) ->
-					  not lists:prefix(Root, P)
-				  end, Path),
+                                          not lists:prefix(Root, P)
+                                  end, Path),
     {_, Pzs} = lists:splitwith(fun(P) ->
-				       lists:prefix(Root, P)
-			       end, Rest),
+                                       lists:prefix(Root, P)
+                               end, Rest),
     {Pas, Pzs}.
 
-
-%% host() ->
-%%     list_to_atom(host_string()).
 
 host_string() ->
     [_Name, Host] = re:split(atom_to_list(node()), "@", [{return, list}]),
@@ -109,17 +195,21 @@ ensure_dist() ->
             false
     end.
 
+%% ============================================================
+%% Spawned helpers on peer nodes
+%% ============================================================
+
 t_spawn(Node) ->
     t_spawn(Node, false).
 
 t_spawn(Node, Selective) when is_boolean(Selective) ->
     Me = self(),
     P = spawn(Node, fun() ->
-			    Me ! {self(), ok},
-			    t_loop(Selective)
-		    end),
+                            Me ! {self(), ok},
+                            t_loop(Selective)
+                    end),
     receive
-	{P, ok} -> P
+        {P, ok} -> P
     after 1000 ->
             erlang:error({timeout, t_spawn, [Node, Selective]})
     end.
@@ -135,7 +225,7 @@ t_spawn_reg(Node, Name, Value) ->
                             t_loop()
                     end),
     receive
-	{P, ok} ->
+        {P, ok} ->
             P
     after 1000 ->
             erlang:error({timeout, t_spawn_reg, [Node, Name, Value]})
@@ -149,7 +239,7 @@ t_spawn_reg(Node, Name, Value, Attrs) ->
                             t_loop()
                     end),
     receive
-	{P, ok} ->
+        {P, ok} ->
             P
     after 1000 ->
             erlang:error({timeout, t_spawn_reg, [Node, Name, Value]})
@@ -166,7 +256,7 @@ t_spawn_mreg(Node, T, KVL) ->
                             t_loop()
                     end),
     receive
-	{P, ok} ->
+        {P, ok} ->
             P
     after 1000 ->
             error({timeout, t_spawn_mreg, [Node, T, KVL]})
@@ -181,7 +271,7 @@ t_spawn_reg_shared(Node, Name, Value) ->
                             t_loop()
                     end),
     receive
-	{P, ok} -> P
+        {P, ok} -> P
     after 1000 ->
               erlang:error({timeout, t_spawn_reg_shared, [Node,Name,Value]})
     end.
@@ -193,11 +283,11 @@ t_call(P, Req) ->
     Ref = erlang:monitor(process, P),
     P ! {self(), Ref, Req},
     receive
-	{P, Ref, Res} ->
-	    erlang:demonitor(Ref, [flush]),
-	    Res;
-	{'DOWN', Ref, _, _, Error} ->
-	    erlang:error({'DOWN', P, Error})
+        {P, Ref, Res} ->
+            erlang:demonitor(Ref, [flush]),
+            Res;
+        {'DOWN', Ref, _, _, Error} ->
+            erlang:error({'DOWN', P, Error})
     after 1000 ->
             erlang:error({timeout,t_call,[P,Req]})
     end.
@@ -207,20 +297,20 @@ t_loop() ->
 
 t_loop(Selective) when is_boolean(Selective) ->
     receive
-	{From, Ref, die} ->
-	    From ! {self(), Ref, ok};
-	{From, Ref, {selective, Bool}} when is_boolean(Bool) ->
-	    From ! {self(), Ref, ok},
-	    t_loop(Bool);
-	{From, Ref, {apply, M, F, A}} ->
-	    From ! {self(), Ref, apply(M, F, A)},
-	    t_loop(Selective);
-	{From, Ref, {apply_fun, F}} ->
-	    From ! {self(), Ref, F()},
-	    t_loop(Selective);
-	Other when not Selective ->
-	    ?debugFmt("got unknown msg: ~p~n", [Other]),
-	    exit({unknown_msg, Other})
+        {From, Ref, die} ->
+            From ! {self(), Ref, ok};
+        {From, Ref, {selective, Bool}} when is_boolean(Bool) ->
+            From ! {self(), Ref, ok},
+            t_loop(Bool);
+        {From, Ref, {apply, M, F, A}} ->
+            From ! {self(), Ref, apply(M, F, A)},
+            t_loop(Selective);
+        {From, Ref, {apply_fun, F}} ->
+            From ! {self(), Ref, F()},
+            t_loop(Selective);
+        Other when not Selective ->
+            ?debugFmt("got unknown msg: ~p~n", [Other]),
+            exit({unknown_msg, Other})
     end.
 
 got_msg(Pb) ->
@@ -235,15 +325,15 @@ got_msg(Pb) ->
 
 got_msg(Pb, Tag) ->
     t_call(Pb,
-	   {apply_fun,
-	    fun() ->
-		    receive
-			M when element(1, M) == Tag ->
-			    M
-		    after 1000 ->
-			    erlang:error({timeout, got_msg, [Pb, Tag]})
-		    end
-	    end}).
+           {apply_fun,
+            fun() ->
+                    receive
+                        M when element(1, M) == Tag ->
+                            M
+                    after 1000 ->
+                            erlang:error({timeout, got_msg, [Pb, Tag]})
+                    end
+            end}).
 
 no_msg(Pb, Timeout) ->
     t_call(Pb,

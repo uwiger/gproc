@@ -54,26 +54,34 @@ init(_Args) ->
     %% Child_spec = [Name, {M, F, A},
     %%               Restart, Shutdown_time, Type, Modules_used]
 
-    GProc =
-        {gproc, {gproc, start_link, []},
-         permanent, 2000, worker, [gproc]},
-
-    Dist = case application:get_env(gproc_dist) of
-               undefined -> [];
-               {ok, false} -> [];
-               {ok, Env} ->
-                   [{gproc_dist, {gproc_dist, start_link, [Env]},
-                     permanent, 2000, worker, [gproc_dist]}]
-           end,
+    Gproc = {gproc, {gproc, start_link, []},
+             permanent, 2000, worker, [gproc]},
     Mon = {gproc_monitor, {gproc_monitor, start_link, []},
 	   permanent, 2000, worker, [gproc_monitor]},
     BCast = {gproc_bcast, {gproc_bcast, start_link, []},
 	     permanent, 2000, worker, [gproc_bcast]},
     Pool = {gproc_pool, {gproc_pool, start_link, []},
 	    permanent, 2000, worker, [gproc_pool]},
-    {ok,{{one_for_one, 15, 60}, [GProc| Dist] ++ [Mon, BCast, Pool]}}.
+    Children = [Gproc] ++ maybe_dist() ++ [Mon, BCast, Pool],
+    {ok, {{one_for_one, 15, 60}, Children}}.
 
 
 %%%----------------------------------------------------------------------
 %%% Internal functions
 %%%----------------------------------------------------------------------
+
+%% gproc_dist needs locks. With locks as an optional_application, the app
+%% controller starts it when present; if it is missing (or failed to start),
+%% we stay local-only.
+%%
+%% `{gproc, gproc_dist}' env is passed through to start_link/1 so configured
+%% peer node names are connected (gen_leader used to do that implicitly).
+maybe_dist() ->
+    case whereis(locks_server) of
+        Pid when is_pid(Pid) ->
+            Env = application:get_env(gproc, gproc_dist),
+            [{gproc_dist, {gproc_dist, start_link, [Env]},
+              permanent, 2000, worker, [gproc_dist]}];
+        undefined ->
+            []
+    end.

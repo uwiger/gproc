@@ -41,7 +41,7 @@ conf_test_() ->
 t_server_opts() ->
     H = 10000,
     application:set_env(gproc, server_options, [{min_heap_size, H}]),
-    ?assertMatch(ok, application:start(gproc)),
+    ?assertMatch({ok,_}, application:ensure_all_started(gproc)),
     {min_heap_size, H1} = process_info(whereis(gproc), min_heap_size),
     ?assert(is_integer(H1) andalso H1 > H).
 
@@ -66,11 +66,12 @@ t_ets_opts() ->
 reg_test_() ->
     {setup,
      fun() ->
-             application:start(gproc),
-	     application:start(mnesia)
+             {ok,As} = application:ensure_all_started(gproc),
+	     application:start(mnesia),
+             As
      end,
-     fun(_) ->
-             application:stop(gproc),
+     fun(As) ->
+             [application:stop(A) || A <- lists:reverse(As)],
 	     application:stop(mnesia)
      end,
      [

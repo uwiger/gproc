@@ -25,20 +25,20 @@
 -define(t(E), ?_test(?debugVal(E))).
 
 remote_test_() ->
-    %% dbg:tracer(),
-    %% dbg:tpl(?MODULE,x),
-    %% dbg:tpl(gproc_test_lib,x),
-    %% dbg:tp(slave,x),
-    %% dbg:p(all,[c]),
     StartedNet = gproc_test_lib:ensure_dist(),
     N = gproc_test_lib:node_name(remote_n1),
     {setup,
      fun() ->
-             gproc_test_lib:start_node(N),
-             rpc:call(N, application, start, [gproc]),
-             N
+             Node = gproc_test_lib:start_node(N),
+             %% gproc starts locks via ensure_all_started in gproc_app;
+             %% use ensure_all_started here too so a missing locks beam
+             %% fails clearly rather than as noproc on {gproc, Node}.
+             {ok, _} = rpc:call(Node, application, ensure_all_started, [gproc]),
+             true = is_pid(rpc:call(Node, erlang, whereis, [gproc])),
+             Node
      end,
      fun(Node) ->
+             _ = rpc:call(Node, application, stop, [gproc]),
              gproc_test_lib:stop_node(Node),
              case StartedNet of
                  true ->

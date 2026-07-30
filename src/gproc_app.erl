@@ -40,6 +40,11 @@ start() ->
     start(normal, []).
 
 start(_Type, StartArgs) ->
+    %% locks is optional_applications: ensure_all_started(gproc) will start it
+    %% as a dep, but ensure_started/start(gproc) will not. Pull locks in here
+    %% when it is loadable so gproc_sup can start gproc_dist; ignore failure
+    %% when locks is not present (local-only install).
+    _ = application:ensure_all_started(locks),
     case gproc_sup:start_link(StartArgs) of
         {ok, Pid} ->
             {ok, Pid};
