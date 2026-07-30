@@ -540,8 +540,48 @@ t_is_clean() ->
     T = ets:tab2list(gproc),
     Tm = ets:tab2list(gproc_monitor),
     ?assertMatch([], Tm),
-    ?assertMatch([], T -- [{{whereis(gproc_monitor), l}},
-                           {{self(), l}}]).
+    %% Infrastructure that may remain while gproc/locks/gproc_dist are up.
+    Allowed = infrastructure_regs(),
+    Rest = [E || E <- T, not is_allowed_reg(E, Allowed)],
+    ?assertMatch([], Rest).
+
+infrastructure_regs() ->
+    Mon = whereis(gproc_monitor),
+    Dist = whereis(gproc_dist),
+    [{{Mon, l}}, {{self(), l}}]
+        ++ case Dist of
+               Pid when is_pid(Pid) ->
+                   [{{Pid, l}},
+                    {{Pid, {p, l, gproc_dist_role}}, []},
+                    {{{p, l, gproc_dist_role}, Pid}, Pid,
+                     {elected, node()}},
+                    {{{p, l, gproc_dist_role}, Pid}, Pid,
+                     {following, node()}}];
+               _ ->
+                   []
+           end.
+
+is_allowed_reg(E, Allowed) ->
+    lists:member(E, Allowed)
+        orelse is_dist_role_reg(E).
+
+%% Role value may mention a remote leader node; match on key shape only.
+is_dist_role_reg({{Pid, {p, l, gproc_dist_role}}, []}) when is_pid(Pid) ->
+    Pid =:= whereis(gproc_dist);
+is_dist_role_reg({{{p, l, gproc_dist_role}, Pid}, Pid, _Val})
+  when is_pid(Pid) ->
+    Pid =:= whereis(gproc_dist);
+is_dist_role_reg(_) ->
+    false.
+
+%% gproc:table/1,2 entries for the dist lifecycle role property.
+without_dist_role(L) ->
+    [E || E <- L, not is_dist_role_entry(E)].
+
+is_dist_role_entry({{p, l, gproc_dist_role}, _Pid, _Val}) ->
+    true;
+is_dist_role_entry(_) ->
+    false.
 
 t_simple_mreg() ->
     P = self(),
@@ -728,7 +768,7 @@ t_qlc() ->
     ?assertEqual(Exp3,
 		 qlc:e(qlc:q([N || {_,_,x} = N <- gproc:table(all)]))),
 
-    %% match all
+    %% match all (ignore gproc_dist lifecycle role property)
     Exp4 = [{{a,l,{c,1}},self(),1},
 	    {{c,l,{c,1}},self(),1},
 	    {{n,l,{n,1}},self(),x},
@@ -737,7 +777,8 @@ t_qlc() ->
 	    {{p,l,{p,2}},self(),y}
 	   ],
     ?assertEqual(Exp4,
-		 qlc:e(qlc:q([X || X <- gproc:table(all)]))),
+		 without_dist_role(
+		   qlc:e(qlc:q([X || X <- gproc:table(all)])))),
     %% match on pid
     ?assertEqual(Exp4,
 		 qlc:e(qlc:q([{K,P,V} || {K,P,V} <-
@@ -796,12 +837,13 @@ t_qlc_dead() ->
 		      qlc:e(qlc:q([N || {_,_,y} = N <-
 					    gproc:table(all)]))),
 
-	 %% match all
+	 %% match all (ignore gproc_dist lifecycle role property)
 	 Exp4 = [{{n,l,{n,1}},self(),x},
 		 {{p,l,{p,1}},self(),x}],
 	 ?assertEqual(Exp4,
-		      qlc:e(qlc:q([X || X <-
-					    gproc:table(all, [check_pids])]))),
+		      without_dist_role(
+			qlc:e(qlc:q([X || X <-
+					       gproc:table(all, [check_pids])])))),
 	 %% match on pid
 	 ?assertEqual(Exp4,
 		 qlc:e(qlc:q([{K,P,V} || {K,P,V} <-

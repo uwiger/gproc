@@ -50,6 +50,15 @@
          sync/0,
          get_leader/0]).
 
+%% Lifecycle event type for gproc_ps (local scope). Tests and operators can
+%% subscribe with gproc_ps:subscribe(l, gproc_dist) or subscribe_remote/2.
+%% Messages: {gproc_ps_event, gproc_dist, RoleMsg}
+%% where RoleMsg is {elected, node()} | {following, LeaderNode}
+%%                 | {sync_done, node()}.
+%% The durable {p,l,gproc_dist_role} property holds only elected|following;
+%% sync_done is published but does not overwrite the role property.
+-export([lifecycle_event/0]).
+
 %%% internal exports
 -export([init/1,
          handle_cast/3,
@@ -69,6 +78,8 @@
 -include("gproc.hrl").
 
 -define(SERVER, ?MODULE).
+-define(LC_EVENT, gproc_dist).
+-define(LC_ROLE, gproc_dist_role).
 
 -record(state, {
           always_broadcast = false,
@@ -77,6 +88,9 @@
           sync_requests = []}).
 
 -include("gproc_trace.hrl").
+
+lifecycle_event() ->
+    ?LC_EVENT.
 %% ==========================================================
 %% Start functions
 
@@ -334,24 +348,19 @@ handle_info(Msg, S, _E) ->
 
 
 elected(S, _E) ->
-    {ok, {globals,globs()}, S#state{is_leader = true}}.
+    S1 = S#state{is_leader = true},
+    notify_role({elected, node()}),
+    {ok, {globals, globs()}, S1}.
 
 elected(S, _E, undefined) ->
     %% I have become leader; full synch
-    {ok, {globals, globs()}, S#state{is_leader = true}};
-     %% maybe_reinitiate_sync(S#state{is_leader = true}, E)};
+    S1 = S#state{is_leader = true},
+    notify_role({elected, node()}),
+    {ok, {globals, globs()}, S1};
 elected(S, _E, _Node) ->
-    Synch = {globals, globs()},
-    {reply, Synch, S}.
-    %% if not S#state.always_broadcast ->
-    %%         %% Another node recognized us as the leader.
-    %%         %% Don't broadcast all data to everyone else
-    %%         {reply, Synch, maybe_reinitiate_sync(S, E)};
-    %%    true ->
-    %%         %% Main reason for doing this is if we are using a gen_leader
-    %%         %% that doesn't support the 'reply' return value
-    %%         {ok, Synch, maybe_reinitiate_sync(S, E)}
-    %% end.
+    %% Still leader; a peer is joining — re-assert role for late subscribers.
+    notify_role({elected, node()}),
+    {reply, {globals, globs()}, S}.
 
 globs() ->
     Gs = ets:select(?TAB, [{{{{'_',g,'_'},'_'},'_','_'},[],['$_']}]),
@@ -362,12 +371,16 @@ globs() ->
 surrendered(#state{is_leader = true} = S, {globals, Globs}, E) ->
     %% Leader conflict!
     surrendered_1(Globs),
-    {ok, maybe_reinitiate_sync(S#state{is_leader = false}, E)};
+    S1 = S#state{is_leader = false},
+    notify_role({following, locks_leader:leader_node(E)}),
+    {ok, maybe_reinitiate_sync(S1, E)};
 surrendered(S, {globals, Globs}, E) ->
     %% globals from this node should be more correct in our table than
     %% in the leader's
     surrendered_1(Globs),
-    {ok, maybe_reinitiate_sync(S#state{is_leader = false}, E)}.
+    S1 = S#state{is_leader = false},
+    notify_role({following, locks_leader:leader_node(E)}),
+    {ok, maybe_reinitiate_sync(S1, E)}.
 
 
 %% locks_leader passes the dead candidate/worker pid (gen_leader used a node).
@@ -1262,7 +1275,29 @@ pids_on_nodes(E, Nodes) ->
 
 reply_to_sync_client(Ref, S) ->
     gen_server:reply(Ref, true),
+    %% Publish only — do not overwrite the elected/following role property.
+    notify_event({sync_done, node()}),
     S#state{sync_clients =
                 S#state.sync_clients -- [Ref],
             sync_requests =
                 lists:keydelete(Ref, 1, S#state.sync_requests)}.
+
+%% Local gproc_ps + durable role property ({elected|following, Node}).
+%% Never let notification failure take down the leader process.
+notify_role(Msg) ->
+    try
+        _ = gproc:ensure_reg({p, l, ?LC_ROLE}, Msg),
+        _ = gproc_ps:publish(l, ?LC_EVENT, Msg),
+        ok
+    catch
+        _:_ -> ok
+    end.
+
+%% Transient lifecycle events (e.g. sync_done) — pub/sub only.
+notify_event(Msg) ->
+    try
+        _ = gproc_ps:publish(l, ?LC_EVENT, Msg),
+        ok
+    catch
+        _:_ -> ok
+    end.

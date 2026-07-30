@@ -36,6 +36,8 @@
          mesh_connect/1,
          start_gproc/1,
          wait_gproc_leader/1,
+         subscribe_dist_events/1,
+         wait_dist_ready/1,
          setup_peer_logger/2]).
 
 -include_lib("eunit/include/eunit.hrl").
@@ -91,7 +93,8 @@ mesh_connect(Nodes) ->
      end || A <- Nodes, B <- Nodes, A =/= B],
     ok.
 
-%% Start gproc (and thus locks + gproc_dist) on every peer; wait for a leader.
+%% Start gproc (and thus locks + gproc_dist) on every peer; wait until
+%% gproc_dist role properties agree on a leader (see wait_dist_ready/1).
 start_gproc(Ns) ->
     {Results, Bad} = rpc:multicall(Ns, application, ensure_all_started, [gproc]),
     [] = Bad,
@@ -100,71 +103,77 @@ start_gproc(Ns) ->
          {error, {already_started, _}} -> ok;
          Other -> error({gproc_start_failed, Other})
      end || R <- Results],
+    %% Remote subscribe needs gproc already running on the peer.
+    %% Role properties are authoritative if we miss early events.
+    ok = subscribe_dist_events(Ns),
     wait_gproc_leader(Ns),
     ok.
 
 wait_gproc_leader(Ns) ->
-    Leader = wait_gproc_leader(Ns, 50),
-    %% get_leader agreement is not enough: locks_leader only broadcasts to
-    %% *synced* followers. Probe until a global reg is visible on every node
-    %% (or we will flake on the first real lookup under load / OTP 27 CI).
-    ok = wait_gproc_replicated(Ns, Leader, 50),
-    Leader.
+    wait_dist_ready(Ns).
 
-wait_gproc_leader(Ns, 0) ->
-    Status = [{N, rpc:call(N, gproc_dist, get_leader, [])} || N <- Ns],
-    error({no_gproc_leader, Status});
-wait_gproc_leader(Ns, I) ->
-    Ls = [rpc:call(N, gproc_dist, get_leader, []) || N <- Ns],
-    case lists:usort([L || L <- Ls, is_atom(L), L =/= undefined, L =/= nonode@nohost]) of
-        [Leader] when length(Ls) =:= length(Ns) ->
-            case lists:all(fun(L) -> L =:= Leader end, Ls) of
-                true  -> Leader;
-                false -> timer:sleep(100), wait_gproc_leader(Ns, I - 1)
-            end;
+%% Controller: remote-subscribe to local lifecycle events on each peer.
+%% Messages: {gproc_ps_event, gproc_dist, RoleMsg}.
+subscribe_dist_events(Ns) ->
+    Ev = gproc_dist:lifecycle_event(),
+    lists:foreach(fun(N) -> true = gproc_ps:subscribe_remote(N, Ev) end, Ns),
+    ok.
+
+%% Wait until every node has a gproc_dist_role property of
+%% {elected, L} or {following, L} for the same L. Drain pub/sub events while
+%% waiting (useful diagnostics; property is authoritative if we subscribed late).
+wait_dist_ready(Ns) ->
+    wait_dist_ready(Ns, 100).
+
+wait_dist_ready(Ns, 0) ->
+    error({dist_not_ready, Ns, [{N, role_on(N)} || N <- Ns]});
+wait_dist_ready(Ns, I) ->
+    _ = drain_lifecycle_events(),
+    case roles_agree(Ns) of
+        {ok, Leader} ->
+            Leader;
         _ ->
-            timer:sleep(100),
-            wait_gproc_leader(Ns, I - 1)
+            timer:sleep(50),
+            wait_dist_ready(Ns, I - 1)
     end.
 
-wait_gproc_replicated(Ns, _Leader, 0) ->
-    error({gproc_not_replicated, Ns,
-           [{N, rpc:call(N, gproc_dist, get_leader, [])} || N <- Ns]});
-wait_gproc_replicated(Ns, Leader, I) ->
-    %% Must use a long-lived process: gproc:where/1 returns undefined for
-    %% dead pids, and rpc:call's worker exits as soon as reg returns.
-    Key = {n, g, {gproc_ready_probe, make_ref()}},
-    Me = self(),
-    P = spawn(Leader, fun() ->
-                              case catch gproc:reg(Key, ready) of
-                                  true -> Me ! {self(), ok};
-                                  Other -> Me ! {self(), {error, Other}}
-                              end,
-                              receive
-                                  stop ->
-                                      catch gproc:unreg(Key),
-                                      ok
-                              end
-                      end),
+drain_lifecycle_events() ->
+    Ev = gproc_dist:lifecycle_event(),
     receive
-        {P, ok} ->
-            Found = [{N, rpc:call(N, gproc, where, [Key])} || N <- Ns],
-            P ! stop,
-            case lists:all(fun({_, Q}) -> Q =:= P end, Found) of
-                true ->
-                    ok;
-                false ->
-                    timer:sleep(100),
-                    wait_gproc_replicated(Ns, Leader, I - 1)
+        {gproc_ps_event, Ev, _Msg} ->
+            drain_lifecycle_events()
+    after 0 ->
+            ok
+    end.
+
+roles_agree(Ns) ->
+    Roles = [{N, role_on(N)} || N <- Ns],
+    %% undefined can appear if leader_node/1 was read before the election
+    %% opaque had leader set; never treat it as agreement.
+    Leaders =
+        [L || {_, {elected, L}} <- Roles, is_atom(L), L =/= undefined] ++
+        [L || {_, {following, L}} <- Roles, is_atom(L), L =/= undefined],
+    case {lists:usort(Leaders), length(Roles) =:= length(Ns)} of
+        {[Leader], true} ->
+            case lists:all(
+                   fun({_, {elected, L}}) -> L =:= Leader;
+                      ({_, {following, L}}) -> L =:= Leader;
+                      (_) -> false
+                   end, Roles) of
+                true  -> {ok, Leader};
+                false -> error
             end;
-        {P, {error, _}} ->
-            P ! stop,
-            timer:sleep(100),
-            wait_gproc_replicated(Ns, Leader, I - 1)
-    after 5000 ->
-            exit(P, kill),
-            timer:sleep(100),
-            wait_gproc_replicated(Ns, wait_gproc_leader(Ns, 10), I - 1)
+        _ ->
+            error
+    end.
+
+role_on(N) ->
+    case rpc:call(N, gproc, lookup_values, [{p, l, gproc_dist_role}]) of
+        [{_Pid, {elected, _} = R}]   -> R;
+        [{_Pid, {following, _} = R}] -> R;
+        []                           -> undefined;
+        {badrpc, _} = E              -> E;
+        Other                        -> Other
     end.
 
 %% Disk log per peer under LogDir/<node>.log (logger_std_h).

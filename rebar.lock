@@ -1,7 +1,7 @@
 {"1.2.0",
 [{<<"locks">>,
   {git,"https://github.com/uwiger/locks.git",
-       {ref,"d6ef0265dac368f74e5dfc496a8694f88859697a"}},
+       {ref,"076ceebb5d864eb466ec37cf38ab09b3f5908946"}},
   0},
  {<<"plain_fsm">>,{pkg,<<"plain_fsm">>,<<"1.4.9">>},1}]}.
 [
