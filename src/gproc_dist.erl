@@ -24,7 +24,7 @@
 -module(gproc_dist).
 -vsn("1.3.0").
 
-%% -behaviour(gen_leader).  % to avoid unnecessary warnings
+-behaviour(locks_leader).  % to avoid unnecessary warnings
 
 -export([start_link/0, start_link/1,
          reg/1, reg/4, unreg/1,
@@ -50,6 +50,15 @@
          sync/0,
          get_leader/0]).
 
+%% Lifecycle event type for gproc_ps (local scope). Tests and operators can
+%% subscribe with gproc_ps:subscribe(l, gproc_dist) or subscribe_remote/2.
+%% Messages: {gproc_ps_event, gproc_dist, RoleMsg}
+%% where RoleMsg is {elected, node()} | {following, LeaderNode}
+%%                 | {sync_done, node()}.
+%% The durable {p,l,gproc_dist_role} property holds only elected|following;
+%% sync_done is published but does not overwrite the role property.
+-export([lifecycle_event/0]).
+
 %%% internal exports
 -export([init/1,
          handle_cast/3,
@@ -69,6 +78,8 @@
 -include("gproc.hrl").
 
 -define(SERVER, ?MODULE).
+-define(LC_EVENT, gproc_dist).
+-define(LC_ROLE, gproc_dist_role).
 
 -record(state, {
           always_broadcast = false,
@@ -77,24 +88,54 @@
           sync_requests = []}).
 
 -include("gproc_trace.hrl").
+
+lifecycle_event() ->
+    ?LC_EVENT.
 %% ==========================================================
 %% Start functions
 
+%% @doc Start gproc_dist using `{gproc, gproc_dist}' application env (if set).
+%%
+%% Env values (connectivity only; locks_leader syncs with peers where it is
+%% already running once those nodes are connected):
+%% <ul>
+%% <li>`undefined' | `false' | `true' | `all' — start dist, no connects
+%%     (`nodes()' is already the connected set; locks_leader finds peers
+%%     via the society on those nodes)</li>
+%% <li>`[node()]' — `connect_node/1' each listed peer (the useful case)</li>
+%% <li>`{[node()], Opts}' — connect the node list; Opts ignored under
+%%     locks_leader (workers/bcast_type were gen_leader-specific)</li>
+%% </ul>
+%% @end
 start_link() ->
-    start_link({[node()|nodes()], []}).
+    start_link(application:get_env(gproc, gproc_dist)).
 
+start_link(undefined) ->
+    start_link_();
+start_link(false) ->
+    start_link_();
+start_link({ok, Env}) ->
+    start_link(Env);
+start_link(true) ->
+    start_link_();
 start_link(all) ->
-    Workers = case application:get_env(gproc_dist_workers) of
-        {ok, [_|_] = WorkersList} -> WorkersList;
-        _ -> []
-    end,
-    start_link({[node()|nodes()], [{bcast_type, all}, {workers, Workers}]});
+    start_link_();
 start_link(Nodes) when is_list(Nodes) ->
-    start_link({Nodes, []});
-start_link({Nodes, Opts}) ->
-    SpawnOpts = gproc_lib:valid_opts(server_options, []),
-    gen_leader:start_link(
-      ?SERVER, Nodes, Opts, ?MODULE, [], [{spawn_opt, SpawnOpts}]).
+    connect_nodes(Nodes),
+    start_link_();
+start_link({Nodes, _Opts}) when is_list(Nodes) ->
+    %% Opts (workers, bcast_type, …) were gen_leader knobs; not used here.
+    connect_nodes(Nodes),
+    start_link_().
+
+start_link_() ->
+    locks_leader:start_link(?SERVER, ?MODULE, [], [{role, candidate}]).
+
+connect_nodes(Nodes) ->
+    _ = [net_kernel:connect_node(N) || N <- Nodes,
+                                       is_atom(N),
+                                       N =/= node()],
+    ok.
 
 %% ==========================================================
 %% API
@@ -267,7 +308,7 @@ reset_counter(_) ->
 %% during an ongoing sync, the call will fail with a timeout exception.
 %% (Actually, it should be a `leader_died' exception; more study needed to find
 %% out why gen_leader times out in this situation, rather than reporting that
-%% the leader died.)
+%% the leader died.)  NOTE: switching to locks_leader, we need to revisit this.
 %% @end
 %%
 sync() ->
@@ -278,8 +319,7 @@ sync() ->
 %% @doc Returns the node of the current gproc leader.
 %% @end
 get_leader() ->
-    GenLeader = gen_leader,
-    GenLeader:call(?MODULE, get_leader).
+    locks_leader:call(?MODULE, get_leader).
 
 %% ==========================================================
 %% Server-side
@@ -288,7 +328,7 @@ handle_cast(_Msg, S, _) ->
     {stop, unknown_cast, S}.
 
 handle_call(get_leader, _, S, E) ->
-    {reply, gen_leader:leader_node(E), S};
+    {reply, locks_leader:leader_node(E), S};
 handle_call(sync, From, S, E) ->
     {noreply, initiate_sync(From, S, E)};
 handle_call(_, _, S, _) ->
@@ -308,23 +348,19 @@ handle_info(Msg, S, _E) ->
 
 
 elected(S, _E) ->
-    {ok, {globals,globs()}, S#state{is_leader = true}}.
+    S1 = S#state{is_leader = true},
+    notify_role({elected, node()}),
+    {ok, {globals, globs()}, S1}.
 
-elected(S, E, undefined) ->
+elected(S, _E, undefined) ->
     %% I have become leader; full synch
-    {ok, {globals, globs()},
-     maybe_reinitiate_sync(S#state{is_leader = true}, E)};
-elected(S, E, _Node) ->
-    Synch = {globals, globs()},
-    if not S#state.always_broadcast ->
-            %% Another node recognized us as the leader.
-            %% Don't broadcast all data to everyone else
-            {reply, Synch, maybe_reinitiate_sync(S, E)};
-       true ->
-            %% Main reason for doing this is if we are using a gen_leader
-            %% that doesn't support the 'reply' return value
-            {ok, Synch, maybe_reinitiate_sync(S, E)}
-    end.
+    S1 = S#state{is_leader = true},
+    notify_role({elected, node()}),
+    {ok, {globals, globs()}, S1};
+elected(S, _E, _Node) ->
+    %% Still leader; a peer is joining — re-assert role for late subscribers.
+    notify_role({elected, node()}),
+    {reply, {globals, globs()}, S}.
 
 globs() ->
     Gs = ets:select(?TAB, [{{{{'_',g,'_'},'_'},'_','_'},[],['$_']}]),
@@ -335,25 +371,40 @@ globs() ->
 surrendered(#state{is_leader = true} = S, {globals, Globs}, E) ->
     %% Leader conflict!
     surrendered_1(Globs),
-    {ok, maybe_reinitiate_sync(S#state{is_leader = false}, E)};
+    S1 = S#state{is_leader = false},
+    notify_role({following, locks_leader:leader_node(E)}),
+    {ok, maybe_reinitiate_sync(S1, E)};
 surrendered(S, {globals, Globs}, E) ->
     %% globals from this node should be more correct in our table than
     %% in the leader's
     surrendered_1(Globs),
-    {ok, maybe_reinitiate_sync(S#state{is_leader = false}, E)}.
+    S1 = S#state{is_leader = false},
+    notify_role({following, locks_leader:leader_node(E)}),
+    {ok, maybe_reinitiate_sync(S1, E)}.
 
 
-handle_DOWN(Node, S, E) ->
+%% locks_leader passes the dead candidate/worker pid (gen_leader used a node).
+handle_DOWN(Pid, S, E) when is_pid(Pid) ->
+    handle_DOWN_node(node(Pid), S, E);
+handle_DOWN(Node, S, E) when is_atom(Node) ->
+    handle_DOWN_node(Node, S, E).
+
+handle_DOWN_node(Node, S, E) ->
     S1 = check_sync_requests(Node, S, E),
     Head = {{{'_',g,'_'},'_'},'$1','_'},
     Gs = [{'==', {node,'$1'},Node}],
     Globs = ets:select(?TAB, [{Head, Gs, [{{{element,1,{element,1,'$_'}},
                                             {element,2,'$_'}}}]}]),
+    %% process_globals/1 already mutates the local tab. Only the leader
+    %% should rebroadcast insert/notify ops (followers used to crash with
+    %% not_leader inside locks_leader:apply_cb/2).
     case process_globals(Globs) of
         [] ->
             {ok, S1};
-        Broadcast ->
-            {ok, Broadcast, S1}
+        Broadcast when S1#state.is_leader ->
+            {ok, Broadcast, S1};
+        _Broadcast ->
+            {ok, S1}
     end.
 
 check_sync_requests(Node, #state{sync_requests = SReqs} = S, E) ->
@@ -683,12 +734,13 @@ handle_leader_call(_, _, S, _E) ->
     {reply, badarg, S}.
 
 handle_leader_cast({initiate_sync, Ref}, S, E) ->
-    case gen_leader:alive(E) -- [node()] of
+    case other_alive_nodes(E) of
         [] ->
             %% ???
             {noreply, send_sync_complete(Ref, S, E)};
         Alive ->
-            gen_leader:broadcast({from_leader, {sync, Ref}}, Alive, E),
+            %% locks_leader wraps as from_leader — pass payload only.
+            locks_leader:broadcast({sync, Ref}, E),
             {noreply, S#state{sync_requests =
                                   [{Ref, Alive}|S#state.sync_requests]}}
     end;
@@ -866,7 +918,7 @@ terminate(_Reason, _S) ->
     ok.
 
 from_leader({sync, Ref}, S, _E) ->
-    gen_leader:leader_cast(?MODULE, {sync_reply, node(), Ref}),
+    locks_leader:leader_cast(?MODULE, {sync_reply, node(), Ref}),
     {ok, S};
 from_leader({sync_complete, Ref}, S, _E) ->
     case Ref of
@@ -941,7 +993,7 @@ ets_key(K, Pid) ->
     {K, Pid}.
 
 leader_call(Req) ->
-    case gen_leader:leader_call(?MODULE, Req) of
+    case locks_leader:leader_call(?MODULE, Req) of
         badarg -> ?THROW_GPROC_ERROR(badarg);
         Reply  -> Reply
     end.
@@ -953,7 +1005,7 @@ leader_call(Req) ->
 %%     end.
 
 leader_cast(Msg) ->
-    gen_leader:leader_cast(?MODULE, Msg).
+    locks_leader:leader_cast(?MODULE, Msg).
 
 init(Opts) ->
     S0 = #state{},
@@ -1183,14 +1235,13 @@ regged_new(ensure) -> new.
 
 
 initiate_sync(From, #state{is_leader = true} = S, E) ->
-    case gen_leader:alive(E) -- [node()] of
+    case other_alive_nodes(E) of
         [] ->
             %% I'm alone - sync is trivial
             gen_server:reply(From, true),
             S;
         Alive ->
-            gen_leader:broadcast(
-              {from_leader, {sync, From}}, Alive, E),
+            locks_leader:broadcast({sync, From}, E),
             S#state{sync_requests =
                         [{From, Alive}|S#state.sync_requests]}
     end;
@@ -1209,16 +1260,44 @@ maybe_reinitiate_sync(#state{sync_clients = Cs} = S, E) ->
 send_sync_complete({From, _} = Ref, S, _E) when node(From) == node() ->
     reply_to_sync_client(Ref, S);
 send_sync_complete({From, _} = Ref, S, E) ->
-    %% Notify the node that initiated the sync
-    %% 'broadcasting' to exactly one node.
-    gen_leader:broadcast(
-      {from_leader, {sync_complete, Ref}}, [node(From)], E),
+    %% Notify the node that initiated the sync (payload only; leader wraps).
+    Targets = pids_on_nodes(E, [node(From)]),
+    locks_leader:broadcast({sync_complete, Ref}, Targets, E),
     S#state{sync_requests =
                 lists:keydelete(Ref, 1, S#state.sync_requests)}.
 
+%% locks_leader:alive/1 returns candidate/worker pids, not nodes.
+other_alive_nodes(E) ->
+    lists:usort([node(P) || P <- locks_leader:alive(E), node(P) =/= node()]).
+
+pids_on_nodes(E, Nodes) ->
+    [P || P <- locks_leader:alive(E), lists:member(node(P), Nodes)].
+
 reply_to_sync_client(Ref, S) ->
     gen_server:reply(Ref, true),
+    %% Publish only — do not overwrite the elected/following role property.
+    notify_event({sync_done, node()}),
     S#state{sync_clients =
                 S#state.sync_clients -- [Ref],
             sync_requests =
                 lists:keydelete(Ref, 1, S#state.sync_requests)}.
+
+%% Local gproc_ps + durable role property ({elected|following, Node}).
+%% Never let notification failure take down the leader process.
+notify_role(Msg) ->
+    try
+        _ = gproc:ensure_reg({p, l, ?LC_ROLE}, Msg),
+        _ = gproc_ps:publish(l, ?LC_EVENT, Msg),
+        ok
+    catch
+        _:_ -> ok
+    end.
+
+%% Transient lifecycle events (e.g. sync_done) — pub/sub only.
+notify_event(Msg) ->
+    try
+        _ = gproc_ps:publish(l, ?LC_EVENT, Msg),
+        ok
+    catch
+        _:_ -> ok
+    end.

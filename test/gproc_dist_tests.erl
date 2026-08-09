@@ -19,118 +19,55 @@
 %%
 -module(gproc_dist_tests).
 
+%% Case bodies shared by the eunit wrapper (legacy) and gproc_dist_SUITE.
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -export([t_spawn/1, t_spawn_reg/2]).
+-export([
+         t_simple_reg/1,
+         t_simple_reg_other/1,
+         t_simple_ensure/1,
+         t_simple_ensure_other/1,
+         t_simple_reg_or_locate/1,
+         t_simple_counter/1,
+         t_simple_r_counter/1,
+         t_simple_n_counter/1,
+         t_aggr_counter/1,
+         t_awaited_aggr_counter/1,
+         t_simple_resource_count/1,
+         t_wild_resource_count/1,
+         t_wild_key_in_resource/1,
+         t_awaited_resource_count/1,
+         t_resource_count_on_zero/1,
+         t_update_counters/1,
+         t_update_r_counters/1,
+         t_update_n_counters/1,
+         t_shared_counter/1,
+         t_prop/1,
+         t_mreg/1,
+         t_await_reg/1,
+         t_await_self/1,
+         t_await_reg_exists/1,
+         t_give_away/1,
+         t_sync/1,
+         t_monitor/1,
+         t_standby_monitor/1,
+         t_standby_monitor_unreg/1,
+         t_follow_monitor/1,
+         t_monitor_demonitor/1,
+         t_subscribe/1,
+         t_sync_cand_dies/1,
+         t_fail_node/1,
+         t_master_dies/1
+        ]).
 
--define(f(E), fun() -> ?debugVal(E) end).
+%% Case bodies below are shared with gproc_dist_SUITE.
+%%
+%% The old eunit generator was named dist_test_/0 (eunit auto-discovery).
+%% It is intentionally not defined: distributed coverage is Common Test only
+%% (`rebar3 ct --suite gproc_dist_SUITE` / `make ct`), which meshes peers,
+%% waits for a leader, and writes per-node logger disk logs.
 
-dist_test_() ->
-    {timeout, 120,
-     [
-      %% {setup,
-      %%  fun dist_setup/0,
-      %%  fun dist_cleanup/1,
-      %%  fun(skip) -> [];
-      %%     (Ns) when is_list(Ns) ->
-      %%          {inorder, basic_tests(Ns)}
-      %%  end
-      %% },
-      {foreach,
-       fun dist_setup/0,
-       fun dist_cleanup/1,
-       [
-        fun(Ns) ->
-                [{inorder, basic_tests(Ns)}]
-        end,
-        fun(Ns) ->
-                tests(Ns, [?f(t_sync_cand_dies(Ns))])
-        end,
-        fun(Ns) ->
-                tests(Ns, [?f(t_fail_node(Ns))])
-        end,
-        fun(Ns) ->
-                tests(Ns, [{timeout, 15, ?f(t_master_dies(Ns))}])
-        end
-       ]}
-     ]}.
-
-tests(skip, _) ->
-    [];
-tests(_, L) ->
-    L.
-
-basic_tests(skip) ->
-    [];
-basic_tests(Ns) ->
-    [
-     ?f(t_simple_reg(Ns)),
-     ?f(t_simple_reg_other(Ns)),
-     ?f(t_simple_ensure(Ns)),
-     ?f(t_simple_ensure_other(Ns)),
-     ?f(t_simple_reg_or_locate(Ns)),
-     ?f(t_simple_counter(Ns)),
-     ?f(t_simple_r_counter(Ns)),
-     ?f(t_simple_n_counter(Ns)),
-     ?f(t_aggr_counter(Ns)),
-     ?f(t_awaited_aggr_counter(Ns)),
-     ?f(t_simple_resource_count(Ns)),
-     ?f(t_wild_resource_count(Ns)),
-     ?f(t_wild_key_in_resource(Ns)),
-     ?f(t_awaited_resource_count(Ns)),
-     ?f(t_resource_count_on_zero(Ns)),
-     ?f(t_update_counters(Ns)),
-     ?f(t_update_r_counters(Ns)),
-     ?f(t_update_n_counters(Ns)),
-     ?f(t_shared_counter(Ns)),
-     ?f(t_prop(Ns)),
-     ?f(t_mreg(Ns)),
-     ?f(t_await_reg(Ns)),
-     ?f(t_await_self(Ns)),
-     ?f(t_await_reg_exists(Ns)),
-     ?f(t_give_away(Ns)),
-     ?f(t_sync(Ns)),
-     ?f(t_monitor(Ns)),
-     ?f(t_standby_monitor(Ns)),
-     ?f(t_standby_monitor_unreg(Ns)),
-     ?f(t_follow_monitor(Ns)),
-     ?f(t_monitor_demonitor(Ns)),
-     ?f(t_subscribe(Ns))
-    ].
-
-dist_setup() ->
-    case run_dist_tests() of
-        true ->
-            Ns = gproc_test_lib:start_nodes([dist_test_n1, dist_test_n2, dist_test_n3]),
-            ?assertMatch({[ok,ok,ok],[]},
-                         rpc:multicall(Ns, application, set_env,
-                                       [gproc, gproc_dist, Ns])),
-            ?assertMatch({[ok,ok,ok],[]},
-                         rpc:multicall(
-                           Ns, application, start, [gproc])),
-            Ns;
-        false ->
-            skip
-    end.
-
-dist_cleanup(skip) ->
-    ok;
-dist_cleanup(Ns) ->
-    ok = gproc_test_lib:stop_nodes(Ns),
-    ok.
-
-run_dist_tests() ->
-    case os:getenv("GPROC_DIST") of
-        "true" -> true;
-	"false" -> false;
-	false ->
-	    case code:ensure_loaded(gen_leader) of
-		{error, nofile} ->
-		    false;
-		_ ->
-		    true
-	    end
-    end.
 
 -define(T_NAME, {n, g, {?MODULE, ?LINE, os:timestamp()}}).
 -define(T_KVL, [{foo, "foo"}, {bar, "bar"}]).
@@ -640,7 +577,7 @@ t_subscribe([A,B|_] = Ns) ->
 %% Verify that the gproc_dist:sync() call returns true even if a candidate dies
 %% while the sync is underway. This test makes use of sys:suspend() to ensure that
 %% the other candidate doesn't respond too quickly.
-t_sync_cand_dies([A,B,C]) ->
+t_sync_cand_dies([A,B,C] = Ns) ->
     Leader = rpc:call(A, gproc_dist, get_leader, []),
     Other = case Leader of
 		A -> B;
@@ -656,7 +593,12 @@ t_sync_cand_dies([A,B,C]) ->
     exit(P, kill),
     %% The leader should detect that the other candidate died and respond
     %% immediately. Therefore, we should have our answer well within 1 sec.
-    ?assertMatch({value, true}, rpc:nb_yield(Key, 1000)).
+    ?assertMatch({value, true}, rpc:nb_yield(Key, 1000)),
+    %% Restore the killed candidate so later suite cases still have a full mesh.
+    ok = rpc:call(Other, application, stop, [gproc]),
+    ok = gproc_test_lib:start_gproc([Other]),
+    _ = gproc_test_lib:wait_gproc_leader(Ns),
+    ok.
 
 
 %% Verify that the registry updates consistently if a non-leader node
@@ -669,9 +611,11 @@ t_fail_node(Ns) ->
     Pa = t_spawn_reg(A, Na),
     Pb = t_spawn_reg(B, Nb),
     ?assertMatch(ok, rpc:call(A, application, stop, [gproc])),
-    ?assertMatch(ok, t_lookup_everywhere(Na, Ns -- [A], undefined)),
-    ?assertMatch(ok, t_lookup_everywhere(Nb, Ns -- [A], Pb)),
-    ?assertMatch(ok, rpc:call(A, application, start, [gproc])),
+    Rest = Ns -- [A],
+    ?assertMatch(ok, t_lookup_everywhere(Na, Rest, undefined)),
+    ?assertMatch(ok, t_lookup_everywhere(Nb, Rest, Pb)),
+    ok = gproc_test_lib:start_gproc([A]),
+    _ = gproc_test_lib:wait_gproc_leader(Ns),
     ?assertMatch(ok, t_lookup_everywhere(Na, Ns, undefined)),
     ?assertMatch(ok, t_lookup_everywhere(Nb, Ns, Pb)),
     ?assertMatch(ok, t_call(Pa, die)),
@@ -718,12 +662,37 @@ try_sync(N, Ns) ->
             true
     end.
 
+%% Always sync through the current leader (non-leaders forward via cast and
+%% historically raced under locks_leader). Retry briefly while membership settles.
+sync_via_leader(Ns) ->
+    sync_via_leader(Ns, 30).
+
+sync_via_leader(Ns, 0) ->
+    error({sync_failed, Ns,
+           [{N, rpc:call(N, gproc_dist, get_leader, [])} || N <- Ns]});
+sync_via_leader(Ns, I) ->
+    case rpc:call(hd(Ns), gproc_dist, get_leader, []) of
+        Leader when is_atom(Leader), Leader =/= undefined ->
+            case rpc:call(Leader, gproc_dist, sync, []) of
+                true ->
+                    true;
+                _ ->
+                    timer:sleep(200),
+                    sync_via_leader(Ns, I - 1)
+            end;
+        _ ->
+            timer:sleep(200),
+            sync_via_leader(Ns, I - 1)
+    end.
+
 t_sleep() ->
     timer:sleep(500).
 
 t_lookup_everywhere(Key, Nodes, Exp) ->
-    true = rpc:call(hd(Nodes), gproc_dist, sync, []),
-    t_lookup_everywhere(Key, Nodes, Exp, 3).
+    true = sync_via_leader(Nodes),
+    %% Patient under CI load (OTP 27 containers): 3×500ms was too tight when
+    %% followers were still joining the leader's synced set.
+    t_lookup_everywhere(Key, Nodes, Exp, 20).
 
 t_lookup_everywhere(Key, _, Exp, 0) ->
     {lookup_failed, Key, Exp};
@@ -742,8 +711,8 @@ t_lookup_everywhere(Key, Nodes, Exp, I) ->
     end.
 
 t_read_everywhere(Key, Pid, Nodes, Exp) ->
-    true = rpc:call(hd(Nodes), gproc_dist, sync, []),
-    t_read_everywhere(Key, Pid, Nodes, Exp, 3).
+    true = sync_via_leader(Nodes),
+    t_read_everywhere(Key, Pid, Nodes, Exp, 20).
 
 t_read_everywhere(Key, _, _, Exp, 0) ->
     {read_failed, Key, Exp};

@@ -1,0 +1,12 @@
+{"1.2.0",
+[{<<"locks">>,
+  {git,"https://github.com/uwiger/locks.git",
+       {ref,"ed69e1864cc2f8a323f592ca23e3a8e792116ee9"}},
+  0},
+ {<<"plain_fsm">>,{pkg,<<"plain_fsm">>,<<"1.4.9">>},1}]}.
+[
+{pkg_hash,[
+ {<<"plain_fsm">>, <<"047B015FD70B533562DEC3FF2861E2465E67CD6F31034C5D7954B56ABBB839DD">>}]},
+{pkg_hash_ext,[
+ {<<"plain_fsm">>, <<"A9630F78C05599E45AFCF9B423F2A30752F72A527F3C17A24F10E387BBCB91B8">>}]}
+].

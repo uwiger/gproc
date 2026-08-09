@@ -10,7 +10,7 @@ on:
 
 jobs:
   test:
-    name: "Erlang Test"
+    name: "OTP ${{ matrix.otp }}"
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -19,6 +19,14 @@ jobs:
     container:
       image: erlang:${{ matrix.otp }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
     - name: Test
       run: make
+    - name: Upload CT logs
+      if: failure()
+      uses: actions/upload-artifact@v7
+      with:
+        name: ct-logs-otp-${{ matrix.otp }}
+        path: _build/test/logs
+        if-no-files-found: ignore
+        retention-days: 14

@@ -8,7 +8,11 @@
   {vsn, "zomp"},
   {id, "GPROC"},
   {registered, [ ] },
-  {applications, [ kernel, stdlib ] },
+  %% locks is optional: listed in both applications and optional_applications
+  %% so the app controller starts it automatically when present, but gproc
+  %% still loads if locks is absent (local-only installs).
+  {applications, [ kernel, stdlib, locks ] },
+  {optional_applications, [ locks ] },
   {mod, {gproc_app, []} },
   {licenses, ["Apache-2.0"]},
   {links, [{"Github", "https://github.com/uwiger/gproc"}]}
